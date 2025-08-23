@@ -1,5 +1,5 @@
 import React, { useEffect, useState } from 'react';
-import api from '../utils/api';
+import api, { MEDIA_URL } from '../utils/api';   // 👈 MEDIA_URL import
 import '../styles/BannerList.css';
 
 interface Banner {
@@ -16,13 +16,21 @@ const BannerList: React.FC = () => {
   }, []);
 
   const fetchBanners = async () => {
-    const res = await api.get('/banners/all');
-    setBanners(res.data);
+    try {
+      const res = await api.get('/banners/all');
+      setBanners(res.data);
+    } catch (err) {
+      console.error("❌ Failed to fetch banners", err);
+    }
   };
 
   const toggleEnable = async (id: string) => {
-    await api.patch(`/banners/${id}/toggle`);
-    fetchBanners();
+    try {
+      await api.patch(`/banners/${id}/toggle`);
+      fetchBanners();
+    } catch (err) {
+      console.error("❌ Failed to toggle banner", err);
+    }
   };
 
   const deleteBanner = async (id: string) => {
@@ -42,7 +50,9 @@ const BannerList: React.FC = () => {
       <div className="banner-items">
         {banners.map((banner) => (
           <div className="banner-card" key={banner._id}>
-            <img src={`http://localhost:5000${banner.imageUrl}`} alt="Banner" />
+            {/* 👇 localhost ke jagah ab MEDIA_URL */}
+            <img src={`${MEDIA_URL}${banner.imageUrl}`} alt="Banner" />
+            
             <div className="button-group">
               <button
                 onClick={() => toggleEnable(banner._id)}

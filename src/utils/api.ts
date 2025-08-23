@@ -1,7 +1,8 @@
 import axios from "axios";
 
+// ✅ Webpack/Dotenv me variables expose hote hain as process.env.VITE_API_URL
 const api = axios.create({
-  baseURL: process.env.VITE_API_URL as string,   // 👈 yahi line
+  baseURL: process.env.VITE_API_URL || "http://localhost:5000/api",
 });
 
 api.interceptors.request.use((config) => {

@@ -1,8 +1,8 @@
-import React, { useEffect, useMemo, useState } from 'react';
-import { Link, useNavigate } from 'react-router-dom';
-import api from '../utils/api';
-import '../styles/ProductList.css';
-import { FiEdit2, FiTrash2, FiPlus, FiSearch, FiX } from 'react-icons/fi';
+import React, { useEffect, useMemo, useState } from "react";
+import { Link, useNavigate } from "react-router-dom";
+import api, { MEDIA_URL } from "../utils/api";   // 👈 MEDIA_URL import
+import "../styles/ProductList.css";
+import { FiEdit2, FiTrash2, FiPlus, FiSearch, FiX } from "react-icons/fi";
 
 interface Product {
   _id: string;
@@ -14,11 +14,12 @@ interface Product {
   images?: string[];
 }
 
+// ✅ Correct image URL (no localhost issue now)
 const getImageUrl = (url: string) =>
-  url?.startsWith('http') ? url : url ? `http://localhost:5000${url}` : '';
+  url?.startsWith("http") ? url : url ? `${MEDIA_URL}${url}` : "";
 
 /** safe lower + trim */
-const norm = (v?: string) => (v || '').toString().toLowerCase().trim();
+const norm = (v?: string) => (v || "").toString().toLowerCase().trim();
 
 const ProductList: React.FC = () => {
   const [products, setProducts] = useState<Product[]>([]);
@@ -26,15 +27,15 @@ const ProductList: React.FC = () => {
   const [error, setError] = useState<string | null>(null);
 
   // 🔎 Search state
-  const [search, setSearch] = useState('');
-  const [debounced, setDebounced] = useState('');
+  const [search, setSearch] = useState("");
+  const [debounced, setDebounced] = useState("");
 
   const navigate = useNavigate();
 
   // Fetch products
   useEffect(() => {
     api
-      .get('/products')
+      .get("/products")
       .then((res) => {
         setProducts(res.data);
         setLoading(false);
@@ -65,7 +66,7 @@ const ProductList: React.FC = () => {
   }, [products, debounced]);
 
   const handleDelete = (id: string) => {
-    if (!window.confirm('Are you sure you want to delete this product?')) return;
+    if (!window.confirm("Are you sure you want to delete this product?")) return;
     api
       .delete(`/products/${id}`)
       .then(() => {
@@ -89,7 +90,7 @@ const ProductList: React.FC = () => {
 
         {/* Actions right side */}
         <div className="header-actions">
-          {/* Search input (local to this page) */}
+          {/* Search input */}
           <div className="products-search">
             <FiSearch className="products-search-icon" />
             <input
@@ -103,7 +104,7 @@ const ProductList: React.FC = () => {
               <button
                 className="products-search-clear"
                 aria-label="Clear search"
-                onClick={() => setSearch('')}
+                onClick={() => setSearch("")}
               >
                 <FiX size={16} />
               </button>
@@ -112,7 +113,7 @@ const ProductList: React.FC = () => {
 
           <button
             className="add-product-button"
-            onClick={() => navigate('/admin/products/new')}
+            onClick={() => navigate("/admin/products/new")}
           >
             <FiPlus size={18} />
             Add Product
@@ -136,7 +137,7 @@ const ProductList: React.FC = () => {
             <div className="empty-state">
               <p>
                 No results for <strong>“{debounced}”</strong>. Try a different keyword
-                or <button className="link-btn" onClick={() => setSearch('')}>clear search</button>.
+                or <button className="link-btn" onClick={() => setSearch("")}>clear search</button>.
               </p>
             </div>
           ) : (
@@ -164,9 +165,9 @@ const ProductList: React.FC = () => {
                           style={{
                             width: 48,
                             height: 48,
-                            objectFit: 'cover',
+                            objectFit: "cover",
                             borderRadius: 8,
-                            border: '1px solid #e2e8f0',
+                            border: "1px solid #e2e8f0",
                           }}
                         />
                       ) : (
@@ -175,44 +176,36 @@ const ProductList: React.FC = () => {
                             width: 48,
                             height: 48,
                             borderRadius: 8,
-                            background: '#f1f5f9',
-                            display: 'flex',
-                            alignItems: 'center',
-                            justifyContent: 'center',
-                            color: '#cbd5e1',
+                            background: "#f1f5f9",
+                            display: "flex",
+                            alignItems: "center",
+                            justifyContent: "center",
+                            color: "#cbd5e1",
                             fontSize: 24,
-                            border: '1px solid #e2e8f0',
+                            border: "1px solid #e2e8f0",
                           }}
                         >
                           —
                         </div>
                       )}
                     </td>
-                    <td>
-                      <span className="product-name">{product.name}</span>
-                    </td>
-                    <td>
-                      <span className="product-sku">{product.sku || '—'}</span>
-                    </td>
-                    <td>
-                      <span className="product-category">
-                        {product.category?.name || '—'}
-                      </span>
-                    </td>
+                    <td><span className="product-name">{product.name}</span></td>
+                    <td><span className="product-sku">{product.sku || "—"}</span></td>
+                    <td><span className="product-category">{product.category?.name || "—"}</span></td>
                     <td>
                       <span className="product-price">
                         {product.price !== undefined &&
                         product.price !== null &&
                         !isNaN(Number(product.price))
                           ? `₹${Number(product.price).toFixed(2)}`
-                          : '—'}
+                          : "—"}
                       </span>
                     </td>
                     <td>
                       <span className="product-date">
                         {product.createdAt
-                          ? new Date(product.createdAt).toLocaleDateString('en-IN')
-                          : '—'}
+                          ? new Date(product.createdAt).toLocaleDateString("en-IN")
+                          : "—"}
                       </span>
                     </td>
                     <td className="product-actions">
@@ -220,15 +213,13 @@ const ProductList: React.FC = () => {
                         to={`/admin/products/edit/${product._id}`}
                         className="edit-button"
                       >
-                        <FiEdit2 size={16} />
-                        Edit
+                        <FiEdit2 size={16} /> Edit
                       </Link>
                       <button
                         onClick={() => handleDelete(product._id)}
                         className="delete-button"
                       >
-                        <FiTrash2 size={16} />
-                        Delete
+                        <FiTrash2 size={16} /> Delete
                       </button>
                     </td>
                   </tr>
@@ -237,12 +228,6 @@ const ProductList: React.FC = () => {
             </table>
           )}
         </div>
-
-        {filtered.length === 0 && (
-          <div className="empty-state subtle">
-            <p>No products found. Add your first product to get started!</p>
-          </div>
-        )}
       </div>
     </div>
   );

@@ -14,7 +14,8 @@ import {
   FiMessageSquare,
 } from "react-icons/fi";
 
-import "../styles/sidebar.css";
+// ✅ FIXED: match the real file name (Sidebar.css with capital S)
+import "../styles/Sidebar.css";
 
 interface SidebarItem {
   path: string;
@@ -44,8 +45,8 @@ const Sidebar: React.FC = () => {
 
   const handleLogout = () => {
     if (window.confirm("Are you sure you want to log out?")) {
-      localStorage.removeItem("adminToken"); // Token remove
-      navigate("/admin/login"); // Redirect to login
+      localStorage.removeItem("adminToken");
+      navigate("/admin/login");
     }
   };
 

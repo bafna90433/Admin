@@ -1,4 +1,3 @@
-// src/components/ProductForm.tsx
 import React, { useEffect, useState, ChangeEvent, FormEvent } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
 import { FiPlus, FiTrash2, FiX, FiUpload, FiSave } from 'react-icons/fi';

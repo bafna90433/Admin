@@ -1,6 +1,6 @@
 import axios from "axios";
 
-// ✅ Use Vite's import.meta.env
+// Always use Vite's import.meta.env
 export const API_URL = import.meta.env.VITE_API_URL as string;
 export const MEDIA_URL =
   import.meta.env.VITE_MEDIA_URL || API_URL.replace("/api", "");

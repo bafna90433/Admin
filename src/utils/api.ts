@@ -1,9 +1,13 @@
 import axios from "axios";
 
-// Always use Vite's import.meta.env
-export const API_URL = import.meta.env.VITE_API_URL as string;
-export const MEDIA_URL =
-  import.meta.env.VITE_MEDIA_URL || API_URL.replace("/api", "");
+// ✅ Webpack + dotenv-webpack uses process.env
+export const API_URL: string = process.env.VITE_API_URL || "";
+export const MEDIA_URL: string =
+  process.env.VITE_MEDIA_URL || API_URL.replace("/api", "");
+
+if (!API_URL) {
+  console.warn("⚠️ VITE_API_URL is not defined. Please set it in Vercel environment variables.");
+}
 
 const api = axios.create({
   baseURL: API_URL,

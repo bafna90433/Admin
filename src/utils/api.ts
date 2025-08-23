@@ -1,7 +1,7 @@
 import axios from "axios";
 
 const api = axios.create({
-  baseURL: process.env.API_URL || "http://localhost:5000/api",
+  baseURL: process.env.VITE_API_URL as string,   // 👈 yahi line
 });
 
 api.interceptors.request.use((config) => {

@@ -1,6 +1,6 @@
 const path = require('path');
 const HtmlWebpackPlugin = require('html-webpack-plugin');
-const webpack = require('webpack');
+const Dotenv = require('dotenv-webpack');   // 👈 add this
 
 module.exports = {
   entry: './src/index.tsx',
@@ -23,9 +23,10 @@ module.exports = {
       template: './public/index.html',
       inject: 'body'
     }),
-    new webpack.DefinePlugin({
-      'process.env.API_URL': JSON.stringify(process.env.API_URL || "http://localhost:5000/api")
-    })
+    new Dotenv()   // 👈 yeh inject karega API_URL ko
   ],
-  devServer: { historyApiFallback: true, port: 8081 }
+  devServer: {
+    historyApiFallback: true,
+    port: 8081,
+  }
 };

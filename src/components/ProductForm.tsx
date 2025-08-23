@@ -1,7 +1,8 @@
+// src/components/ProductForm.tsx
 import React, { useEffect, useState, ChangeEvent, FormEvent } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
 import { FiPlus, FiTrash2, FiX, FiUpload, FiSave } from 'react-icons/fi';
-import api, { MEDIA_URL } from '../utils/api';   // 👈 import MEDIA_URL
+import api, { MEDIA_URL } from '../utils/api';   // ✅ import MEDIA_URL
 import '../styles/ProductForm.css';
 
 interface Category {
@@ -32,9 +33,9 @@ type GalleryImage = {
   isExisting: boolean;
 };
 
-// ✅ updated to use MEDIA_URL
+// ✅ Fix getImageUrl
 const getImageUrl = (url: string) =>
-  url.startsWith('http') ? url : url ? `${MEDIA_URL}${url}` : '';
+  url.startsWith('http') ? url : `${MEDIA_URL}${url}`;
 
 const ProductForm: React.FC = () => {
   const { id } = useParams<{ id: string }>();
@@ -58,9 +59,7 @@ const ProductForm: React.FC = () => {
   const [success, setSuccess] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
 
-  // --- TAX FIELDS STATE ---
   const [taxFields, setTaxFields] = useState<string[]>(['']);
-  // ------------------------
 
   useEffect(() => {
     const fetchData = async () => {
@@ -81,7 +80,7 @@ const ProductForm: React.FC = () => {
           setBulkPrices(data.bulkPricing || [{ inner: '', qty: 1, price: 0 }]);
           setGallery(
             data.images.map((url: string) => ({
-              url: getImageUrl(url),   // 👈 fixed
+              url: getImageUrl(url),
               isExisting: true
             }))
           );
@@ -133,7 +132,6 @@ const ProductForm: React.FC = () => {
     if (bulkPrices.length > 1) setBulkPrices(bp => bp.filter((_, i) => i !== idx));
   };
 
-  // -- TAX FIELD HANDLERS --
   const handleTaxFieldChange = (idx: number, value: string) => {
     setTaxFields(fields => fields.map((v, i) => (i === idx ? value : v)));
   };
@@ -141,7 +139,6 @@ const ProductForm: React.FC = () => {
   const removeTaxField = (idx: number) => {
     if (taxFields.length > 1) setTaxFields(fields => fields.filter((_, i) => i !== idx));
   };
-  // ------------------------
 
   const handleSubmit = async (e: FormEvent) => {
     e.preventDefault();
@@ -170,7 +167,7 @@ const ProductForm: React.FC = () => {
         images: [
           ...gallery
             .filter(g => g.isExisting)
-            .map(g => g.url.replace(MEDIA_URL, '')),  // 👈 localhost replace fix
+            .map(g => g.url.replace(MEDIA_URL, '')),   // ✅ fixed
           ...uploadedUrls
         ],
         bulkPricing: bulkPrices.filter(bp => bp.qty > 0 && bp.price > 0),
@@ -194,7 +191,13 @@ const ProductForm: React.FC = () => {
 
   return (
     <div className="product-form-container">
-      {/* UI remains same */}
+      {error && <div className="alert alert-error">{error}</div>}
+      {success && <div className="alert alert-success">{success}</div>}
+
+      <form onSubmit={handleSubmit} className="product-form">
+        {/* --- UI stays the same as your version --- */}
+        {/* Basic Information, Tax Fields, Images, Bulk Pricing, Buttons */}
+      </form>
     </div>
   );
 };

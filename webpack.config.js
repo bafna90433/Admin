@@ -1,48 +1,28 @@
+// webpack.config.js
 const path = require('path');
 const HtmlWebpackPlugin = require('html-webpack-plugin');
 
 module.exports = {
   entry: './src/index.tsx',
-  resolve: {
-    extensions: ['.ts', '.tsx', '.js']
+  output: {
+    path: path.resolve(__dirname, 'dist'),
+    filename: 'bundle.[contenthash].js',   // hashed output
+    publicPath: '/',                       // SPA routing
+    clean: true
   },
+  resolve: { extensions: ['.ts', '.tsx', '.js'] },
   module: {
     rules: [
-      {
-        test: /\.tsx?$/,
-        use: 'ts-loader',
-        exclude: /node_modules/
-      },
-      {
-        test: /\.css$/i,
-        use: ['style-loader', 'css-loader']
-      }
+      { test: /\.tsx?$/, use: 'ts-loader', exclude: /node_modules/ },
+      { test: /\.css$/i, use: ['style-loader', 'css-loader'] },
+      { test: /\.(png|jpe?g|gif|svg|ico|woff2?|ttf|eot)$/i, type: 'asset/resource' }
     ]
   },
   plugins: [
     new HtmlWebpackPlugin({
-      template: './public/index.html'
+      template: './public/index.html',
+      inject: 'body' // injects the correct hashed script tag
     })
   ],
-  output: {
-    filename: 'bundle.js',
-    path: path.resolve(__dirname, 'dist'),
-    publicPath: '/',
-    clean: true
-  },
-  devServer: {
-    static: {
-      directory: path.resolve(__dirname, 'dist'),
-    },
-    port: 8081,
-    historyApiFallback: true,
-    proxy: [
-      {
-        context: ['/api'],
-        target: 'http://localhost:5000',
-        changeOrigin: true,
-        secure: false,
-      }
-    ]
-  }
+  devServer: { historyApiFallback: true, port: 8081 }
 };

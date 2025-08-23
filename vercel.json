@@ -1,9 +1,9 @@
 {
   "version": 2,
-  "framework": "vite",
   "buildCommand": "npm run build",
   "outputDirectory": "dist",
   "routes": [
+    { "src": "/(.*\\.(js|css|png|jpg|jpeg|svg|ico|json|txt|woff|woff2|ttf|eot))", "dest": "/$1" },
     { "src": "/.*", "dest": "/index.html" }
   ]
 }

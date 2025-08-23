@@ -1,0 +1,287 @@
+/* ===== Page shell ===== */
+.ord-app {
+  background: #f4f7fa;
+  padding: 34px 0 48px;
+  min-height: 100vh;
+}
+.ord-header {
+  color: #23255a;
+  font-weight: 700;
+  font-size: 2rem;
+  margin: 0 0 24px 30px;
+  letter-spacing: 1px;
+}
+.ord-info, .ord-error, .ord-empty {
+  color: #79819a;
+  text-align: center;
+  padding: 40px 0 20px;
+  font-size: 1.2rem;
+  font-weight: 500;
+}
+.ord-error { color: #c62828; }
+
+/* ===== Pro toolbar (BIG search only) ===== */
+.ord-toolbar {
+  display: flex;
+  gap: 12px;
+  align-items: center;
+  padding: 0 30px;
+  flex-wrap: wrap;
+  margin-bottom: 6px;
+}
+
+.ord-srch {
+  position: relative;
+  flex: 1 1 460px;
+  max-width: 680px;
+}
+
+.ord-srch-input {
+  width: 100%;
+  height: 42px;
+  padding: 0 40px 0 38px;
+  border: 1px solid #e5e7eb;
+  border-radius: 10px;
+  background: #f9fafb;
+  font-size: 0.98rem;
+  transition: all .18s ease;
+}
+.ord-srch-input:focus {
+  outline: none;
+  border-color: #6366f1;
+  background: #fff;
+  box-shadow: 0 0 0 3px rgba(99,102,241,.15);
+}
+
+.ord-srch-icon {
+  position: absolute;
+  left: 12px;
+  top: 50%;
+  transform: translateY(-50%);
+  font-size: 16px;
+  opacity: .6;
+}
+.ord-srch-clear {
+  position: absolute;
+  right: 6px;
+  top: 50%;
+  transform: translateY(-50%);
+  border: none;
+  background: transparent;
+  width: 30px;
+  height: 30px;
+  border-radius: 8px;
+  cursor: pointer;
+  color: #9ca3af;
+}
+.ord-srch-clear:hover { background: #f3f4f6; }
+
+/* Meta row (count + chip) */
+.ord-meta {
+  margin: 4px 30px 12px;
+  color: #6b7280;
+  font-size: .95rem;
+}
+.ord-meta-chip {
+  margin-left: 8px;
+  padding: 2px 8px;
+  border-radius: 999px;
+  background: #eef2ff;
+  color: #3730a3;
+  border: 1px solid #c7d2fe;
+  font-weight: 600;
+  font-size: .85rem;
+}
+
+/* Highlight for matches */
+.ord-mark {
+  background: #fff3a6;
+  padding: 0 2px;
+  border-radius: 3px;
+}
+
+/* ===== Cards list ===== */
+.ord-list {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(440px, 1fr));
+  gap: 28px;
+  padding: 0 30px;
+}
+.ord-card {
+  background: #fff;
+  border-radius: 18px;
+  box-shadow: 0 2px 18px 0 rgba(44, 62, 80, 0.09);
+  padding: 25px 28px 18px 22px;
+  display: flex;
+  flex-direction: column;
+  gap: 11px;
+  position: relative;
+  transition: box-shadow 0.18s;
+}
+.ord-card:hover { box-shadow: 0 4px 28px 0 rgba(44,62,80,.19); }
+.ord-main { margin-bottom: 12px; }
+.ord-row {
+  display: flex;
+  gap: 18px;
+  align-items: center;
+  margin-bottom: 2px;
+}
+.ord-label {
+  min-width: 64px;
+  font-size: 12px;
+  font-weight: 500;
+  color: #6f77a9;
+}
+.ord-num {
+  font-size: 1.1rem;
+  color: #32428f;
+  font-weight: 600;
+}
+.ord-cust { flex-direction: column; align-items: flex-start; gap: 1px; }
+.ord-cmeta { color: #8793b7; font-size: 13px; margin-left: 4px; }
+.ord-itemsum { justify-content: space-between; color: #46546f; font-size: 0.96rem; }
+.ord-total {
+  background: #f6f8fb;
+  border-radius: 8px;
+  padding: 2px 12px;
+  color: #155d27;
+  font-weight: 700;
+  font-size: 1.03rem;
+}
+
+/* Status + Payment pill row */
+.ord-statusbar {
+  display: flex;
+  gap: 14px;
+  align-items: center;
+  margin: 9px 0 6px 0;
+  justify-content: flex-start;
+}
+.ord-status {
+  font-size: 0.97rem;
+  font-weight: 700;
+  border-radius: 20px;
+  padding: 6px 12px 5px 10px;
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+}
+.ord-paymeth {
+  margin-left: 12px;
+  font-weight: 500;
+  font-size: 13px;
+  color: #bdbdbd;
+  background: #f3f4f9;
+  border-radius: 8px;
+  padding: 3px 9px;
+}
+
+/* Actions */
+.ord-actions {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin-top: 6px;
+}
+.ord-btn {
+  font-size: 1rem;
+  padding: 7px 18px;
+  border-radius: 22px;
+  font-weight: 600;
+  border: none;
+  cursor: pointer;
+  transition: background 0.13s;
+}
+.ord-btn-view { background: #e3ecfa; color: #233a7d; }
+.ord-btn-view:hover { background: #d0e2fc; }
+.ord-btn-del { background: #ffcfd0; color: #c62828; }
+.ord-btn-del:hover { background: #f5898d; color: #fff; }
+.ord-select {
+  border: 1px solid #dde2e7;
+  border-radius: 17px;
+  padding: 6px 14px;
+  font-size: 1rem;
+  font-weight: 500;
+  background: #f0f4f8;
+  color: #30343a;
+  cursor: pointer;
+  outline: none;
+  transition: border 0.17s;
+}
+.ord-select:focus, .ord-select:hover { border: 1.5px solid #3979ef; }
+.ord-select:disabled { opacity: 0.64; }
+
+/* ===== Modal ===== */
+.ord-modal-backdrop {
+  position: fixed; left: 0; top: 0; width: 100vw; height: 100vh;
+  background: rgba(40, 54, 91, 0.21);
+  z-index: 1112;
+  display: flex; align-items: center; justify-content: center;
+}
+.ord-modal {
+  background: #f9fbfe;
+  border-radius: 17px;
+  padding: 36px 35px 32px 32px;
+  box-shadow: 0 8px 44px rgba(40,54,80,.18);
+  min-width: 340px;
+  max-width: 510px;
+  min-height: 180px;
+  position: relative;
+  animation: fadeInModal 0.19s cubic-bezier(.4,1.2,.5,1);
+}
+@keyframes fadeInModal {
+  from { opacity: 0; transform: translateY(70px); }
+  to   { opacity: 1; transform: translateY(0); }
+}
+.ord-close {
+  position: absolute;
+  top: 13px; right: 19px;
+  font-size: 2rem;
+  border: none;
+  background: none;
+  color: #6c77a4;
+  cursor: pointer;
+  transition: color 0.14s;
+}
+.ord-close:hover { color: #111; }
+.ord-m-section {
+  margin: 18px 0 11px 0;
+  font-size: 1rem;
+  color: #384867;
+}
+.ord-m-item {
+  display: flex;
+  align-items: center;
+  gap: 13px;
+  margin: 7px 0;
+  border-bottom: 1px solid #f2f2f2;
+  padding-bottom: 6px;
+}
+.ord-m-img {
+  width: 41px;
+  height: 41px;
+  object-fit: cover;
+  border: 1px solid #e6e9ef;
+  border-radius: 5px;
+  background: #f2f4f8;
+}
+.ord-m-imgph { background: #dbe0e8; }
+.ord-m-iname { flex: 1; font-size: 1.02rem; }
+.ord-m-qty { color: #8793b7; min-width: 36px; }
+.ord-m-price { font-weight: 700; color: #353a56; min-width: 70px; text-align: right; }
+.ord-link { color: #1372e2; text-decoration: underline; font-size: 0.97rem; }
+.ord-link:hover { color: #0b3a71; }
+
+/* ===== Responsive ===== */
+@media (max-width: 770px) {
+  .ord-toolbar { padding: 0 8px; }
+  .ord-meta { margin: 4px 8px 12px; }
+
+  .ord-list {
+    grid-template-columns: 1fr;
+    gap: 18px;
+    padding: 0 8px;
+  }
+  .ord-card { padding: 16px 12px 14px; }
+  .ord-header { margin-left: 11px; font-size: 1.3rem; }
+}

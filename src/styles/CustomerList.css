@@ -1,0 +1,53 @@
+.customer-list-admin {
+  padding: 30px;
+  background: #fff;
+}
+.customer-list-admin h2 {
+  margin-bottom: 18px;
+}
+.customer-list-admin table {
+  border-collapse: collapse;
+  width: 100%;
+}
+.customer-list-admin th, .customer-list-admin td {
+  border: 1px solid #d9d9d9;
+  padding: 8px 10px;
+  font-size: 15px;
+}
+.customer-list-admin th {
+  background: #f2f6ff;
+}
+.approved {
+  color: green;
+  font-weight: bold;
+}
+.pending {
+  color: orange;
+}
+.mini-card-img {
+  width: 48px;
+  height: auto;
+  border-radius: 3px;
+  border: 1px solid #eee;
+}
+.approve-btn {
+  background: #0bb72d;
+  color: #fff;
+  border: none;
+  padding: 5px 12px;
+  border-radius: 3px;
+  margin-right: 4px;
+  cursor: pointer;
+}
+.reject-btn {
+  background: #e63838;
+  color: #fff;
+  border: none;
+  padding: 5px 12px;
+  border-radius: 3px;
+  cursor: pointer;
+}
+.error {
+  color: #e63838;
+  margin: 10px 0;
+}

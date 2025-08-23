@@ -1,0 +1,31 @@
+.order-list-admin {
+  padding: 30px;
+  background: #fff;
+}
+.order-list-admin h2 {
+  margin-bottom: 18px;
+}
+.order-list-admin table {
+  border-collapse: collapse;
+  width: 100%;
+}
+.order-list-admin th, .order-list-admin td {
+  border: 1px solid #d9d9d9;
+  padding: 8px 10px;
+  font-size: 15px;
+}
+.order-list-admin th {
+  background: #f2f6ff;
+}
+.order-list-admin button {
+  background: #367cff;
+  color: #fff;
+  border: none;
+  padding: 5px 12px;
+  border-radius: 3px;
+  cursor: pointer;
+}
+.error {
+  color: #e63838;
+  margin: 10px 0;
+}

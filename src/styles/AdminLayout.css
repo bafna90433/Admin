@@ -1,0 +1,109 @@
+:root {
+  --sidebar-w: 250px;
+  --bg: #f9fafb;
+}
+
+/* Root wrapper – don't let overflow break sticky/fixed */
+.admin-layout {
+  display: block;
+  min-height: 100vh;
+  background: var(--bg);
+  /* Prevent layout shift when scrollbars appear */
+  scrollbar-gutter: stable both-edges;
+}
+
+/* ============== SIDEBAR (STABLE) ============== */
+/* Desktop: fixed + full height = no jiggle */
+.sidebar {
+  position: fixed;
+  top: 0;
+  left: 0;
+  width: var(--sidebar-w);
+  height: 100vh;
+  background: #0f172a;
+  color: #fff;
+  overflow-y: auto;
+  -webkit-overflow-scrolling: touch;
+  box-shadow: 0 0 0 1px #0b1222, 0 8px 24px rgba(0,0,0,0.15);
+  scrollbar-gutter: stable;
+}
+
+/* ============== MAIN CONTENT ============== */
+.main-content {
+  min-height: 100vh;
+  padding-left: var(--sidebar-w);  /* reserve space for fixed sidebar */
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+}
+
+.page-content {
+  padding: 16px;
+}
+
+/* ============== MOBILE BEHAVIOR ============== */
+.mobile-header {
+  display: none;
+  align-items: center;
+  gap: 10px;
+  background: #fff;
+  border-bottom: 1px solid #e5e7eb;
+  padding: 10px 16px;
+}
+
+.menu-btn {
+  background: none;
+  border: 1px solid #e5e7eb;
+  border-radius: 6px;
+  padding: 6px 10px;
+  cursor: pointer;
+  font-size: 18px;
+}
+
+.mobile-title {
+  font-size: 16px;
+  font-weight: 600;
+}
+
+/* Overlay shown only on mobile when sidebar is open */
+.overlay {
+  display: none;
+}
+
+/* ============== RESPONSIVE ============== */
+@media (max-width: 850px) {
+  /* Content should use full width on mobile */
+  .main-content {
+    padding-left: 0;
+  }
+
+  /* Sidebar behaves like a drawer on mobile */
+  .sidebar {
+    transform: translateX(-100%);
+    transition: transform 0.25s ease;
+    will-change: transform;
+    z-index: 1000;
+  }
+  .sidebar.open {
+    transform: translateX(0);
+    box-shadow: 0 8px 24px rgba(0,0,0,0.25);
+  }
+
+  .mobile-header {
+    display: flex;
+  }
+
+  .overlay {
+    display: block;
+    position: fixed;
+    inset: 0;
+    background: rgba(15, 23, 42, 0.35);
+    z-index: 999; /* below sidebar */
+    border: none;
+  }
+}
+
+/* Optional: make scrollbars consistent */
+* {
+  scrollbar-width: thin;
+}

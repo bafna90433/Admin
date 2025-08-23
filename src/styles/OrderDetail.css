@@ -1,0 +1,43 @@
+.order-detail-admin {
+  padding: 32px;
+  background: #fff;
+  max-width: 800px;
+  margin: 32px auto;
+  border-radius: 7px;
+  box-shadow: 0 3px 16px #eee;
+}
+.order-detail-admin h2 {
+  margin-bottom: 12px;
+}
+.order-detail-admin table {
+  border-collapse: collapse;
+  width: 100%;
+  margin: 20px 0;
+}
+.order-detail-admin th, .order-detail-admin td {
+  border: 1px solid #d9d9d9;
+  padding: 8px 10px;
+  font-size: 15px;
+}
+.order-detail-admin th {
+  background: #f2f6ff;
+}
+.order-total {
+  text-align: right;
+  font-size: 18px;
+  margin-top: 12px;
+  color: #367cff;
+}
+.back-btn {
+  margin-top: 18px;
+  display: inline-block;
+  background: #e0e7ff;
+  padding: 7px 16px;
+  border-radius: 4px;
+  color: #25316d;
+  text-decoration: none;
+}
+.error {
+  color: #e63838;
+  margin: 10px 0;
+}

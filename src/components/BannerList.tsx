@@ -1,5 +1,5 @@
 import React, { useEffect, useState } from 'react';
-import api, { MEDIA_URL } from '../utils/api';   // 👈 MEDIA_URL import
+import api, { MEDIA_URL } from '../utils/api';   // 👈 ensure MEDIA_URL is imported
 import '../styles/BannerList.css';
 
 interface Banner {
@@ -50,8 +50,17 @@ const BannerList: React.FC = () => {
       <div className="banner-items">
         {banners.map((banner) => (
           <div className="banner-card" key={banner._id}>
-            {/* 👇 localhost ke jagah ab MEDIA_URL */}
-            <img src={`${MEDIA_URL}${banner.imageUrl}`} alt="Banner" />
+            <img 
+              src={`${MEDIA_URL}${banner.imageUrl}`} 
+              alt="Banner" 
+              style={{
+                width: '100%',
+                height: '150px',
+                objectFit: 'cover',
+                borderRadius: '8px',
+                border: '1px solid #eee'
+              }}
+            />
             
             <div className="button-group">
               <button

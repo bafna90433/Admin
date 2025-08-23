@@ -1,18 +1,16 @@
-// webpack.config.js
 const path = require('path');
 const HtmlWebpackPlugin = require('html-webpack-plugin');
+const webpack = require('webpack');
 
 module.exports = {
   entry: './src/index.tsx',
   output: {
     path: path.resolve(__dirname, 'dist'),
-    filename: 'bundle.[contenthash].js',   // hashed output for caching
-    publicPath: '/',                       // needed for SPA routing
+    filename: 'bundle.[contenthash].js',
+    publicPath: '/',
     clean: true
   },
-  resolve: {
-    extensions: ['.ts', '.tsx', '.js']
-  },
+  resolve: { extensions: ['.ts', '.tsx', '.js'] },
   module: {
     rules: [
       { test: /\.tsx?$/, use: 'ts-loader', exclude: /node_modules/ },
@@ -23,11 +21,11 @@ module.exports = {
   plugins: [
     new HtmlWebpackPlugin({
       template: './public/index.html',
-      inject: 'body'   // HtmlWebpackPlugin will insert the correct <script>
+      inject: 'body'
+    }),
+    new webpack.DefinePlugin({
+      'process.env.API_URL': JSON.stringify(process.env.API_URL || "http://localhost:5000/api")
     })
   ],
-  devServer: {
-    historyApiFallback: true,
-    port: 8081
-  }
+  devServer: { historyApiFallback: true, port: 8081 }
 };

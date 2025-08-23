@@ -1,10 +1,8 @@
 // src/components/Dashboard.tsx
 import React, { useEffect, useState } from "react";
-import axios from "axios";
+import api from "../utils/api";  // ✅ use our axios instance
 import "../styles/Dashboard.css";
 import { FiPackage, FiUsers, FiClock, FiShoppingCart } from "react-icons/fi";
-
-const API_BASE = "http://localhost:5000";
 
 type Order = {
   _id: string;
@@ -62,9 +60,9 @@ const Dashboard: React.FC = () => {
     const load = async () => {
       try {
         const [prodRes, custRes, orderRes] = await Promise.all([
-          axios.get(`${API_BASE}/api/products`),
-          axios.get(`${API_BASE}/api/admin/customers`),
-          axios.get<Order[]>(`${API_BASE}/api/orders`),
+          api.get("/products"),         // ✅ no localhost
+          api.get("/admin/customers"),  // ✅ no localhost
+          api.get<Order[]>("/orders"),  // ✅ no localhost
         ]);
 
         setProductsCount(prodRes.data?.length || 0);

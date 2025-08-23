@@ -6,11 +6,13 @@ module.exports = {
   entry: './src/index.tsx',
   output: {
     path: path.resolve(__dirname, 'dist'),
-    filename: 'bundle.[contenthash].js',   // hashed output
-    publicPath: '/',                       // SPA routing
+    filename: 'bundle.[contenthash].js',   // hashed output for caching
+    publicPath: '/',                       // needed for SPA routing
     clean: true
   },
-  resolve: { extensions: ['.ts', '.tsx', '.js'] },
+  resolve: {
+    extensions: ['.ts', '.tsx', '.js']
+  },
   module: {
     rules: [
       { test: /\.tsx?$/, use: 'ts-loader', exclude: /node_modules/ },
@@ -21,8 +23,11 @@ module.exports = {
   plugins: [
     new HtmlWebpackPlugin({
       template: './public/index.html',
-      inject: 'body' // injects the correct hashed script tag
+      inject: 'body'   // HtmlWebpackPlugin will insert the correct <script>
     })
   ],
-  devServer: { historyApiFallback: true, port: 8081 }
+  devServer: {
+    historyApiFallback: true,
+    port: 8081
+  }
 };

@@ -72,16 +72,21 @@ const ProductForm: React.FC = () => {
             sku: data.sku || '',
             price: data.price,
             description: data.description,
-            category: typeof data.category === 'string' ? data.category : data.category?._id || ''
+            category:
+              typeof data.category === 'string'
+                ? data.category
+                : data.category?._id || ''
           });
           setBulkPrices(data.bulkPricing || [{ inner: '', qty: 1, price: 0 }]);
           setGallery(
             data.images.map((url: string) => ({
-              url, // ✅ directly use Cloudinary URL
+              url, // ✅ Cloudinary URL directly
               isExisting: true
             }))
           );
-          setTaxFields(data.taxFields && data.taxFields.length ? data.taxFields : ['']);
+          setTaxFields(
+            data.taxFields && data.taxFields.length ? data.taxFields : ['']
+          );
         }
       } catch (err) {
         setError('Failed to load data. Please try again later.');
@@ -92,7 +97,9 @@ const ProductForm: React.FC = () => {
   }, [editMode, id]);
 
   const handleChange = (
-    e: ChangeEvent<HTMLInputElement | HTMLSelectElement | HTMLTextAreaElement>
+    e: ChangeEvent<
+      HTMLInputElement | HTMLSelectElement | HTMLTextAreaElement
+    >
   ) => {
     const { name, value } = e.target;
     setForm(prev => ({
@@ -118,24 +125,35 @@ const ProductForm: React.FC = () => {
     setGallery(g => g.filter((_, i) => i !== idx));
   };
 
-  const handleBulkChange = (idx: number, field: keyof BulkPrice, value: string | number) => {
+  const handleBulkChange = (
+    idx: number,
+    field: keyof BulkPrice,
+    value: string | number
+  ) => {
     setBulkPrices(prices =>
-      prices.map((row, i) => (i === idx ? { ...row, [field]: value } : row))
+      prices.map((row, i) =>
+        i === idx ? { ...row, [field]: value } : row
+      )
     );
   };
 
-  const addBulkRow = () => setBulkPrices(bp => [...bp, { inner: '', qty: 1, price: 0 }]);
+  const addBulkRow = () =>
+    setBulkPrices(bp => [...bp, { inner: '', qty: 1, price: 0 }]);
   const removeBulkRow = (idx: number) => {
-    if (bulkPrices.length > 1) setBulkPrices(bp => bp.filter((_, i) => i !== idx));
+    if (bulkPrices.length > 1)
+      setBulkPrices(bp => bp.filter((_, i) => i !== idx));
   };
 
   // -- TAX FIELD HANDLERS --
   const handleTaxFieldChange = (idx: number, value: string) => {
-    setTaxFields(fields => fields.map((v, i) => (i === idx ? value : v)));
+    setTaxFields(fields =>
+      fields.map((v, i) => (i === idx ? value : v))
+    );
   };
   const addTaxField = () => setTaxFields(fields => [...fields, '']);
   const removeTaxField = (idx: number) => {
-    if (taxFields.length > 1) setTaxFields(fields => fields.filter((_, i) => i !== idx));
+    if (taxFields.length > 1)
+      setTaxFields(fields => fields.filter((_, i) => i !== idx));
   };
   // ------------------------
 
@@ -156,7 +174,9 @@ const ProductForm: React.FC = () => {
       let uploadedUrls: string[] = [];
       if (newImages.length) {
         const formData = new FormData();
-        newImages.forEach(g => g.file && formData.append('images', g.file));
+        newImages.forEach(
+          g => g.file && formData.append('images', g.file)
+        );
         const res = await api.post('/upload', formData);
         uploadedUrls = res.data.urls;
       }
@@ -164,11 +184,13 @@ const ProductForm: React.FC = () => {
       const payload: ProductPayload = {
         ...form,
         images: [
-          ...gallery.filter(g => g.isExisting).map(g => g.url), // ✅ Cloudinary URLs
+          ...gallery.filter(g => g.isExisting).map(g => g.url),
           ...uploadedUrls
         ],
-        bulkPricing: bulkPrices.filter(bp => bp.qty > 0 && bp.price > 0),
-        taxFields,
+        bulkPricing: bulkPrices.filter(
+          bp => bp.qty > 0 && bp.price > 0
+        ),
+        taxFields
       };
 
       if (editMode && id) {
@@ -189,7 +211,9 @@ const ProductForm: React.FC = () => {
   return (
     <div className="product-form-container">
       {error && <div className="alert alert-error">{error}</div>}
-      {success && <div className="alert alert-success">{success}</div>}
+      {success && (
+        <div className="alert alert-success">{success}</div>
+      )}
 
       <form onSubmit={handleSubmit} className="product-form">
         <div className="form-grid">
@@ -239,11 +263,20 @@ const ProductForm: React.FC = () => {
             <div className="form-group">
               <label>Tax Fields</label>
               {taxFields.map((value, idx) => (
-                <div key={idx} style={{ display: 'flex', gap: 8, marginBottom: 6 }}>
+                <div
+                  key={idx}
+                  style={{
+                    display: 'flex',
+                    gap: 8,
+                    marginBottom: 6
+                  }}
+                >
                   <input
                     type="text"
                     value={value}
-                    onChange={e => handleTaxFieldChange(idx, e.target.value)}
+                    onChange={e =>
+                      handleTaxFieldChange(idx, e.target.value)
+                    }
                     placeholder="Enter any tax value"
                     style={{ flex: 1 }}
                   />
@@ -255,7 +288,10 @@ const ProductForm: React.FC = () => {
                       background: '#eee',
                       border: 0,
                       borderRadius: 4,
-                      cursor: taxFields.length === 1 ? 'not-allowed' : 'pointer'
+                      cursor:
+                        taxFields.length === 1
+                          ? 'not-allowed'
+                          : 'pointer'
                     }}
                     title="Delete"
                   >
@@ -325,12 +361,17 @@ const ProductForm: React.FC = () => {
                     style={{ display: 'none' }}
                   />
                 </label>
-                <p className="file-upload-hint">Supports JPG, PNG up to 5MB each</p>
+                <p className="file-upload-hint">
+                  Supports JPG, PNG up to 5MB each
+                </p>
               </div>
             </div>
             <div className="image-preview-grid">
               {gallery.map((img, idx) => (
-                <div key={idx} className="image-preview">
+                <div
+                  key={idx}
+                  className="image-preview"
+                >
                   <img src={img.url} alt={`Preview ${idx}`} />
                   <button
                     type="button"
@@ -357,12 +398,19 @@ const ProductForm: React.FC = () => {
               </div>
 
               {bulkPrices.map((bp, idx) => (
-                <div key={idx} className={`table-row ${idx % 2 === 0 ? 'even' : 'odd'}`}>
+                <div
+                  key={idx}
+                  className={`table-row ${
+                    idx % 2 === 0 ? 'even' : 'odd'
+                  }`}
+                >
                   <div>
                     <input
                       type="number"
                       value={bp.inner}
-                      onChange={e => handleBulkChange(idx, 'inner', e.target.value)}
+                      onChange={e =>
+                        handleBulkChange(idx, 'inner', e.target.value)
+                      }
                       min="1"
                       placeholder="e.g. 5"
                     />
@@ -371,7 +419,13 @@ const ProductForm: React.FC = () => {
                     <input
                       type="number"
                       value={bp.qty}
-                      onChange={e => handleBulkChange(idx, 'qty', Number(e.target.value))}
+                      onChange={e =>
+                        handleBulkChange(
+                          idx,
+                          'qty',
+                          Number(e.target.value)
+                        )
+                      }
                       min="1"
                       placeholder="e.g. 50"
                     />
@@ -380,7 +434,13 @@ const ProductForm: React.FC = () => {
                     <input
                       type="number"
                       value={bp.price}
-                      onChange={e => handleBulkChange(idx, 'price', Number(e.target.value))}
+                      onChange={e =>
+                        handleBulkChange(
+                          idx,
+                          'price',
+                          Number(e.target.value)
+                        )
+                      }
                       min="0"
                       step="0.01"
                       placeholder="0.00"
@@ -410,7 +470,10 @@ const ProductForm: React.FC = () => {
             </button>
 
             <div className="bulk-pricing-note">
-              <p><strong>Note:</strong> Bulk pricing will apply when customer orders reach the minimum quantity.</p>
+              <p>
+                <strong>Note:</strong> Bulk pricing will apply when
+                customer orders reach the minimum quantity.
+              </p>
             </div>
           </div>
         </div>
@@ -435,7 +498,8 @@ const ProductForm: React.FC = () => {
               </>
             ) : (
               <>
-                <FiSave /> {editMode ? 'Update Product' : 'Create Product'}
+                <FiSave />{' '}
+                {editMode ? 'Update Product' : 'Create Product'}
               </>
             )}
           </button>

@@ -2,14 +2,14 @@
 import React, { useEffect, useState } from "react";
 import axios from "axios";
 import "../styles/WhatsAppSettings.css";
-import { API_URL } from "../utils/api";  // ✅ use api.ts config
+import { API_URL } from "../utils/api"; // ✅ use api.ts config
 
 /* ------------ Types ------------ */
 type Agent = {
   name: string;
   phone: string;
   title?: string;
-  avatar?: string;   // can be "/uploads/..." OR full URL
+  avatar?: string; // can be "/uploads/..." OR full URL
   enabled?: boolean;
   message?: string;
 };
@@ -30,8 +30,8 @@ type Settings = {
   hideOnPaths: string[];
   enableSchedule: boolean;
   startHour: number; // 0-23
-  endHour: number;   // 0-23
-  days: number[];    // 0..6 (Sun..Sat)
+  endHour: number; // 0-23
+  days: number[]; // 0..6 (Sun..Sat)
   agents: Agent[];
 };
 
@@ -51,11 +51,13 @@ const AdminWhatsApp: React.FC = () => {
   useEffect(() => {
     (async () => {
       const { data } = await axios.get<Settings>(`${API_URL}/api/whatsapp`);
-      // sane defaults
+
+      // ✅ sane defaults
       data.showOnPaths ||= [];
       data.hideOnPaths ||= [];
-      data.days ||= [1,2,3,4,5,6];   // Mon-Sat
+      data.days ||= [1, 2, 3, 4, 5, 6]; // Mon-Sat
       data.agents ||= [];
+
       if (data.agents.length === 0 && data.phone) {
         data.agents.push({
           name: "Support",
@@ -64,6 +66,7 @@ const AdminWhatsApp: React.FC = () => {
           enabled: true,
         });
       }
+
       setSettings(data);
     })();
   }, []);
@@ -106,7 +109,7 @@ const AdminWhatsApp: React.FC = () => {
     update({ agents: list });
   };
 
-  // Upload avatar (save RELATIVE path; preview uses resolveUrl)
+  // ✅ Upload avatar (save RELATIVE path; preview uses resolveUrl)
   const pickAvatar = async (idx: number) => {
     const input = document.createElement("input");
     input.type = "file";
@@ -116,7 +119,7 @@ const AdminWhatsApp: React.FC = () => {
       if (!file) return;
       try {
         const fd = new FormData();
-        fd.append("images", file); // /api/upload accepts `images`
+        fd.append("images", file); // backend expects `images`
         const { data } = await axios.post(`${API_URL}/api/upload`, fd);
         const rel = data?.url || data?.urls?.[0];
         if (rel) updateAgent(idx, { avatar: rel });
@@ -135,7 +138,7 @@ const AdminWhatsApp: React.FC = () => {
     setSaving(true);
     setMessage(null);
     try {
-      // sanitize phones
+      // ✅ sanitize phones
       const payload: Settings = {
         ...settings,
         phone: String(settings.phone || "").replace(/\D/g, ""),
@@ -144,6 +147,7 @@ const AdminWhatsApp: React.FC = () => {
           phone: String(a.phone || "").replace(/\D/g, ""),
         })),
       };
+
       const { data } = await axios.put(`${API_URL}/api/whatsapp`, payload);
       setSettings(data.settings || payload);
       setMessage("Saved!");
@@ -171,17 +175,8 @@ const AdminWhatsApp: React.FC = () => {
       )}
 
       <form onSubmit={(e) => e.preventDefault()} className="ws-form">
-        {/* --- GENERAL --- */}
-        {/* (same as your original code: checkboxes, inputs, selects, schedule, agents list, etc.) */}
-        {/* Nothing removed or shortened, pura intact hai */}
-        
-        {/* GENERAL */}
-        {/* ... */}
-        {/* SCHEDULE */}
-        {/* ... */}
-        {/* TEAM MEMBERS */}
-        {/* ... */}
-        
+        {/* TODO: --- GENERAL, SCHEDULE, TEAM MEMBERS UI here --- */}
+
         <div className="ws-save-row">
           <button
             type="button"

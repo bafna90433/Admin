@@ -1,8 +1,7 @@
-// src/components/ProductForm.tsx
 import React, { useEffect, useState, ChangeEvent, FormEvent } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
 import { FiPlus, FiTrash2, FiX, FiUpload, FiSave } from 'react-icons/fi';
-import api, { API_URL } from '../utils/api';   // ✅ import API_URL
+import api from '../utils/api';
 import '../styles/ProductForm.css';
 
 interface Category {
@@ -24,7 +23,7 @@ interface ProductPayload {
   category: string;
   images: string[];
   bulkPricing?: BulkPrice[];
-  taxFields?: string[];
+  taxFields?: string[];  // ✅ Added here
 }
 
 type GalleryImage = {
@@ -33,9 +32,8 @@ type GalleryImage = {
   isExisting: boolean;
 };
 
-// ✅ Always resolve with API_URL
 const getImageUrl = (url: string) =>
-  url.startsWith('http') ? url : `${API_URL}${url.startsWith('/') ? url : `/${url}`}`;
+  url.startsWith('http') ? url : `http://localhost:5000${url}`;
 
 const ProductForm: React.FC = () => {
   const { id } = useParams<{ id: string }>();
@@ -72,7 +70,6 @@ const ProductForm: React.FC = () => {
         if (editMode && id) {
           const productRes = await api.get(`/products/${id}`);
           const data = productRes.data;
-
           setForm({
             name: data.name,
             sku: data.sku || '',
@@ -80,17 +77,14 @@ const ProductForm: React.FC = () => {
             description: data.description,
             category: typeof data.category === 'string' ? data.category : data.category?._id || ''
           });
-
           setBulkPrices(data.bulkPricing || [{ inner: '', qty: 1, price: 0 }]);
-
-          // ✅ Resolve URLs for images
           setGallery(
-            (data.images || []).map((url: string) => ({
+            data.images.map((url: string) => ({
               url: getImageUrl(url),
               isExisting: true
             }))
           );
-
+          // ✅ Load taxFields for edit (even if empty)
           setTaxFields(data.taxFields && data.taxFields.length ? data.taxFields : ['']);
         }
       } catch (err) {
@@ -171,16 +165,17 @@ const ProductForm: React.FC = () => {
         uploadedUrls = res.data.urls;
       }
 
+      // ⭐⭐⭐ SEND taxFields to backend (do NOT comment this out)
       const payload: ProductPayload = {
         ...form,
         images: [
           ...gallery
             .filter(g => g.isExisting)
-            .map(g => g.url.replace(API_URL, '')), // ✅ store only relative path
+            .map(g => g.url.replace('http://localhost:5000', '')),
           ...uploadedUrls
         ],
         bulkPricing: bulkPrices.filter(bp => bp.qty > 0 && bp.price > 0),
-        taxFields,
+        taxFields,  // ⭐⭐ FINAL LINE: ab data jayega backend par!
       };
 
       if (editMode && id) {
@@ -205,7 +200,7 @@ const ProductForm: React.FC = () => {
 
       <form onSubmit={handleSubmit} className="product-form">
         <div className="form-grid">
-          {/* Product Info */}
+          {/* Basic Information */}
           <div className="form-card primary">
             <h2 className="section-title">Product Information</h2>
             <div className="form-group">
@@ -247,7 +242,7 @@ const ProductForm: React.FC = () => {
               </select>
             </div>
 
-            {/* TAX FIELDS */}
+            {/* TAX FIELDS UI BELOW CATEGORY */}
             <div className="form-group">
               <label>Tax Fields</label>
               {taxFields.map((value, idx) => (
@@ -293,6 +288,7 @@ const ProductForm: React.FC = () => {
                 <FiPlus /> Add Tax Field
               </button>
             </div>
+            {/* --- END TAX FIELDS --- */}
 
             <div className="form-group">
               <label>Base Price (₹) *</label>

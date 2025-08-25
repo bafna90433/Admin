@@ -23,7 +23,7 @@ interface ProductPayload {
   category: string;
   images: string[];
   bulkPricing?: BulkPrice[];
-  taxFields?: string[];  // ✅ Added here
+  taxFields?: string[];
 }
 
 type GalleryImage = {
@@ -31,9 +31,6 @@ type GalleryImage = {
   url: string;
   isExisting: boolean;
 };
-
-const getImageUrl = (url: string) =>
-  url.startsWith('http') ? url : `http://localhost:5000${url}`;
 
 const ProductForm: React.FC = () => {
   const { id } = useParams<{ id: string }>();
@@ -80,11 +77,10 @@ const ProductForm: React.FC = () => {
           setBulkPrices(data.bulkPricing || [{ inner: '', qty: 1, price: 0 }]);
           setGallery(
             data.images.map((url: string) => ({
-              url: getImageUrl(url),
+              url, // ✅ directly use Cloudinary URL
               isExisting: true
             }))
           );
-          // ✅ Load taxFields for edit (even if empty)
           setTaxFields(data.taxFields && data.taxFields.length ? data.taxFields : ['']);
         }
       } catch (err) {
@@ -165,17 +161,14 @@ const ProductForm: React.FC = () => {
         uploadedUrls = res.data.urls;
       }
 
-      // ⭐⭐⭐ SEND taxFields to backend (do NOT comment this out)
       const payload: ProductPayload = {
         ...form,
         images: [
-          ...gallery
-            .filter(g => g.isExisting)
-            .map(g => g.url.replace('http://localhost:5000', '')),
+          ...gallery.filter(g => g.isExisting).map(g => g.url), // ✅ Cloudinary URLs
           ...uploadedUrls
         ],
         bulkPricing: bulkPrices.filter(bp => bp.qty > 0 && bp.price > 0),
-        taxFields,  // ⭐⭐ FINAL LINE: ab data jayega backend par!
+        taxFields,
       };
 
       if (editMode && id) {
@@ -242,7 +235,7 @@ const ProductForm: React.FC = () => {
               </select>
             </div>
 
-            {/* TAX FIELDS UI BELOW CATEGORY */}
+            {/* TAX FIELDS */}
             <div className="form-group">
               <label>Tax Fields</label>
               {taxFields.map((value, idx) => (
@@ -288,7 +281,6 @@ const ProductForm: React.FC = () => {
                 <FiPlus /> Add Tax Field
               </button>
             </div>
-            {/* --- END TAX FIELDS --- */}
 
             <div className="form-group">
               <label>Base Price (₹) *</label>

@@ -80,7 +80,7 @@ const ProductForm: React.FC = () => {
           setBulkPrices(data.bulkPricing || [{ inner: '', qty: 1, price: 0 }]);
           setGallery(
             data.images.map((url: string) => ({
-              url, // ✅ Cloudinary URL directly
+              url, // ✅ Cloudinary full URL
               isExisting: true
             }))
           );
@@ -97,9 +97,7 @@ const ProductForm: React.FC = () => {
   }, [editMode, id]);
 
   const handleChange = (
-    e: ChangeEvent<
-      HTMLInputElement | HTMLSelectElement | HTMLTextAreaElement
-    >
+    e: ChangeEvent<HTMLInputElement | HTMLSelectElement | HTMLTextAreaElement>
   ) => {
     const { name, value } = e.target;
     setForm(prev => ({
@@ -170,6 +168,7 @@ const ProductForm: React.FC = () => {
       if (form.price <= 0) throw new Error('Price must be > 0');
       if (!gallery.length) throw new Error('At least one image is required');
 
+      // ✅ Upload only new images to Cloudinary
       const newImages = gallery.filter(g => !g.isExisting && g.file);
       let uploadedUrls: string[] = [];
       if (newImages.length) {
@@ -177,8 +176,10 @@ const ProductForm: React.FC = () => {
         newImages.forEach(
           g => g.file && formData.append('images', g.file)
         );
-        const res = await api.post('/upload', formData);
-        uploadedUrls = res.data.urls;
+        const res = await api.post('/upload', formData, {
+          headers: { 'Content-Type': 'multipart/form-data' }
+        });
+        uploadedUrls = res.data.urls; // ✅ already Cloudinary URLs
       }
 
       const payload: ProductPayload = {
@@ -187,9 +188,7 @@ const ProductForm: React.FC = () => {
           ...gallery.filter(g => g.isExisting).map(g => g.url),
           ...uploadedUrls
         ],
-        bulkPricing: bulkPrices.filter(
-          bp => bp.qty > 0 && bp.price > 0
-        ),
+        bulkPricing: bulkPrices.filter(bp => bp.qty > 0 && bp.price > 0),
         taxFields
       };
 
@@ -265,11 +264,7 @@ const ProductForm: React.FC = () => {
               {taxFields.map((value, idx) => (
                 <div
                   key={idx}
-                  style={{
-                    display: 'flex',
-                    gap: 8,
-                    marginBottom: 6
-                  }}
+                  style={{ display: 'flex', gap: 8, marginBottom: 6 }}
                 >
                   <input
                     type="text"
@@ -288,10 +283,7 @@ const ProductForm: React.FC = () => {
                       background: '#eee',
                       border: 0,
                       borderRadius: 4,
-                      cursor:
-                        taxFields.length === 1
-                          ? 'not-allowed'
-                          : 'pointer'
+                      cursor: taxFields.length === 1 ? 'not-allowed' : 'pointer'
                     }}
                     title="Delete"
                   >
@@ -368,10 +360,7 @@ const ProductForm: React.FC = () => {
             </div>
             <div className="image-preview-grid">
               {gallery.map((img, idx) => (
-                <div
-                  key={idx}
-                  className="image-preview"
-                >
+                <div key={idx} className="image-preview">
                   <img src={img.url} alt={`Preview ${idx}`} />
                   <button
                     type="button"
@@ -400,9 +389,7 @@ const ProductForm: React.FC = () => {
               {bulkPrices.map((bp, idx) => (
                 <div
                   key={idx}
-                  className={`table-row ${
-                    idx % 2 === 0 ? 'even' : 'odd'
-                  }`}
+                  className={`table-row ${idx % 2 === 0 ? 'even' : 'odd'}`}
                 >
                   <div>
                     <input
@@ -420,11 +407,7 @@ const ProductForm: React.FC = () => {
                       type="number"
                       value={bp.qty}
                       onChange={e =>
-                        handleBulkChange(
-                          idx,
-                          'qty',
-                          Number(e.target.value)
-                        )
+                        handleBulkChange(idx, 'qty', Number(e.target.value))
                       }
                       min="1"
                       placeholder="e.g. 50"
@@ -435,11 +418,7 @@ const ProductForm: React.FC = () => {
                       type="number"
                       value={bp.price}
                       onChange={e =>
-                        handleBulkChange(
-                          idx,
-                          'price',
-                          Number(e.target.value)
-                        )
+                        handleBulkChange(idx, 'price', Number(e.target.value))
                       }
                       min="0"
                       step="0.01"
@@ -498,8 +477,7 @@ const ProductForm: React.FC = () => {
               </>
             ) : (
               <>
-                <FiSave />{' '}
-                {editMode ? 'Update Product' : 'Create Product'}
+                <FiSave /> {editMode ? 'Update Product' : 'Create Product'}
               </>
             )}
           </button>

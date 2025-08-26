@@ -1,13 +1,20 @@
 import axios from "axios";
 
-// ✅ Webpack + dotenv-webpack uses process.env
-export const API_URL: string = process.env.VITE_API_URL || "";
-export const MEDIA_URL: string =
-  process.env.VITE_MEDIA_URL || API_URL.replace("/api", "");
+// 👇 declare for TS
+declare const process: {
+  env: {
+    VITE_API_URL?: string;
+    VITE_MEDIA_URL?: string;
+  };
+};
 
-if (!API_URL) {
-  console.warn("⚠️ VITE_API_URL is not defined. Please set it in Vercel environment variables.");
-}
+// ✅ base URL banate waqt /api append karo
+export const API_URL: string = (process.env.VITE_API_URL || "http://localhost:5000") + "/api";
+
+export const MEDIA_URL: string =
+  process.env.VITE_MEDIA_URL || process.env.VITE_API_URL || "http://localhost:5000";
+
+console.log("👉 API_URL = ", API_URL); // Debugging
 
 const api = axios.create({
   baseURL: API_URL,

@@ -1,6 +1,6 @@
 import axios from "axios";
 
-// 👇 declare for TS
+// 👇 declare for TS (type safety)
 declare const process: {
   env: {
     VITE_API_URL?: string;
@@ -8,18 +8,24 @@ declare const process: {
   };
 };
 
-// ✅ base URL banate waqt /api append karo
-export const API_URL: string = (process.env.VITE_API_URL || "http://localhost:5000") + "/api";
+// ✅ API URL from .env (already includes /api in your env)
+export const API_URL: string =
+  process.env.VITE_API_URL || "http://localhost:5000/api";
 
+// ✅ Media URL fallback
 export const MEDIA_URL: string =
-  process.env.VITE_MEDIA_URL || process.env.VITE_API_URL || "http://localhost:5000";
+  process.env.VITE_MEDIA_URL ||
+  process.env.VITE_API_URL ||
+  "http://localhost:5000";
 
 console.log("👉 API_URL = ", API_URL); // Debugging
 
+// ✅ axios instance
 const api = axios.create({
   baseURL: API_URL,
 });
 
+// ✅ attach token automatically
 api.interceptors.request.use((config) => {
   const token = localStorage.getItem("adminToken");
   if (token) {

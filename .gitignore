@@ -3,14 +3,18 @@
 
 # production build
 /dist
+/build
 
 # environment variables
 .env
+.env.local
+.env.*.local
 
 # logs
 npm-debug.log*
 yarn-debug.log*
 yarn-error.log*
+pnpm-debug.log*
 
 # OS files
 .DS_Store
@@ -20,3 +24,23 @@ Thumbs.db
 .vscode/
 .idea/
 *.swp
+
+# misc
+*.log
+*.pid
+*.seed
+*.pid.lock
+
+# cache
+.cache/
+*.tsbuildinfo
+
+# coverage
+coverage/
+
+# Next.js / Vercel / output
+.next/
+out/
+
+# local VSCode history
+.history/

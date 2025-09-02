@@ -1,4 +1,3 @@
-// src/components/BannerList.tsx
 import React, { useEffect, useState } from "react";
 import api, { MEDIA_URL } from "../utils/api";
 import "../styles/BannerList.css";
@@ -9,34 +8,52 @@ interface Banner {
   enabled: boolean;
 }
 
-const cloudName = (import.meta as any).env?.VITE_CLOUDINARY_CLOUD_NAME || ""; // optional fallback
+const API_ROOT = (() => {
+  const raw = (import.meta as any).env?.VITE_API_URL || "";
+  return raw.replace(/\/api\/?$/, "").replace(/\/+$/, "");
+})();
+
+const cloudName = (import.meta as any).env?.VITE_CLOUDINARY_CLOUD_NAME || "";
 
 const resolveUrl = (u?: string) => {
   if (!u) return undefined;
-  // already a full URL -> return as-is
+
+  // 1) Absolute URL -> return as-is
   if (/^https?:\/\//i.test(u)) return u;
-  // If MEDIA_URL is provided (like https://res.cloudinary.com/xxx) prefer that
+
+  // 2) Fix /api/uploads/... and /uploads/...
+  if (u.startsWith("/api/uploads/") || u.startsWith("/uploads/")) {
+    const path = u.replace(/^\/api/, ""); // normalize to "/uploads/..."
+    if (!API_ROOT) return path;
+    return `${API_ROOT.replace(/\/+$/, "")}${path}`;
+  }
+
+  // 3) If MEDIA_URL configured (for cloudinary base), prefer that
   if (MEDIA_URL) {
-    // If imageUrl looks like 'image/upload/...' where MEDIA_URL already includes path
-    if (u.includes("/image/upload/")) return `${MEDIA_URL.replace(/\/+$/, "")}/${u.replace(/^\/+/, "")}`;
-    // If it's a public_id like 'bafnatoys/abc' -> create full cloudinary url
-    if (/^[^/.]+\//.test(u) && /res\.cloudinary\.com/i.test(MEDIA_URL)) {
-      // MEDIA_URL is expected like https://res.cloudinary.com/<cloud>/image/upload
-      // Ensure it contains /image/upload
-      const base = MEDIA_URL.includes("/image/upload") ? MEDIA_URL : `${MEDIA_URL.replace(/\/+$/, "")}/image/upload`;
+    const base = MEDIA_URL.replace(/\/+$/, "");
+    if (u.includes("/image/upload/")) {
       return `${base}/${u.replace(/^\/+/, "")}`;
     }
-    // Otherwise fallback to prefixing MEDIA_URL
-    return `${MEDIA_URL.replace(/\/+$/, "")}/${u.replace(/^\/+/, "")}`;
+    // public_id style like "bafnatoys/abcd"
+    if (/^[^/.]+\//.test(u)) {
+      const cloudBase = base.includes("/image/upload") ? base : `${base}/image/upload`;
+      return `${cloudBase}/${u.replace(/^\/+/, "")}`;
+    }
+    return `${base}/${u.replace(/^\/+/, "")}`;
   }
-  // As last fallback, if cloudName is present, construct Cloudinary URL
-  if (cloudName) return `https://res.cloudinary.com/${cloudName}/image/upload/${u.replace(/^\/+/, "")}`;
-  // give up, return the original
+
+  // 4) If we have cloudName and a public id, construct Cloudinary URL
+  if (cloudName && /^[^/.]+\//.test(u)) {
+    return `https://res.cloudinary.com/${cloudName}/image/upload/${u.replace(/^\/+/, "")}`;
+  }
+
+  // 5) otherwise return as-is (relative path)
   return u;
 };
 
 const BannerList: React.FC = () => {
   const [banners, setBanners] = useState<Banner[]>([]);
+  const [loading, setLoading] = useState(false);
 
   useEffect(() => {
     fetchBanners();
@@ -44,11 +61,13 @@ const BannerList: React.FC = () => {
 
   const fetchBanners = async () => {
     try {
+      setLoading(true);
       const res = await api.get("/banners/all");
-      console.log("DEBUG banners:", res.data); // debug: inspect what imageUrl contains
-      setBanners(res.data);
+      setBanners(res.data || []);
     } catch (err) {
-      console.error("❌ Failed to fetch banners", err);
+      console.error("Failed to fetch banners", err);
+    } finally {
+      setLoading(false);
     }
   };
 
@@ -57,20 +76,22 @@ const BannerList: React.FC = () => {
       await api.patch(`/banners/${id}/toggle`);
       fetchBanners();
     } catch (err) {
-      console.error("❌ Failed to toggle banner", err);
+      console.error("Failed to toggle banner", err);
     }
   };
 
   const deleteBanner = async (id: string) => {
-    if (!window.confirm("Are you sure you want to delete this banner?")) return;
+    if (!window.confirm("Delete this banner?")) return;
     try {
       await api.delete(`/banners/${id}`);
       fetchBanners();
     } catch (err) {
-      alert("❌ Failed to delete banner");
-      console.error(err);
+      console.error("Failed to delete banner", err);
+      alert("Failed to delete banner");
     }
   };
+
+  if (loading) return <div className="banner-list">Loading banners…</div>;
 
   return (
     <div className="banner-list">
@@ -91,7 +112,6 @@ const BannerList: React.FC = () => {
                   border: "1px solid #eee",
                 }}
                 onError={(e) => {
-                  console.warn("Banner image failed:", src);
                   (e.currentTarget as HTMLImageElement).src = "/placeholder-product.png";
                 }}
               />

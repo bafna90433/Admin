@@ -1,7 +1,8 @@
 // src/components/AdminOrders.tsx
 import React, { useEffect, useMemo, useState, useCallback } from "react";
-import api, { MEDIA_URL } from "../utils/api";
+import api, { MEDIA_URL } from "../utils/api";   // ✅ use api + MEDIA_URL
 import "../styles/AdminOrdersModern.css";
+
 type OrderItem = {
   productId: string;
   name: string;
@@ -9,6 +10,7 @@ type OrderItem = {
   price: number;
   image?: string;
 };
+
 type CustomerLite = {
   firmName?: string;
   shopName?: string;
@@ -18,18 +20,21 @@ type CustomerLite = {
   zip?: string;
   visitingCardUrl?: string;
 };
+
 type ShippingInfo = {
   address?: string;
   phone?: string;
   email?: string;
   notes?: string;
 };
+
 type OrderStatus =
   | "pending"
   | "processing"
   | "shipped"
   | "delivered"
   | "cancelled";
+
 type Order = {
   _id: string;
   orderNumber: string;
@@ -41,6 +46,7 @@ type Order = {
   status: OrderStatus;
   shipping?: ShippingInfo;
 };
+
 const resolveImage = (img?: string): string => {
   if (!img) return "";
   if (img.startsWith("http")) return img;
@@ -50,6 +56,7 @@ const resolveImage = (img?: string): string => {
     return `${MEDIA_URL}/${img}`;
   return `${MEDIA_URL}/uploads/${encodeURIComponent(img)}`;
 };
+
 const statusMeta: Record<
   OrderStatus,
   { color: string; icon: string; text: string }
@@ -60,7 +67,9 @@ const statusMeta: Record<
   delivered: { color: "#43A047", icon: "✅", text: "Delivered" },
   cancelled: { color: "#E53935", icon: "❌", text: "Cancelled" },
 };
+
 const norm = (v?: string | number) => (v ?? "").toString().toLowerCase().trim();
+
 const highlight = (text: string, q: string) => {
   if (!q) return text;
   const idx = text.toLowerCase().indexOf(q.toLowerCase());
@@ -76,18 +85,22 @@ const highlight = (text: string, q: string) => {
     </>
   );
 };
+
 const AdminOrders: React.FC = () => {
   const [orders, setOrders] = useState<Order[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+
   const [viewing, setViewing] = useState<Order | null>(null);
   const [actOn, setActOn] = useState<string | null>(null);
+
   const [search, setSearch] = useState("");
   const [debounced, setDebounced] = useState("");
+
   const fetchOrders = useCallback(async () => {
     try {
       setLoading(true);
-      const { data } = await api.get<Order[]>("/orders");
+      const { data } = await api.get<Order[]>("/orders"); // ✅ use api
       setOrders(data || []);
       setError(null);
     } catch (err: any) {
@@ -96,13 +109,16 @@ const AdminOrders: React.FC = () => {
       setLoading(false);
     }
   }, []);
+
   useEffect(() => {
     fetchOrders();
   }, [fetchOrders]);
+
   useEffect(() => {
     const t = setTimeout(() => setDebounced(search), 250);
     return () => clearTimeout(t);
   }, [search]);
+
   const updateStatus = async (id: string, status: OrderStatus) => {
     try {
       setActOn(id);
@@ -118,6 +134,7 @@ const AdminOrders: React.FC = () => {
       setActOn(null);
     }
   };
+
   const deleteOrder = async (id: string) => {
     if (!window.confirm("Delete this order?")) return;
     try {
@@ -127,11 +144,14 @@ const AdminOrders: React.FC = () => {
       alert(e?.response?.data?.message || "Delete failed");
     }
   };
+
   const formatDate = (iso?: string): string =>
     iso ? new Date(iso).toLocaleString() : "-";
+
   const filteredOrders = useMemo(() => {
     const q = debounced.trim().toLowerCase();
     if (!q) return orders;
+
     return orders.filter((o) => {
       const inOrderNum = norm(o.orderNumber).includes(q);
       const inIdSuffix = o._id.toLowerCase().endsWith(q);
@@ -147,6 +167,7 @@ const AdminOrders: React.FC = () => {
       const inPayment = norm(o.paymentMethod).includes(q);
       const inStatus = norm(o.status).includes(q);
       const inItems = o.items?.some((it) => norm(it.name).includes(q));
+
       return (
         inOrderNum ||
         inIdSuffix ||
@@ -158,14 +179,17 @@ const AdminOrders: React.FC = () => {
       );
     });
   }, [orders, debounced]);
+
   const onBigSearchKeyDown = (e: React.KeyboardEvent<HTMLInputElement>) => {
     if (e.key === "Enter" && filteredOrders.length > 0) {
       setViewing(filteredOrders[0]);
     }
   };
+
   return (
     <div className="ord-app">
       <h2 className="ord-header">Order Management</h2>
+
       <div className="ord-toolbar">
         <div className="ord-srch">
           <span className="ord-srch-icon">🔎</span>
@@ -188,14 +212,17 @@ const AdminOrders: React.FC = () => {
           )}
         </div>
       </div>
+
       <div className="ord-meta">
         Showing <b>{filteredOrders.length}</b> of <b>{orders.length}</b> orders
         {debounced && filteredOrders.length > 0 && (
           <span className="ord-meta-chip">filtered by “{debounced}”</span>
         )}
       </div>
+
       {loading && <div className="ord-info">Loading…</div>}
       {error && <div className="ord-error">{error}</div>}
+
       {!loading && !error && (
         <div className="ord-list">
           {filteredOrders.length === 0 ? (
@@ -213,6 +240,7 @@ const AdminOrders: React.FC = () => {
               ]
                 .filter(Boolean)
                 .join(", ");
+
               return (
                 <div className="ord-card" key={o._id}>
                   <div className="ord-main">
@@ -256,6 +284,7 @@ const AdminOrders: React.FC = () => {
                       </span>
                     </div>
                   </div>
+
                   <div className="ord-statusbar">
                     <span
                       className="ord-status"
@@ -272,6 +301,7 @@ const AdminOrders: React.FC = () => {
                         : o.paymentMethod || "-"}
                     </span>
                   </div>
+
                   <div className="ord-actions">
                     <button
                       className="ord-btn ord-btn-view"
@@ -279,6 +309,7 @@ const AdminOrders: React.FC = () => {
                     >
                       View
                     </button>
+
                     <select
                       className="ord-select"
                       disabled={actOn === o._id}
@@ -293,6 +324,7 @@ const AdminOrders: React.FC = () => {
                       <option value="delivered">Delivered</option>
                       <option value="cancelled">Cancelled</option>
                     </select>
+
                     <button
                       className="ord-btn ord-btn-del"
                       onClick={() => deleteOrder(o._id)}
@@ -306,6 +338,7 @@ const AdminOrders: React.FC = () => {
           )}
         </div>
       )}
+
       {viewing && (
         <div
           className="ord-modal-backdrop"
@@ -419,8 +452,7 @@ const AdminOrders: React.FC = () => {
                       <div className="ord-m-img ord-m-imgph" />
                     )}
                     <span className="ord-m-iname">{it.name}</span>
-                    {/* ✅ Add the inner counting here */}
-                    <span className="ord-m-qty">{i + 1}. x{it.qty}</span>
+                    <span className="ord-m-qty">x{it.qty}</span>
                     <span className="ord-m-price">
                       ₹ {(it.price * it.qty).toFixed(2)}
                     </span>
@@ -434,4 +466,5 @@ const AdminOrders: React.FC = () => {
     </div>
   );
 };
+
 export default AdminOrders;

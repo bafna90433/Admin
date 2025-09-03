@@ -285,3 +285,13 @@
   .ord-card { padding: 16px 12px 14px; }
   .ord-header { margin-left: 11px; font-size: 1.3rem; }
 }
+.ord-m-qty {
+  font-weight: 600;
+  margin: 0 12px;
+  color: #333333;
+  min-width: 60px; /* fixed width to align items nicely */
+  display: inline-block;
+  text-align: left;
+  font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+  font-size: 0.95rem;
+}

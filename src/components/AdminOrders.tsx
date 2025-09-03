@@ -6,9 +6,10 @@ import "../styles/AdminOrdersModern.css";
 type OrderItem = {
   productId: string;
   name: string;
-  qty: number;
+  qty: number;           // total pcs
   price: number;
   image?: string;
+  nosPerInner?: number;  // ✅ pieces per inner (optional)
 };
 
 type CustomerLite = {
@@ -55,6 +56,12 @@ const resolveImage = (img?: string): string => {
   if (img.startsWith("uploads/") || img.startsWith("images/"))
     return `${MEDIA_URL}/${img}`;
   return `${MEDIA_URL}/uploads/${encodeURIComponent(img)}`;
+};
+
+// ✅ helper: qty → inners
+const toInners = (it: OrderItem) => {
+  const perInner = it.nosPerInner && it.nosPerInner > 0 ? it.nosPerInner : 12;
+  return Math.ceil((it.qty || 0) / perInner);
 };
 
 const statusMeta: Record<
@@ -122,9 +129,7 @@ const AdminOrders: React.FC = () => {
   const updateStatus = async (id: string, status: OrderStatus) => {
     try {
       setActOn(id);
-      const { data } = await api.patch<Order>(`/orders/${id}/status`, {
-        status,
-      });
+      const { data } = await api.patch<Order>(`/orders/${id}/status`, { status });
       setOrders((prev) =>
         prev.map((o) => (o._id === id ? { ...o, status: data.status } : o))
       );
@@ -190,6 +195,7 @@ const AdminOrders: React.FC = () => {
     <div className="ord-app">
       <h2 className="ord-header">Order Management</h2>
 
+      {/* Search bar */}
       <div className="ord-toolbar">
         <div className="ord-srch">
           <span className="ord-srch-icon">🔎</span>
@@ -223,6 +229,7 @@ const AdminOrders: React.FC = () => {
       {loading && <div className="ord-info">Loading…</div>}
       {error && <div className="ord-error">{error}</div>}
 
+      {/* Order list */}
       {!loading && !error && (
         <div className="ord-list">
           {filteredOrders.length === 0 ? (
@@ -248,10 +255,7 @@ const AdminOrders: React.FC = () => {
                       <span className="ord-label">Order #</span>
                       <span className="ord-num">
                         {qSmall
-                          ? highlight(
-                              o.orderNumber || o._id.slice(-6),
-                              qSmall
-                            )
+                          ? highlight(o.orderNumber || o._id.slice(-6), qSmall)
                           : o.orderNumber || o._id.slice(-6)}
                       </span>
                     </div>
@@ -259,9 +263,7 @@ const AdminOrders: React.FC = () => {
                     <div className="ord-row ord-cust">
                       <span className="ord-label">Customer:</span>
                       <div>
-                        <b>
-                          {qSmall ? highlight(firm, qSmall) : firm}
-                        </b>{" "}
+                        <b>{qSmall ? highlight(firm, qSmall) : firm}</b>{" "}
                         <span className="ord-cmeta">
                           {qSmall ? highlight(shop, qSmall) : shop}
                         </span>{" "}
@@ -269,9 +271,7 @@ const AdminOrders: React.FC = () => {
                           {qSmall ? highlight(phone, qSmall) : phone}
                         </span>{" "}
                         <span className="ord-cmeta">
-                          {qSmall
-                            ? highlight(cityStZip, qSmall)
-                            : cityStZip}
+                          {qSmall ? highlight(cityStZip, qSmall) : cityStZip}
                         </span>
                       </div>
                     </div>
@@ -280,8 +280,10 @@ const AdminOrders: React.FC = () => {
                         {o.items.length} item{o.items.length > 1 ? "s" : ""}
                       </span>
                       <span className="ord-total">
-                        ₹ {o.total.toFixed(2)}
+                        Total Inners:{" "}
+                        {o.items.reduce((sum, it) => sum + toInners(it), 0)}
                       </span>
+                      <span className="ord-total">₹ {o.total.toFixed(2)}</span>
                     </div>
                   </div>
 
@@ -339,6 +341,7 @@ const AdminOrders: React.FC = () => {
         </div>
       )}
 
+      {/* Order Modal */}
       {viewing && (
         <div
           className="ord-modal-backdrop"
@@ -346,10 +349,7 @@ const AdminOrders: React.FC = () => {
           role="dialog"
           aria-modal="true"
         >
-          <div
-            className="ord-modal"
-            onClick={(e) => e.stopPropagation()}
-          >
+          <div className="ord-modal" onClick={(e) => e.stopPropagation()}>
             <button
               className="ord-close"
               onClick={() => setViewing(null)}
@@ -357,108 +357,38 @@ const AdminOrders: React.FC = () => {
             >
               &times;
             </button>
-            <h3>
-              Order #{viewing.orderNumber || viewing._id.slice(-6)}
-            </h3>
+            <h3>Order #{viewing.orderNumber || viewing._id.slice(-6)}</h3>
             <div className="ord-m-section">
-              <div>
-                <b>Status:</b> {viewing.status.toUpperCase()}
-              </div>
-              <div>
-                <b>Total:</b> ₹ {viewing.total.toFixed(2)}
-              </div>
-              <div>
-                <b>Payment:</b> {viewing.paymentMethod || "-"}
-              </div>
-              <div>
-                <b>Created:</b> {formatDate(viewing.createdAt)}
-              </div>
+              <div><b>Status:</b> {viewing.status.toUpperCase()}</div>
+              <div><b>Total:</b> ₹ {viewing.total.toFixed(2)}</div>
+              <div><b>Payment:</b> {viewing.paymentMethod || "-"}</div>
+              <div><b>Created:</b> {formatDate(viewing.createdAt)}</div>
             </div>
-            <div className="ord-m-section">
-              <b>Customer:</b>
-              <br />
-              {viewing.customerId?.firmName}{" "}
-              {viewing.customerId?.shopName
-                ? `(${viewing.customerId.shopName})`
-                : ""}
-              <br />
-              {viewing.customerId?.otpMobile && (
-                <>
-                  📞 {viewing.customerId.otpMobile}
-                  <br />
-                </>
-              )}
-              {[viewing.customerId?.city,
-              viewing.customerId?.state,
-              viewing.customerId?.zip]
-                .filter(Boolean)
-                .join(", ")}
-              <br />
-              {viewing.customerId?.visitingCardUrl && (
-                <a
-                  href={resolveImage(viewing.customerId.visitingCardUrl)}
-                  target="_blank"
-                  rel="noreferrer"
-                  className="ord-link"
-                >
-                  Visiting Card
-                </a>
-              )}
-            </div>
-            <div className="ord-m-section">
-              <b>Shipping:</b>
-              <br />
-              {viewing.shipping?.address && (
-                <>
-                  📍 {viewing.shipping.address}
-                  <br />
-                </>
-              )}
-              {viewing.shipping?.phone && (
-                <>
-                  📞 {viewing.shipping.phone}
-                  <br />
-                </>
-              )}
-              {viewing.shipping?.email && (
-                <>
-                  ✉️ {viewing.shipping.email}
-                  <br />
-                </>
-              )}
-              {viewing.shipping?.notes && (
-                <>📝 {viewing.shipping.notes}</>
-              )}
-              {!viewing.shipping?.address &&
-                !viewing.shipping?.phone &&
-                !viewing.shipping?.email &&
-                !viewing.shipping?.notes && (
-                  <span style={{ color: "#888" }}>No shipping info</span>
-                )}
-            </div>
+
             <div className="ord-m-section">
               <b>Items:</b>
-              {viewing.items.map((it: OrderItem, i: number) => {
+              {viewing.items.map((it, i) => {
                 const img = resolveImage(it.image);
                 return (
                   <div className="ord-m-item" key={i}>
                     {img ? (
-                      <img
-                        src={img}
-                        alt={it.name}
-                        className="ord-m-img"
-                      />
+                      <img src={img} alt={it.name} className="ord-m-img" />
                     ) : (
                       <div className="ord-m-img ord-m-imgph" />
                     )}
                     <span className="ord-m-iname">{it.name}</span>
-                    <span className="ord-m-qty">x{it.qty}</span>
+                    <span className="ord-m-qty">Qty: {it.qty} pcs</span>
+                    <span className="ord-m-qty">Inners: {toInners(it)}</span>
                     <span className="ord-m-price">
                       ₹ {(it.price * it.qty).toFixed(2)}
                     </span>
                   </div>
                 );
               })}
+              <div className="ord-m-summary">
+                <b>Total Inners: </b>
+                {viewing.items.reduce((sum, it) => sum + toInners(it), 0)}
+              </div>
             </div>
           </div>
         </div>

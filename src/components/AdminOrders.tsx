@@ -1,15 +1,14 @@
 // src/components/AdminOrders.tsx
 import React, { useEffect, useMemo, useState, useCallback } from "react";
-import api, { MEDIA_URL } from "../utils/api";
+import api, { MEDIA_URL } from "../utils/api";   // ✅ use api + MEDIA_URL
 import "../styles/AdminOrdersModern.css";
 
 type OrderItem = {
   productId: string;
   name: string;
-  qty: number;              // total pieces
-  price: number;            // price per piece
+  qty: number;
+  price: number;
   image?: string;
-  nosPerInner?: number;     // pieces per inner
 };
 
 type CustomerLite = {
@@ -58,12 +57,6 @@ const resolveImage = (img?: string): string => {
   return `${MEDIA_URL}/uploads/${encodeURIComponent(img)}`;
 };
 
-// ✅ Calculate inners (default 12 if missing)
-const toInners = (item: OrderItem) => {
-  const perInner = item.nosPerInner && item.nosPerInner > 0 ? item.nosPerInner : 12;
-  return Math.ceil((item.qty || 0) / perInner);
-};
-
 const statusMeta: Record<
   OrderStatus,
   { color: string; icon: string; text: string }
@@ -107,7 +100,7 @@ const AdminOrders: React.FC = () => {
   const fetchOrders = useCallback(async () => {
     try {
       setLoading(true);
-      const { data } = await api.get<Order[]>("/orders");
+      const { data } = await api.get<Order[]>("/orders"); // ✅ use api
       setOrders(data || []);
       setError(null);
     } catch (err: any) {
@@ -129,7 +122,9 @@ const AdminOrders: React.FC = () => {
   const updateStatus = async (id: string, status: OrderStatus) => {
     try {
       setActOn(id);
-      const { data } = await api.patch<Order>(`/orders/${id}/status`, { status });
+      const { data } = await api.patch<Order>(`/orders/${id}/status`, {
+        status,
+      });
       setOrders((prev) =>
         prev.map((o) => (o._id === id ? { ...o, status: data.status } : o))
       );
@@ -233,87 +228,128 @@ const AdminOrders: React.FC = () => {
           {filteredOrders.length === 0 ? (
             <div className="ord-empty">No orders match your search.</div>
           ) : (
-            filteredOrders.map((o) => (
-              <div className="ord-card" key={o._id}>
-                <div className="ord-main">
-                  <div className="ord-row">
-                    <span className="ord-label">Order #</span>
-                    <span className="ord-num">
-                      {o.orderNumber || o._id.slice(-6)}
-                    </span>
-                  </div>
-                  <div className="ord-row">{formatDate(o.createdAt)}</div>
-                  <div className="ord-row ord-cust">
-                    <span className="ord-label">Customer:</span>
-                    <div>
-                      <b>{o.customerId?.firmName || "-"}</b>{" "}
-                      <span className="ord-cmeta">{o.customerId?.shopName}</span>{" "}
-                      <span className="ord-cmeta">{o.customerId?.otpMobile}</span>{" "}
-                      <span className="ord-cmeta">
-                        {[o.customerId?.city, o.customerId?.state, o.customerId?.zip]
-                          .filter(Boolean)
-                          .join(", ")}
+            filteredOrders.map((o) => {
+              const qSmall = debounced.trim();
+              const firm = o.customerId?.firmName || "-";
+              const shop = o.customerId?.shopName || "";
+              const phone = o.customerId?.otpMobile || "";
+              const cityStZip = [
+                o.customerId?.city,
+                o.customerId?.state,
+                o.customerId?.zip,
+              ]
+                .filter(Boolean)
+                .join(", ");
+
+              return (
+                <div className="ord-card" key={o._id}>
+                  <div className="ord-main">
+                    <div className="ord-row">
+                      <span className="ord-label">Order #</span>
+                      <span className="ord-num">
+                        {qSmall
+                          ? highlight(
+                              o.orderNumber || o._id.slice(-6),
+                              qSmall
+                            )
+                          : o.orderNumber || o._id.slice(-6)}
+                      </span>
+                    </div>
+                    <div className="ord-row">{formatDate(o.createdAt)}</div>
+                    <div className="ord-row ord-cust">
+                      <span className="ord-label">Customer:</span>
+                      <div>
+                        <b>
+                          {qSmall ? highlight(firm, qSmall) : firm}
+                        </b>{" "}
+                        <span className="ord-cmeta">
+                          {qSmall ? highlight(shop, qSmall) : shop}
+                        </span>{" "}
+                        <span className="ord-cmeta">
+                          {qSmall ? highlight(phone, qSmall) : phone}
+                        </span>{" "}
+                        <span className="ord-cmeta">
+                          {qSmall
+                            ? highlight(cityStZip, qSmall)
+                            : cityStZip}
+                        </span>
+                      </div>
+                    </div>
+                    <div className="ord-row ord-itemsum">
+                      <span>
+                        {o.items.length} item{o.items.length > 1 ? "s" : ""}
+                      </span>
+                      <span className="ord-total">
+                        ₹ {o.total.toFixed(2)}
                       </span>
                     </div>
                   </div>
-                  <div className="ord-row ord-itemsum">
-                    <span>
-                      {o.items.length} item{o.items.length > 1 ? "s" : ""}
+
+                  <div className="ord-statusbar">
+                    <span
+                      className="ord-status"
+                      style={{
+                        background: statusMeta[o.status].color + "22",
+                        color: statusMeta[o.status].color,
+                      }}
+                    >
+                      {statusMeta[o.status].icon} {statusMeta[o.status].text}
                     </span>
-                    <span className="ord-total">₹ {o.total.toFixed(2)}</span>
+                    <span className="ord-paymeth">
+                      {qSmall
+                        ? highlight(o.paymentMethod || "-", qSmall)
+                        : o.paymentMethod || "-"}
+                    </span>
+                  </div>
+
+                  <div className="ord-actions">
+                    <button
+                      className="ord-btn ord-btn-view"
+                      onClick={() => setViewing(o)}
+                    >
+                      View
+                    </button>
+
+                    <select
+                      className="ord-select"
+                      disabled={actOn === o._id}
+                      value={o.status}
+                      onChange={(e) =>
+                        updateStatus(o._id, e.target.value as OrderStatus)
+                      }
+                    >
+                      <option value="pending">Pending</option>
+                      <option value="processing">Processing</option>
+                      <option value="shipped">Shipped</option>
+                      <option value="delivered">Delivered</option>
+                      <option value="cancelled">Cancelled</option>
+                    </select>
+
+                    <button
+                      className="ord-btn ord-btn-del"
+                      onClick={() => deleteOrder(o._id)}
+                    >
+                      Delete
+                    </button>
                   </div>
                 </div>
-
-                <div className="ord-statusbar">
-                  <span
-                    className="ord-status"
-                    style={{
-                      background: statusMeta[o.status].color + "22",
-                      color: statusMeta[o.status].color,
-                    }}
-                  >
-                    {statusMeta[o.status].icon} {statusMeta[o.status].text}
-                  </span>
-                  <span className="ord-paymeth">{o.paymentMethod || "-"}</span>
-                </div>
-
-                <div className="ord-actions">
-                  <button
-                    className="ord-btn ord-btn-view"
-                    onClick={() => setViewing(o)}
-                  >
-                    View
-                  </button>
-
-                  <select
-                    className="ord-select"
-                    disabled={actOn === o._id}
-                    value={o.status}
-                    onChange={(e) => updateStatus(o._id, e.target.value as OrderStatus)}
-                  >
-                    <option value="pending">Pending</option>
-                    <option value="processing">Processing</option>
-                    <option value="shipped">Shipped</option>
-                    <option value="delivered">Delivered</option>
-                    <option value="cancelled">Cancelled</option>
-                  </select>
-
-                  <button
-                    className="ord-btn ord-btn-del"
-                    onClick={() => deleteOrder(o._id)}
-                  >
-                    Delete
-                  </button>
-                </div>
-              </div>
-            ))
+              );
+            })
           )}
         </div>
       )}
 
       {viewing && (
-        <div className="ord-modal-backdrop" onClick={() => setViewing(null)}>
-          <div className="ord-modal" onClick={(e) => e.stopPropagation()}>
+        <div
+          className="ord-modal-backdrop"
+          onClick={() => setViewing(null)}
+          role="dialog"
+          aria-modal="true"
+        >
+          <div
+            className="ord-modal"
+            onClick={(e) => e.stopPropagation()}
+          >
             <button
               className="ord-close"
               onClick={() => setViewing(null)}
@@ -321,7 +357,9 @@ const AdminOrders: React.FC = () => {
             >
               &times;
             </button>
-            <h3>Order #{viewing.orderNumber || viewing._id.slice(-6)}</h3>
+            <h3>
+              Order #{viewing.orderNumber || viewing._id.slice(-6)}
+            </h3>
             <div className="ord-m-section">
               <div>
                 <b>Status:</b> {viewing.status.toUpperCase()}
@@ -336,27 +374,91 @@ const AdminOrders: React.FC = () => {
                 <b>Created:</b> {formatDate(viewing.createdAt)}
               </div>
             </div>
-
+            <div className="ord-m-section">
+              <b>Customer:</b>
+              <br />
+              {viewing.customerId?.firmName}{" "}
+              {viewing.customerId?.shopName
+                ? `(${viewing.customerId.shopName})`
+                : ""}
+              <br />
+              {viewing.customerId?.otpMobile && (
+                <>
+                  📞 {viewing.customerId.otpMobile}
+                  <br />
+                </>
+              )}
+              {[viewing.customerId?.city,
+              viewing.customerId?.state,
+              viewing.customerId?.zip]
+                .filter(Boolean)
+                .join(", ")}
+              <br />
+              {viewing.customerId?.visitingCardUrl && (
+                <a
+                  href={resolveImage(viewing.customerId.visitingCardUrl)}
+                  target="_blank"
+                  rel="noreferrer"
+                  className="ord-link"
+                >
+                  Visiting Card
+                </a>
+              )}
+            </div>
+            <div className="ord-m-section">
+              <b>Shipping:</b>
+              <br />
+              {viewing.shipping?.address && (
+                <>
+                  📍 {viewing.shipping.address}
+                  <br />
+                </>
+              )}
+              {viewing.shipping?.phone && (
+                <>
+                  📞 {viewing.shipping.phone}
+                  <br />
+                </>
+              )}
+              {viewing.shipping?.email && (
+                <>
+                  ✉️ {viewing.shipping.email}
+                  <br />
+                </>
+              )}
+              {viewing.shipping?.notes && (
+                <>📝 {viewing.shipping.notes}</>
+              )}
+              {!viewing.shipping?.address &&
+                !viewing.shipping?.phone &&
+                !viewing.shipping?.email &&
+                !viewing.shipping?.notes && (
+                  <span style={{ color: "#888" }}>No shipping info</span>
+                )}
+            </div>
             <div className="ord-m-section">
               <b>Items:</b>
-              {viewing.items.map((it, i) => {
+              {viewing.items.map((it: OrderItem, i: number) => {
                 const img = resolveImage(it.image);
                 return (
                   <div className="ord-m-item" key={i}>
                     {img ? (
-                      <img src={img} alt={it.name} className="ord-m-img" />
+                      <img
+                        src={img}
+                        alt={it.name}
+                        className="ord-m-img"
+                      />
                     ) : (
                       <div className="ord-m-img ord-m-imgph" />
                     )}
                     <span className="ord-m-iname">{it.name}</span>
-                    <span className="ord-m-qty">{toInners(it)} inners</span>
+                    <span className="ord-m-qty">x{it.qty}</span>
+                    <span className="ord-m-price">
+                      ₹ {(it.price * it.qty).toFixed(2)}
+                    </span>
                   </div>
                 );
               })}
-              <div style={{ marginTop: "10px", fontWeight: "bold" }}>
-                Total Inners:{" "}
-                {viewing.items.reduce((sum, it) => sum + toInners(it), 0)}
-              </div>
             </div>
           </div>
         </div>

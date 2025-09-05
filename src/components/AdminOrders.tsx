@@ -1,6 +1,6 @@
 // src/components/AdminOrders.tsx
 import React, { useEffect, useMemo, useState, useCallback } from "react";
-import api, { MEDIA_URL } from "../utils/api";   // ✅ use api + MEDIA_URL
+import api, { MEDIA_URL } from "../utils/api";
 import "../styles/AdminOrdersModern.css";
 
 type OrderItem = {
@@ -9,6 +9,9 @@ type OrderItem = {
   qty: number;
   price: number;
   image?: string;
+  innerQty?: number;    // ✅ now includes inner fields
+  inners?: number;      // ✅
+  nosPerInner?: number; // ✅
 };
 
 type CustomerLite = {
@@ -86,21 +89,30 @@ const highlight = (text: string, q: string) => {
   );
 };
 
+// ✅ Inner calculation logic
+const toInners = (it: OrderItem): number => {
+  if (it.inners && it.inners > 0) return it.inners;
+  const perInner = it.innerQty && it.innerQty > 0
+    ? it.innerQty
+    : it.nosPerInner && it.nosPerInner > 0
+      ? it.nosPerInner
+      : 12; // Default, change as required
+  return Math.ceil((it.qty || 0) / perInner);
+};
+
 const AdminOrders: React.FC = () => {
   const [orders, setOrders] = useState<Order[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
-
   const [viewing, setViewing] = useState<Order | null>(null);
   const [actOn, setActOn] = useState<string | null>(null);
-
   const [search, setSearch] = useState("");
   const [debounced, setDebounced] = useState("");
 
   const fetchOrders = useCallback(async () => {
     try {
       setLoading(true);
-      const { data } = await api.get<Order[]>("/orders"); // ✅ use api
+      const { data } = await api.get<Order[]>("/orders");
       setOrders(data || []);
       setError(null);
     } catch (err: any) {
@@ -151,7 +163,6 @@ const AdminOrders: React.FC = () => {
   const filteredOrders = useMemo(() => {
     const q = debounced.trim().toLowerCase();
     if (!q) return orders;
-
     return orders.filter((o) => {
       const inOrderNum = norm(o.orderNumber).includes(q);
       const inIdSuffix = o._id.toLowerCase().endsWith(q);
@@ -167,7 +178,6 @@ const AdminOrders: React.FC = () => {
       const inPayment = norm(o.paymentMethod).includes(q);
       const inStatus = norm(o.status).includes(q);
       const inItems = o.items?.some((it) => norm(it.name).includes(q));
-
       return (
         inOrderNum ||
         inIdSuffix ||
@@ -189,7 +199,6 @@ const AdminOrders: React.FC = () => {
   return (
     <div className="ord-app">
       <h2 className="ord-header">Order Management</h2>
-
       <div className="ord-toolbar">
         <div className="ord-srch">
           <span className="ord-srch-icon">🔎</span>
@@ -212,17 +221,14 @@ const AdminOrders: React.FC = () => {
           )}
         </div>
       </div>
-
       <div className="ord-meta">
         Showing <b>{filteredOrders.length}</b> of <b>{orders.length}</b> orders
         {debounced && filteredOrders.length > 0 && (
           <span className="ord-meta-chip">filtered by “{debounced}”</span>
         )}
       </div>
-
       {loading && <div className="ord-info">Loading…</div>}
       {error && <div className="ord-error">{error}</div>}
-
       {!loading && !error && (
         <div className="ord-list">
           {filteredOrders.length === 0 ? (
@@ -233,14 +239,9 @@ const AdminOrders: React.FC = () => {
               const firm = o.customerId?.firmName || "-";
               const shop = o.customerId?.shopName || "";
               const phone = o.customerId?.otpMobile || "";
-              const cityStZip = [
-                o.customerId?.city,
-                o.customerId?.state,
-                o.customerId?.zip,
-              ]
+              const cityStZip = [o.customerId?.city, o.customerId?.state, o.customerId?.zip]
                 .filter(Boolean)
                 .join(", ");
-
               return (
                 <div className="ord-card" key={o._id}>
                   <div className="ord-main">
@@ -248,10 +249,7 @@ const AdminOrders: React.FC = () => {
                       <span className="ord-label">Order #</span>
                       <span className="ord-num">
                         {qSmall
-                          ? highlight(
-                              o.orderNumber || o._id.slice(-6),
-                              qSmall
-                            )
+                          ? highlight(o.orderNumber || o._id.slice(-6), qSmall)
                           : o.orderNumber || o._id.slice(-6)}
                       </span>
                     </div>
@@ -259,9 +257,7 @@ const AdminOrders: React.FC = () => {
                     <div className="ord-row ord-cust">
                       <span className="ord-label">Customer:</span>
                       <div>
-                        <b>
-                          {qSmall ? highlight(firm, qSmall) : firm}
-                        </b>{" "}
+                        <b>{qSmall ? highlight(firm, qSmall) : firm}</b>{" "}
                         <span className="ord-cmeta">
                           {qSmall ? highlight(shop, qSmall) : shop}
                         </span>{" "}
@@ -269,9 +265,7 @@ const AdminOrders: React.FC = () => {
                           {qSmall ? highlight(phone, qSmall) : phone}
                         </span>{" "}
                         <span className="ord-cmeta">
-                          {qSmall
-                            ? highlight(cityStZip, qSmall)
-                            : cityStZip}
+                          {qSmall ? highlight(cityStZip, qSmall) : cityStZip}
                         </span>
                       </div>
                     </div>
@@ -279,12 +273,9 @@ const AdminOrders: React.FC = () => {
                       <span>
                         {o.items.length} item{o.items.length > 1 ? "s" : ""}
                       </span>
-                      <span className="ord-total">
-                        ₹ {o.total.toFixed(2)}
-                      </span>
+                      <span className="ord-total">₹ {o.total.toFixed(2)}</span>
                     </div>
                   </div>
-
                   <div className="ord-statusbar">
                     <span
                       className="ord-status"
@@ -301,7 +292,6 @@ const AdminOrders: React.FC = () => {
                         : o.paymentMethod || "-"}
                     </span>
                   </div>
-
                   <div className="ord-actions">
                     <button
                       className="ord-btn ord-btn-view"
@@ -309,7 +299,6 @@ const AdminOrders: React.FC = () => {
                     >
                       View
                     </button>
-
                     <select
                       className="ord-select"
                       disabled={actOn === o._id}
@@ -324,7 +313,6 @@ const AdminOrders: React.FC = () => {
                       <option value="delivered">Delivered</option>
                       <option value="cancelled">Cancelled</option>
                     </select>
-
                     <button
                       className="ord-btn ord-btn-del"
                       onClick={() => deleteOrder(o._id)}
@@ -338,7 +326,6 @@ const AdminOrders: React.FC = () => {
           )}
         </div>
       )}
-
       {viewing && (
         <div
           className="ord-modal-backdrop"
@@ -346,10 +333,7 @@ const AdminOrders: React.FC = () => {
           role="dialog"
           aria-modal="true"
         >
-          <div
-            className="ord-modal"
-            onClick={(e) => e.stopPropagation()}
-          >
+          <div className="ord-modal" onClick={(e) => e.stopPropagation()}>
             <button
               className="ord-close"
               onClick={() => setViewing(null)}
@@ -357,15 +341,16 @@ const AdminOrders: React.FC = () => {
             >
               &times;
             </button>
-            <h3>
-              Order #{viewing.orderNumber || viewing._id.slice(-6)}
-            </h3>
+            <h3>Order #{viewing.orderNumber || viewing._id.slice(-6)}</h3>
             <div className="ord-m-section">
               <div>
                 <b>Status:</b> {viewing.status.toUpperCase()}
               </div>
               <div>
                 <b>Total:</b> ₹ {viewing.total.toFixed(2)}
+              </div>
+              <div>
+                <b>Total Inners:</b> {viewing.items.reduce((sum, it) => sum + toInners(it), 0)}
               </div>
               <div>
                 <b>Payment:</b> {viewing.paymentMethod || "-"}
@@ -388,9 +373,7 @@ const AdminOrders: React.FC = () => {
                   <br />
                 </>
               )}
-              {[viewing.customerId?.city,
-              viewing.customerId?.state,
-              viewing.customerId?.zip]
+              {[viewing.customerId?.city, viewing.customerId?.state, viewing.customerId?.zip]
                 .filter(Boolean)
                 .join(", ")}
               <br />
@@ -426,9 +409,7 @@ const AdminOrders: React.FC = () => {
                   <br />
                 </>
               )}
-              {viewing.shipping?.notes && (
-                <>📝 {viewing.shipping.notes}</>
-              )}
+              {viewing.shipping?.notes && <>📝 {viewing.shipping.notes}</>}
               {!viewing.shipping?.address &&
                 !viewing.shipping?.phone &&
                 !viewing.shipping?.email &&
@@ -440,18 +421,16 @@ const AdminOrders: React.FC = () => {
               <b>Items:</b>
               {viewing.items.map((it: OrderItem, i: number) => {
                 const img = resolveImage(it.image);
+                const iTotal = toInners(it); // ✅ Innner calculation
                 return (
                   <div className="ord-m-item" key={i}>
                     {img ? (
-                      <img
-                        src={img}
-                        alt={it.name}
-                        className="ord-m-img"
-                      />
+                      <img src={img} alt={it.name} className="ord-m-img" />
                     ) : (
                       <div className="ord-m-img ord-m-imgph" />
                     )}
                     <span className="ord-m-iname">{it.name}</span>
+                    <span className="ord-m-inner">({iTotal} inners)</span>
                     <span className="ord-m-qty">x{it.qty}</span>
                     <span className="ord-m-price">
                       ₹ {(it.price * it.qty).toFixed(2)}

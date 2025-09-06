@@ -11,8 +11,8 @@ interface Category {
 
 interface BulkPrice {
   inner: string;
-  qty: number;
-  price: number;
+  qty: string;   // string rakha gaya hai taki blank dikhaye
+  price: string; // string rakha gaya hai taki blank dikhaye
 }
 
 interface ProductPayload {
@@ -22,7 +22,7 @@ interface ProductPayload {
   description: string;
   category: string;
   images: string[];
-  bulkPricing?: BulkPrice[];
+  bulkPricing?: { inner: string; qty: number; price: number }[];
   taxFields?: string[];
 }
 
@@ -40,13 +40,13 @@ const ProductForm: React.FC = () => {
   const [form, setForm] = useState({
     name: '',
     sku: '',
-    price: 0,
+    price: '',  // ✅ Blank default
     description: '',
     category: ''
   });
 
   const [bulkPrices, setBulkPrices] = useState<BulkPrice[]>([
-    { inner: '', qty: 1, price: 0 }
+    { inner: '', qty: '', price: '' } // ✅ Blank defaults
   ]);
   const [gallery, setGallery] = useState<GalleryImage[]>([]);
   const [categories, setCategories] = useState<Category[]>([]);
@@ -70,17 +70,23 @@ const ProductForm: React.FC = () => {
           setForm({
             name: data.name,
             sku: data.sku || '',
-            price: data.price,
+            price: data.price?.toString() || '', // ✅ string
             description: data.description,
             category:
               typeof data.category === 'string'
                 ? data.category
                 : data.category?._id || ''
           });
-          setBulkPrices(data.bulkPricing || [{ inner: '', qty: 1, price: 0 }]);
+          setBulkPrices(
+            data.bulkPricing?.map((bp: any) => ({
+              inner: bp.inner || '',
+              qty: bp.qty?.toString() || '',
+              price: bp.price?.toString() || ''
+            })) || [{ inner: '', qty: '', price: '' }]
+          );
           setGallery(
             data.images.map((url: string) => ({
-              url, // ✅ Cloudinary full URL
+              url,
               isExisting: true
             }))
           );
@@ -102,7 +108,7 @@ const ProductForm: React.FC = () => {
     const { name, value } = e.target;
     setForm(prev => ({
       ...prev,
-      [name]: name === 'price' ? Number(value) : value
+      [name]: value // ✅ price ko string hi rakho
     }));
   };
 
@@ -126,7 +132,7 @@ const ProductForm: React.FC = () => {
   const handleBulkChange = (
     idx: number,
     field: keyof BulkPrice,
-    value: string | number
+    value: string
   ) => {
     setBulkPrices(prices =>
       prices.map((row, i) =>
@@ -136,7 +142,7 @@ const ProductForm: React.FC = () => {
   };
 
   const addBulkRow = () =>
-    setBulkPrices(bp => [...bp, { inner: '', qty: 1, price: 0 }]);
+    setBulkPrices(bp => [...bp, { inner: '', qty: '', price: '' }]);
   const removeBulkRow = (idx: number) => {
     if (bulkPrices.length > 1)
       setBulkPrices(bp => bp.filter((_, i) => i !== idx));
@@ -165,7 +171,7 @@ const ProductForm: React.FC = () => {
       if (!form.name.trim()) throw new Error('Product name is required');
       if (!form.sku.trim()) throw new Error('SKU is required');
       if (!form.category) throw new Error('Category is required');
-      if (form.price <= 0) throw new Error('Price must be > 0');
+      if (!form.price || Number(form.price) <= 0) throw new Error('Price must be > 0');
       if (!gallery.length) throw new Error('At least one image is required');
 
       // ✅ Upload only new images to Cloudinary
@@ -179,16 +185,23 @@ const ProductForm: React.FC = () => {
         const res = await api.post('/upload', formData, {
           headers: { 'Content-Type': 'multipart/form-data' }
         });
-        uploadedUrls = res.data.urls; // ✅ already Cloudinary URLs
+        uploadedUrls = res.data.urls;
       }
 
       const payload: ProductPayload = {
         ...form,
+        price: Number(form.price), // ✅ convert string → number
         images: [
           ...gallery.filter(g => g.isExisting).map(g => g.url),
           ...uploadedUrls
         ],
-        bulkPricing: bulkPrices.filter(bp => bp.qty > 0 && bp.price > 0),
+        bulkPricing: bulkPrices
+          .filter(bp => Number(bp.qty) > 0 && Number(bp.price) > 0)
+          .map(bp => ({
+            inner: bp.inner,
+            qty: Number(bp.qty),
+            price: Number(bp.price)
+          })),
         taxFields
       };
 
@@ -320,7 +333,7 @@ const ProductForm: React.FC = () => {
                 min="0"
                 step="0.01"
                 required
-                placeholder="0.00"
+                placeholder="0.00"   // ✅ Blank by default
               />
             </div>
             <div className="form-group">
@@ -407,7 +420,7 @@ const ProductForm: React.FC = () => {
                       type="number"
                       value={bp.qty}
                       onChange={e =>
-                        handleBulkChange(idx, 'qty', Number(e.target.value))
+                        handleBulkChange(idx, 'qty', e.target.value)
                       }
                       min="1"
                       placeholder="e.g. 50"
@@ -418,7 +431,7 @@ const ProductForm: React.FC = () => {
                       type="number"
                       value={bp.price}
                       onChange={e =>
-                        handleBulkChange(idx, 'price', Number(e.target.value))
+                        handleBulkChange(idx, 'price', e.target.value)
                       }
                       min="0"
                       step="0.01"

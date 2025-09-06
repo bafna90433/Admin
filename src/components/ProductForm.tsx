@@ -11,8 +11,8 @@ interface Category {
 
 interface BulkPrice {
   inner: string;
-  qty: string;   // ✅ string to allow blank
-  price: string; // ✅ string to allow blank
+  qty: string;   // ✅ string so input can stay blank
+  price: string; // ✅ string so input can stay blank
 }
 
 interface ProductPayload {
@@ -40,13 +40,13 @@ const ProductForm: React.FC = () => {
   const [form, setForm] = useState({
     name: '',
     sku: '',
-    price: '', // ✅ blank by default
+    price: '',  // ✅ blank default
     description: '',
     category: ''
   });
 
   const [bulkPrices, setBulkPrices] = useState<BulkPrice[]>([
-    { inner: '', qty: '', price: '' } // ✅ blank by default
+    { inner: '', qty: '', price: '' } // ✅ blank defaults
   ]);
   const [gallery, setGallery] = useState<GalleryImage[]>([]);
   const [categories, setCategories] = useState<Category[]>([]);
@@ -108,7 +108,7 @@ const ProductForm: React.FC = () => {
     const { name, value } = e.target;
     setForm(prev => ({
       ...prev,
-      [name]: value // keep price as string
+      [name]: value // keep as string
     }));
   };
 
@@ -190,7 +190,7 @@ const ProductForm: React.FC = () => {
 
       const payload: ProductPayload = {
         ...form,
-        price: Number(form.price), // convert to number
+        price: Number(form.price),
         images: [
           ...gallery.filter(g => g.isExisting).map(g => g.url),
           ...uploadedUrls

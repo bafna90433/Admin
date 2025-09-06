@@ -11,8 +11,8 @@ interface Category {
 
 interface BulkPrice {
   inner: string;
-  qty: string;   // string rakha gaya hai taki blank dikhaye
-  price: string; // string rakha gaya hai taki blank dikhaye
+  qty: string;   // ✅ string to allow blank
+  price: string; // ✅ string to allow blank
 }
 
 interface ProductPayload {
@@ -40,13 +40,13 @@ const ProductForm: React.FC = () => {
   const [form, setForm] = useState({
     name: '',
     sku: '',
-    price: '',  // ✅ Blank default
+    price: '', // ✅ blank by default
     description: '',
     category: ''
   });
 
   const [bulkPrices, setBulkPrices] = useState<BulkPrice[]>([
-    { inner: '', qty: '', price: '' } // ✅ Blank defaults
+    { inner: '', qty: '', price: '' } // ✅ blank by default
   ]);
   const [gallery, setGallery] = useState<GalleryImage[]>([]);
   const [categories, setCategories] = useState<Category[]>([]);
@@ -70,7 +70,7 @@ const ProductForm: React.FC = () => {
           setForm({
             name: data.name,
             sku: data.sku || '',
-            price: data.price?.toString() || '', // ✅ string
+            price: data.price?.toString() || '',
             description: data.description,
             category:
               typeof data.category === 'string'
@@ -108,7 +108,7 @@ const ProductForm: React.FC = () => {
     const { name, value } = e.target;
     setForm(prev => ({
       ...prev,
-      [name]: value // ✅ price ko string hi rakho
+      [name]: value // keep price as string
     }));
   };
 
@@ -190,7 +190,7 @@ const ProductForm: React.FC = () => {
 
       const payload: ProductPayload = {
         ...form,
-        price: Number(form.price), // ✅ convert string → number
+        price: Number(form.price), // convert to number
         images: [
           ...gallery.filter(g => g.isExisting).map(g => g.url),
           ...uploadedUrls
@@ -328,12 +328,12 @@ const ProductForm: React.FC = () => {
               <input
                 type="number"
                 name="price"
-                value={form.price}
+                value={form.price === '' ? '' : form.price}
                 onChange={handleChange}
                 min="0"
                 step="0.01"
                 required
-                placeholder="0.00"   // ✅ Blank by default
+                placeholder="0.00"
               />
             </div>
             <div className="form-group">
@@ -407,7 +407,7 @@ const ProductForm: React.FC = () => {
                   <div>
                     <input
                       type="number"
-                      value={bp.inner}
+                      value={bp.inner === '' ? '' : bp.inner}
                       onChange={e =>
                         handleBulkChange(idx, 'inner', e.target.value)
                       }
@@ -418,7 +418,7 @@ const ProductForm: React.FC = () => {
                   <div>
                     <input
                       type="number"
-                      value={bp.qty}
+                      value={bp.qty === '' ? '' : bp.qty}
                       onChange={e =>
                         handleBulkChange(idx, 'qty', e.target.value)
                       }
@@ -429,7 +429,7 @@ const ProductForm: React.FC = () => {
                   <div>
                     <input
                       type="number"
-                      value={bp.price}
+                      value={bp.price === '' ? '' : bp.price}
                       onChange={e =>
                         handleBulkChange(idx, 'price', e.target.value)
                       }

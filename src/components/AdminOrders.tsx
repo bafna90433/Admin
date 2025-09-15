@@ -2,6 +2,8 @@
 import React, { useEffect, useMemo, useState, useCallback } from "react";
 import api, { MEDIA_URL } from "../utils/api";
 import "../styles/AdminOrdersModern.css";
+import * as XLSX from "xlsx";
+import { saveAs } from "file-saver";
 
 type OrderItem = {
   productId: string;
@@ -9,9 +11,9 @@ type OrderItem = {
   qty: number;
   price: number;
   image?: string;
-  innerQty?: number;    // ✅ now includes inner fields
-  inners?: number;      // ✅
-  nosPerInner?: number; // ✅
+  innerQty?: number;
+  inners?: number;
+  nosPerInner?: number;
 };
 
 type CustomerLite = {
@@ -92,12 +94,50 @@ const highlight = (text: string, q: string) => {
 // ✅ Inner calculation logic
 const toInners = (it: OrderItem): number => {
   if (it.inners && it.inners > 0) return it.inners;
-  const perInner = it.innerQty && it.innerQty > 0
-    ? it.innerQty
-    : it.nosPerInner && it.nosPerInner > 0
+  const perInner =
+    it.innerQty && it.innerQty > 0
+      ? it.innerQty
+      : it.nosPerInner && it.nosPerInner > 0
       ? it.nosPerInner
-      : 12; // Default, change as required
+      : 12;
   return Math.ceil((it.qty || 0) / perInner);
+};
+
+// ✅ Excel export function
+const exportToExcel = (orders: Order[]) => {
+  if (!orders || orders.length === 0) {
+    alert("No orders to export!");
+    return;
+  }
+
+  const rows = orders.flatMap((order) =>
+    order.items.map((item) => ({
+      "Order #": order.orderNumber || order._id.slice(-6),
+      Date: new Date(order.createdAt).toLocaleString(),
+      Status: order.status,
+      "Customer Name": order.customerId?.firmName || "",
+      "Shop Name": order.customerId?.shopName || "",
+      Phone: order.customerId?.otpMobile || "",
+      City: order.customerId?.city || "",
+      State: order.customerId?.state || "",
+      "Payment Method": order.paymentMethod || "",
+      "Item Name": item.name,
+      Qty: item.qty,
+      Inners: toInners(item),
+      Price: item.price,
+      "Total (₹)": item.price * item.qty,
+    }))
+  );
+
+  const ws = XLSX.utils.json_to_sheet(rows);
+  const wb = XLSX.utils.book_new();
+  XLSX.utils.book_append_sheet(wb, ws, "Orders");
+  const wbout = XLSX.write(wb, { type: "array", bookType: "xlsx" });
+
+  saveAs(
+    new Blob([wbout], { type: "application/octet-stream" }),
+    `Orders_${new Date().toISOString().slice(0, 10)}.xlsx`
+  );
 };
 
 const AdminOrders: React.FC = () => {
@@ -220,13 +260,23 @@ const AdminOrders: React.FC = () => {
             </button>
           )}
         </div>
+
+        {/* ✅ Export Button */}
+        <button
+          className="ord-btn ord-btn-export"
+          onClick={() => exportToExcel(filteredOrders)}
+        >
+          ⬇️ Export to Excel
+        </button>
       </div>
+
       <div className="ord-meta">
         Showing <b>{filteredOrders.length}</b> of <b>{orders.length}</b> orders
         {debounced && filteredOrders.length > 0 && (
           <span className="ord-meta-chip">filtered by “{debounced}”</span>
         )}
       </div>
+
       {loading && <div className="ord-info">Loading…</div>}
       {error && <div className="ord-error">{error}</div>}
       {!loading && !error && (
@@ -350,7 +400,8 @@ const AdminOrders: React.FC = () => {
                 <b>Total:</b> ₹ {viewing.total.toFixed(2)}
               </div>
               <div>
-                <b>Total Inners:</b> {viewing.items.reduce((sum, it) => sum + toInners(it), 0)}
+                <b>Total Inners:</b>{" "}
+                {viewing.items.reduce((sum, it) => sum + toInners(it), 0)}
               </div>
               <div>
                 <b>Payment:</b> {viewing.paymentMethod || "-"}
@@ -421,7 +472,7 @@ const AdminOrders: React.FC = () => {
               <b>Items:</b>
               {viewing.items.map((it: OrderItem, i: number) => {
                 const img = resolveImage(it.image);
-                const iTotal = toInners(it); // ✅ Innner calculation
+                const iTotal = toInners(it);
                 return (
                   <div className="ord-m-item" key={i}>
                     {img ? (

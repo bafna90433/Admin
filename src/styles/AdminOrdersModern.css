@@ -285,3 +285,33 @@
   .ord-card { padding: 16px 12px 14px; }
   .ord-header { margin-left: 11px; font-size: 1.3rem; }
 }
+.ord-btn-excel {
+  background-color: #1D6F42;
+  color: white;
+  border: none;
+  padding: 8px 16px;
+  border-radius: 4px;
+  cursor: pointer;
+  font-weight: 500;
+  margin-left: 10px;
+}
+
+.ord-btn-excel:hover:not(:disabled) {
+  background-color: #165B35;
+}
+
+.ord-btn-excel:disabled {
+  background-color: #cccccc;
+  cursor: not-allowed;
+}
+
+.ord-toolbar {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin-bottom: 15px;
+}
+
+.ord-srch {
+  flex: 1;
+}

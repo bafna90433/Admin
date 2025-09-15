@@ -2,6 +2,8 @@
 import React, { useEffect, useMemo, useState, useCallback } from "react";
 import api, { MEDIA_URL } from "../utils/api";
 import "../styles/AdminOrdersModern.css";
+
+// Excel export
 import * as XLSX from "xlsx";
 import { saveAs } from "file-saver";
 
@@ -91,7 +93,7 @@ const highlight = (text: string, q: string) => {
   );
 };
 
-// ✅ Inner calculation logic
+// ✅ Inner calculation
 const toInners = (it: OrderItem): number => {
   if (it.inners && it.inners > 0) return it.inners;
   const perInner =
@@ -103,42 +105,51 @@ const toInners = (it: OrderItem): number => {
   return Math.ceil((it.qty || 0) / perInner);
 };
 
-// ✅ Excel export function
-const exportToExcel = (orders: Order[], singleFileName?: string) => {
-  if (!orders || orders.length === 0) {
-    alert("No orders to export!");
-    return;
-  }
-
-  const rows = orders.flatMap((order) =>
-    order.items.map((item) => ({
-      "Order #": order.orderNumber || order._id.slice(-6),
-      Date: new Date(order.createdAt).toLocaleString(),
-      Status: order.status,
-      "Customer Name": order.customerId?.firmName || "",
-      "Shop Name": order.customerId?.shopName || "",
-      Phone: order.customerId?.otpMobile || "",
-      City: order.customerId?.city || "",
-      State: order.customerId?.state || "",
-      "Payment Method": order.paymentMethod || "",
-      "Item Name": item.name,
-      Qty: item.qty,
-      Inners: toInners(item),
-      Price: item.price,
-      "Total (₹)": item.price * item.qty,
-    }))
-  );
+// ✅ Export all orders
+const exportAllOrders = (orders: Order[]) => {
+  const rows = orders.map((o) => ({
+    OrderNumber: o.orderNumber || o._id.slice(-6),
+    Status: o.status,
+    Total: o.total,
+    Payment: o.paymentMethod || "-",
+    CreatedAt: o.createdAt,
+    Customer: o.customerId?.firmName || "",
+    Phone: o.customerId?.otpMobile || "",
+    City: o.customerId?.city || "",
+    State: o.customerId?.state || "",
+    Zip: o.customerId?.zip || "",
+    TotalInners: o.items.reduce((sum, it) => sum + toInners(it), 0),
+  }));
 
   const ws = XLSX.utils.json_to_sheet(rows);
   const wb = XLSX.utils.book_new();
   XLSX.utils.book_append_sheet(wb, ws, "Orders");
-  const wbout = XLSX.write(wb, { type: "array", bookType: "xlsx" });
+  const buf = XLSX.write(wb, { bookType: "xlsx", type: "array" });
+  saveAs(
+    new Blob([buf], { type: "application/octet-stream" }),
+    "all_orders.xlsx"
+  );
+};
 
-  const fileName =
-    singleFileName ||
-    `Orders_${new Date().toISOString().slice(0, 10)}.xlsx`;
+// ✅ Export a single order
+const exportSingleOrder = (order: Order) => {
+  const rows = order.items.map((it) => ({
+    OrderNumber: order.orderNumber || order._id.slice(-6),
+    Item: it.name,
+    Qty: it.qty,
+    Price: it.price,
+    Total: it.price * it.qty,
+    Inners: toInners(it),
+  }));
 
-  saveAs(new Blob([wbout], { type: "application/octet-stream" }), fileName);
+  const ws = XLSX.utils.json_to_sheet(rows);
+  const wb = XLSX.utils.book_new();
+  XLSX.utils.book_append_sheet(wb, ws, "Order");
+  const buf = XLSX.write(wb, { bookType: "xlsx", type: "array" });
+  saveAs(
+    new Blob([buf], { type: "application/octet-stream" }),
+    `order_${order.orderNumber || order._id.slice(-6)}.xlsx`
+  );
 };
 
 const AdminOrders: React.FC = () => {
@@ -262,10 +273,10 @@ const AdminOrders: React.FC = () => {
           )}
         </div>
 
-        {/* ✅ Export Button for all filtered */}
+        {/* ✅ Export All Button */}
         <button
-          className="ord-btn ord-btn-export"
-          onClick={() => exportToExcel(filteredOrders)}
+          className="ord-btn-export"
+          onClick={() => exportAllOrders(filteredOrders)}
         >
           ⬇️ Export All
         </button>
@@ -280,6 +291,7 @@ const AdminOrders: React.FC = () => {
 
       {loading && <div className="ord-info">Loading…</div>}
       {error && <div className="ord-error">{error}</div>}
+
       {!loading && !error && (
         <div className="ord-list">
           {filteredOrders.length === 0 ? (
@@ -377,6 +389,7 @@ const AdminOrders: React.FC = () => {
           )}
         </div>
       )}
+
       {viewing && (
         <div
           className="ord-modal-backdrop"
@@ -394,16 +407,11 @@ const AdminOrders: React.FC = () => {
             </button>
             <h3>Order #{viewing.orderNumber || viewing._id.slice(-6)}</h3>
 
-            {/* ✅ Export Single Order */}
+            {/* ✅ Export Single Order Button */}
             <div className="ord-m-export">
               <button
-                className="ord-btn ord-btn-export"
-                onClick={() =>
-                  exportToExcel(
-                    [viewing],
-                    `Order_${viewing.orderNumber || viewing._id.slice(-6)}.xlsx`
-                  )
-                }
+                className="ord-btn-export"
+                onClick={() => exportSingleOrder(viewing)}
               >
                 ⬇️ Export This Order
               </button>
@@ -427,7 +435,89 @@ const AdminOrders: React.FC = () => {
                 <b>Created:</b> {formatDate(viewing.createdAt)}
               </div>
             </div>
-            {/* ...Customer, Shipping, Items remain unchanged... */}
+
+            <div className="ord-m-section">
+              <b>Customer:</b>
+              <br />
+              {viewing.customerId?.firmName}{" "}
+              {viewing.customerId?.shopName
+                ? `(${viewing.customerId.shopName})`
+                : ""}
+              <br />
+              {viewing.customerId?.otpMobile && (
+                <>
+                  📞 {viewing.customerId.otpMobile}
+                  <br />
+                </>
+              )}
+              {[viewing.customerId?.city, viewing.customerId?.state, viewing.customerId?.zip]
+                .filter(Boolean)
+                .join(", ")}
+              <br />
+              {viewing.customerId?.visitingCardUrl && (
+                <a
+                  href={resolveImage(viewing.customerId.visitingCardUrl)}
+                  target="_blank"
+                  rel="noreferrer"
+                  className="ord-link"
+                >
+                  Visiting Card
+                </a>
+              )}
+            </div>
+
+            <div className="ord-m-section">
+              <b>Shipping:</b>
+              <br />
+              {viewing.shipping?.address && (
+                <>
+                  📍 {viewing.shipping.address}
+                  <br />
+                </>
+              )}
+              {viewing.shipping?.phone && (
+                <>
+                  📞 {viewing.shipping.phone}
+                  <br />
+                </>
+              )}
+              {viewing.shipping?.email && (
+                <>
+                  ✉️ {viewing.shipping.email}
+                  <br />
+                </>
+              )}
+              {viewing.shipping?.notes && <>📝 {viewing.shipping.notes}</>}
+              {!viewing.shipping?.address &&
+                !viewing.shipping?.phone &&
+                !viewing.shipping?.email &&
+                !viewing.shipping?.notes && (
+                  <span style={{ color: "#888" }}>No shipping info</span>
+                )}
+            </div>
+
+            <div className="ord-m-section">
+              <b>Items:</b>
+              {viewing.items.map((it: OrderItem, i: number) => {
+                const img = resolveImage(it.image);
+                const iTotal = toInners(it);
+                return (
+                  <div className="ord-m-item" key={i}>
+                    {img ? (
+                      <img src={img} alt={it.name} className="ord-m-img" />
+                    ) : (
+                      <div className="ord-m-img ord-m-imgph" />
+                    )}
+                    <span className="ord-m-iname">{it.name}</span>
+                    <span className="ord-m-inner">({iTotal} inners)</span>
+                    <span className="ord-m-qty">x{it.qty}</span>
+                    <span className="ord-m-price">
+                      ₹ {(it.price * it.qty).toFixed(2)}
+                    </span>
+                  </div>
+                );
+              })}
+            </div>
           </div>
         </div>
       )}

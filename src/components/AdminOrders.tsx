@@ -2,7 +2,8 @@
 import React, { useEffect, useMemo, useState, useCallback } from "react";
 import api, { MEDIA_URL } from "../utils/api";
 import "../styles/AdminOrdersModern.css";
-import * as XLSX from "xlsx"; // Add this import
+import * as XLSX from "xlsx";
+import { saveAs } from "file-saver";
 
 type OrderItem = {
   productId: string;
@@ -90,59 +91,53 @@ const highlight = (text: string, q: string) => {
   );
 };
 
+// ✅ Inner calculation logic
 const toInners = (it: OrderItem): number => {
   if (it.inners && it.inners > 0) return it.inners;
-  const perInner = it.innerQty && it.innerQty > 0
-    ? it.innerQty
-    : it.nosPerInner && it.nosPerInner > 0
+  const perInner =
+    it.innerQty && it.innerQty > 0
+      ? it.innerQty
+      : it.nosPerInner && it.nosPerInner > 0
       ? it.nosPerInner
       : 12;
   return Math.ceil((it.qty || 0) / perInner);
 };
 
-// Add Excel export function
-const exportToExcel = (orders: Order[], fileName: string) => {
-  const data = orders.map(order => {
-    const totalInners = order.items.reduce((sum, it) => sum + toInners(it), 0);
-    
-    return {
-      "Order Number": order.orderNumber || order._id.slice(-6),
-      "Date": new Date(order.createdAt).toLocaleString(),
-      "Customer Firm": order.customerId?.firmName || "",
-      "Customer Shop": order.customerId?.shopName || "",
-      "Customer Phone": order.customerId?.otpMobile || "",
-      "Customer City": order.customerId?.city || "",
-      "Customer State": order.customerId?.state || "",
-      "Customer ZIP": order.customerId?.zip || "",
-      "Status": order.status,
-      "Payment Method": order.paymentMethod || "",
-      "Total Amount": order.total,
-      "Total Inners": totalInners,
-      "Shipping Address": order.shipping?.address || "",
-      "Shipping Phone": order.shipping?.phone || "",
-      "Shipping Email": order.shipping?.email || "",
-      "Shipping Notes": order.shipping?.notes || "",
-      "Items Count": order.items.length,
-      "Items": order.items.map(item => 
-        `${item.name} (Qty: ${item.qty}, Price: ₹${item.price}, Inners: ${toInners(item)})`
-      ).join("; ")
-    };
-  });
+// ✅ Excel export function
+const exportToExcel = (orders: Order[]) => {
+  if (!orders || orders.length === 0) {
+    alert("No orders to export!");
+    return;
+  }
 
-  const worksheet = XLSX.utils.json_to_sheet(data);
-  const workbook = XLSX.utils.book_new();
-  XLSX.utils.book_append_sheet(workbook, worksheet, "Orders");
-  
-  // Auto-size columns
-  const colWidths = Object.keys(data[0] || {}).map(key => ({
-    wch: Math.max(
-      key.length,
-      ...data.map(row => String(row[key as keyof typeof data[0]]).length)
-    )
-  }));
-  worksheet['!cols'] = colWidths;
-  
-  XLSX.writeFile(workbook, `${fileName}.xlsx`);
+  const rows = orders.flatMap((order) =>
+    order.items.map((item) => ({
+      "Order #": order.orderNumber || order._id.slice(-6),
+      Date: new Date(order.createdAt).toLocaleString(),
+      Status: order.status,
+      "Customer Name": order.customerId?.firmName || "",
+      "Shop Name": order.customerId?.shopName || "",
+      Phone: order.customerId?.otpMobile || "",
+      City: order.customerId?.city || "",
+      State: order.customerId?.state || "",
+      "Payment Method": order.paymentMethod || "",
+      "Item Name": item.name,
+      Qty: item.qty,
+      Inners: toInners(item),
+      Price: item.price,
+      "Total (₹)": item.price * item.qty,
+    }))
+  );
+
+  const ws = XLSX.utils.json_to_sheet(rows);
+  const wb = XLSX.utils.book_new();
+  XLSX.utils.book_append_sheet(wb, ws, "Orders");
+  const wbout = XLSX.write(wb, { type: "array", bookType: "xlsx" });
+
+  saveAs(
+    new Blob([wbout], { type: "application/octet-stream" }),
+    `Orders_${new Date().toISOString().slice(0, 10)}.xlsx`
+  );
 };
 
 const AdminOrders: React.FC = () => {
@@ -241,18 +236,6 @@ const AdminOrders: React.FC = () => {
     }
   };
 
-  // Add Excel export handler
-  const handleExport = () => {
-    const dataToExport = debounced ? filteredOrders : orders;
-    if (dataToExport.length === 0) {
-      alert("No orders to export");
-      return;
-    }
-    
-    const fileName = `Orders_Export_${new Date().toISOString().split('T')[0]}`;
-    exportToExcel(dataToExport, fileName);
-  };
-
   return (
     <div className="ord-app">
       <h2 className="ord-header">Order Management</h2>
@@ -277,22 +260,23 @@ const AdminOrders: React.FC = () => {
             </button>
           )}
         </div>
-        {/* Add Excel export button */}
-        <button 
-          className="ord-btn ord-btn-excel"
-          onClick={handleExport}
-          disabled={orders.length === 0}
-          title="Export to Excel"
+
+        {/* ✅ Export Button */}
+        <button
+          className="ord-btn ord-btn-export"
+          onClick={() => exportToExcel(filteredOrders)}
         >
-          📊 Export to Excel
+          ⬇️ Export to Excel
         </button>
       </div>
+
       <div className="ord-meta">
         Showing <b>{filteredOrders.length}</b> of <b>{orders.length}</b> orders
         {debounced && filteredOrders.length > 0 && (
-          <span className="ord-meta-chip">filtered by "{debounced}"</span>
+          <span className="ord-meta-chip">filtered by “{debounced}”</span>
         )}
       </div>
+
       {loading && <div className="ord-info">Loading…</div>}
       {error && <div className="ord-error">{error}</div>}
       {!loading && !error && (
@@ -416,7 +400,8 @@ const AdminOrders: React.FC = () => {
                 <b>Total:</b> ₹ {viewing.total.toFixed(2)}
               </div>
               <div>
-                <b>Total Inners:</b> {viewing.items.reduce((sum, it) => sum + toInners(it), 0)}
+                <b>Total Inners:</b>{" "}
+                {viewing.items.reduce((sum, it) => sum + toInners(it), 0)}
               </div>
               <div>
                 <b>Payment:</b> {viewing.paymentMethod || "-"}

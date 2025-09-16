@@ -1,6 +1,6 @@
 // src/components/AdminDashboard.tsx
 import React, { useEffect, useMemo, useState } from "react";
-import api from "../utils/api"; // ✅ axios instance
+import api from "../utils/api";
 import "../styles/AdminDashboard.css";
 
 type Customer = {
@@ -12,7 +12,7 @@ type Customer = {
   zip: string;
   otpMobile: string;
   whatsapp: string;
-  visitingCardUrl?: string; // ✅ should be full Cloudinary URL now
+  visitingCardUrl?: string;
   isApproved: boolean | null;
   createdAt?: string;
 };
@@ -143,7 +143,21 @@ const AdminDashboard: React.FC = () => {
                     <td>{c.city}</td>
                     <td>{c.zip}</td>
                     <td>{c.otpMobile}</td>
-                    <td>{c.whatsapp}</td>
+                    <td>
+                      {c.whatsapp ? (
+                        <>
+                          <span>{c.whatsapp}</span>
+                          <button
+                            className="whatsapp-row-btn"
+                            onClick={() => openWhatsApp(c.whatsapp)}
+                          >
+                            WhatsApp
+                          </button>
+                        </>
+                      ) : (
+                        "-"
+                      )}
+                    </td>
                     <td>
                       {full ? (
                         <div className="vc-cell">
@@ -238,19 +252,6 @@ const AdminDashboard: React.FC = () => {
             </div>
           </div>
         </div>
-      )}
-
-      {/* ✅ Floating WhatsApp button */}
-      {rows.some((c) => !!c.whatsapp) && (
-        <button
-          className="whatsapp-float"
-          onClick={() => {
-            const first = rows.find((c) => !!c.whatsapp);
-            if (first?.whatsapp) openWhatsApp(first.whatsapp);
-          }}
-        >
-          💬 WhatsApp
-        </button>
       )}
     </div>
   );

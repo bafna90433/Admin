@@ -54,6 +54,7 @@ type Order = {
   shipping?: ShippingInfo;
 };
 
+// Resolve image path
 const resolveImage = (img?: string): string => {
   if (!img) return "";
   if (img.startsWith("http")) return img;
@@ -113,7 +114,8 @@ const exportAllOrders = (orders: Order[]) => {
     Total: o.total,
     Payment: o.paymentMethod || "-",
     CreatedAt: o.createdAt,
-    Customer: o.customerId?.firmName || "",
+    CustomerFirm: o.customerId?.firmName || "",
+    Shop: o.customerId?.shopName || "",
     Phone: o.customerId?.otpMobile || "",
     City: o.customerId?.city || "",
     State: o.customerId?.state || "",
@@ -135,6 +137,12 @@ const exportAllOrders = (orders: Order[]) => {
 const exportSingleOrder = (order: Order) => {
   const rows = order.items.map((it) => ({
     OrderNumber: order.orderNumber || order._id.slice(-6),
+    CustomerFirm: order.customerId?.firmName || "",
+    Shop: order.customerId?.shopName || "",
+    Phone: order.customerId?.otpMobile || "",
+    City: order.customerId?.city || "",
+    State: order.customerId?.state || "",
+    Zip: order.customerId?.zip || "",
     Item: it.name,
     Qty: it.qty,
     Price: it.price,

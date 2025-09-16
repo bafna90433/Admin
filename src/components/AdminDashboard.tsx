@@ -104,7 +104,9 @@ const AdminDashboard: React.FC = () => {
   // --- WhatsApp redirect helper ---
   const openWhatsApp = (phone: string) => {
     const clean = phone.startsWith("+") ? phone : `+91${phone}`;
-    const message = encodeURIComponent("Hello! ✅ Your account is approved.");
+    const message = encodeURIComponent(
+      "Welcome to BafnaToys! ✅ Your account is approved. Prices are now visible.\nLogin here: https://bafnatoys.com/login"
+    );
     window.open(`https://wa.me/${clean}?text=${message}`, "_blank");
   };
 

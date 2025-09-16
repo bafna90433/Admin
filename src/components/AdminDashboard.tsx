@@ -24,8 +24,6 @@ const AdminDashboard: React.FC = () => {
   const [acting, setActing] = useState<string | null>(null);
 
   // --- Helpers for image/URL handling ---
-
-  // Base to resolve legacy relative URLs (if any)
   const mediaBase = useMemo(() => {
     const apiBase = (import.meta as any).env?.VITE_API_URL || "";
     const fromApi = apiBase ? apiBase.replace(/\/api\/?$/, "") : "";
@@ -37,7 +35,6 @@ const AdminDashboard: React.FC = () => {
     ).replace(/\/+$/, "");
   }, []);
 
-  // If url is relative (legacy), prefix mediaBase; else return as-is
   const resolveUrl = (u?: string) => {
     if (!u) return undefined;
     if (/^https?:\/\//i.test(u)) return u;
@@ -45,12 +42,13 @@ const AdminDashboard: React.FC = () => {
     return `${mediaBase}/${u.replace(/^\//, "")}`;
   };
 
-  // Make a small Cloudinary thumbnail (keeps original for non-Cloudinary URLs)
   const toCloudThumb = (url?: string, w = 120, h = 80) => {
     if (!url) return undefined;
     if (!/res\.cloudinary\.com/i.test(url)) return url;
-    // insert a transformation right after `/upload/`
-    return url.replace("/upload/", `/upload/c_fill,w_${w},h_${h},q_auto,f_auto/`);
+    return url.replace(
+      "/upload/",
+      `/upload/c_fill,w_${w},h_${h},q_auto,f_auto/`
+    );
   };
 
   const fetchCustomers = async () => {
@@ -103,6 +101,13 @@ const AdminDashboard: React.FC = () => {
   // ---- Preview modal state ----
   const [previewUrl, setPreviewUrl] = useState<string | null>(null);
 
+  // --- WhatsApp redirect helper ---
+  const openWhatsApp = (phone: string) => {
+    const clean = phone.startsWith("+") ? phone : `+91${phone}`;
+    const message = encodeURIComponent("Hello! ✅ Your account is approved.");
+    window.open(`https://wa.me/${clean}?text=${message}`, "_blank");
+  };
+
   return (
     <div className="container">
       <h1 className="heading">Registered Customers</h1>
@@ -148,7 +153,6 @@ const AdminDashboard: React.FC = () => {
                             alt="Visiting card"
                             onClick={() => setPreviewUrl(full)}
                             onError={(e) => {
-                              // fallback if any issue
                               (e.currentTarget as HTMLImageElement).src =
                                 "/placeholder-product.png";
                             }}
@@ -222,7 +226,11 @@ const AdminDashboard: React.FC = () => {
             >
               ×
             </button>
-            <img className="vc-modal-image" src={previewUrl} alt="Visiting card" />
+            <img
+              className="vc-modal-image"
+              src={previewUrl}
+              alt="Visiting card"
+            />
             <div className="vc-modal-actions">
               <a href={previewUrl} target="_blank" rel="noreferrer">
                 Open original
@@ -230,6 +238,19 @@ const AdminDashboard: React.FC = () => {
             </div>
           </div>
         </div>
+      )}
+
+      {/* ✅ Floating WhatsApp button */}
+      {rows.some((c) => !!c.whatsapp) && (
+        <button
+          className="whatsapp-float"
+          onClick={() => {
+            const first = rows.find((c) => !!c.whatsapp);
+            if (first?.whatsapp) openWhatsApp(first.whatsapp);
+          }}
+        >
+          💬 WhatsApp
+        </button>
       )}
     </div>
   );

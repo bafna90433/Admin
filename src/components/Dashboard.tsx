@@ -76,9 +76,8 @@ const Dashboard: React.FC = () => {
   const [loading, setLoading] = useState(true);
   const [selectedOrder, setSelectedOrder] = useState<Order | null>(null);
 
-  // ✅ Toast notifications
+  // Toast notifications
   const [notifications, setNotifications] = useState<string[]>([]);
-
   const showNotification = (msg: string) => {
     setNotifications((prev) => [...prev, msg]);
     setTimeout(() => {
@@ -93,25 +92,19 @@ const Dashboard: React.FC = () => {
         api.get("/admin/customers"),
         api.get<Order[]>("/orders"),
       ]);
-
       setProductsCount(prodRes.data?.length || 0);
-
       const customers = custRes.data || [];
       setCustomersCount(customers.length);
       const pending = customers.filter((c: any) => c.isApproved === null).length;
       setPendingApprovals(pending);
-
       const orders = Array.isArray(orderRes.data) ? orderRes.data : [];
       setOrdersCount(orders.length);
-
       const sorted = [...orders].sort(
         (a, b) =>
           new Date(b.createdAt || 0).getTime() -
           new Date(a.createdAt || 0).getTime()
       );
       setRecentOrders(sorted.slice(0, 6));
-
-      // ✅ Notifications
       if (pending > 0) {
         showNotification(`${pending} new customer(s) registered`);
       }
@@ -207,29 +200,26 @@ const Dashboard: React.FC = () => {
                 {recentOrders.map((o) => (
                   <div
                     key={o._id}
-                    className="order-card"
+                    className="order-card-md"
                     onClick={() => setSelectedOrder(o)}
                   >
-                    <div className="order-info">
-                      <div className="order-number">
-                        #{o.orderNumber || o._id.slice(-6)}
+                    <div className="order-card-row">
+                      <div className={`order-card-icon order-status-${o.status}`}>
+                        <FiShoppingCart size={22} />
                       </div>
-                      <div className="order-date">
-                        {o.createdAt
-                          ? new Date(o.createdAt).toLocaleDateString()
-                          : "-"}
+                      <div className="order-card-content">
+                        <div className="order-card-label">
+                          #{o.orderNumber || o._id.slice(-6)}
+                        </div>
+                        <div className="order-card-desc">
+                          {o.items?.length || 0} items •{" "}
+                          {currency.format(o.total || 0)}
+                        </div>
+                        <div className="order-card-status">
+                          {o.status.charAt(0).toUpperCase() + o.status.slice(1)}
+                        </div>
                       </div>
-                    </div>
-                    <div className="order-details">
-                      <div className="order-items">
-                        {o.items?.length || 0} items
-                      </div>
-                      <div className="order-total">
-                        {currency.format(o.total || 0)}
-                      </div>
-                      <div className={`order-status ${o.status}`}>
-                        {o.status}
-                      </div>
+                      <div className="order-card-menu">⋮</div>
                     </div>
                   </div>
                 ))}
@@ -272,7 +262,7 @@ const Dashboard: React.FC = () => {
         />
       )}
 
-      {/* ✅ Toast Notifications */}
+      {/* Toast Notifications */}
       <div className="toast-container">
         {notifications.map((msg, i) => (
           <div key={i} className="toast">

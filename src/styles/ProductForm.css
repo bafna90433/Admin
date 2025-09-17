@@ -105,6 +105,17 @@
   resize: vertical;
 }
 
+/* ✅ Number input spinner hide */
+input[type=number]::-webkit-inner-spin-button,
+input[type=number]::-webkit-outer-spin-button {
+  -webkit-appearance: none;
+  margin: 0;
+}
+
+input[type=number] {
+  -moz-appearance: textfield; /* Firefox ke liye */
+}
+
 /* File Upload */
 .file-upload {
   border: 1px dashed #d1d5db;
@@ -363,7 +374,9 @@
 }
 
 @keyframes spin {
-  to { transform: rotate(360deg); }
+  to {
+    transform: rotate(360deg);
+  }
 }
 
 /* ✅ Mobile View Bulk Pricing Fix */

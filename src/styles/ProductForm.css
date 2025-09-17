@@ -1,9 +1,55 @@
-/* Product Form Container */
+/* src/styles/ProductForm.css */
+
 .product-form-container {
   max-width: 1200px;
   margin: 0 auto;
-  padding: 2rem;
+  padding: 1rem;
   font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+}
+
+/* Mobile Header */
+.mobile-header {
+  display: none;
+  align-items: center;
+  justify-content: space-between;
+  padding: 1rem;
+  background: white;
+  border-bottom: 1px solid #e5e7eb;
+  margin: -1rem -1rem 1rem -1rem;
+}
+
+.mobile-header h1 {
+  font-size: 1.25rem;
+  font-weight: 600;
+  margin: 0;
+  color: #111827;
+}
+
+.back-button {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 40px;
+  height: 40px;
+  border: none;
+  background: #f3f4f6;
+  border-radius: 8px;
+  cursor: pointer;
+}
+
+.mobile-save-button {
+  padding: 0.5rem 1rem;
+  background-color: #3b82f6;
+  color: white;
+  border: none;
+  border-radius: 6px;
+  font-weight: 500;
+  cursor: pointer;
+}
+
+.mobile-save-button:disabled {
+  background-color: #d1d5db;
+  cursor: not-allowed;
 }
 
 /* Alert Messages */
@@ -39,20 +85,21 @@
 .form-grid {
   display: grid;
   grid-template-columns: 1fr;
-  gap: 1.5rem;
+  gap: 1rem;
 }
 
 @media (min-width: 992px) {
   .form-grid {
     grid-template-columns: 1fr 1fr;
+    gap: 1.5rem;
   }
 }
 
 /* Form Cards */
 .form-card {
   background: #ffffff;
-  border-radius: 0.5rem;
-  padding: 1.5rem;
+  border-radius: 0.75rem;
+  padding: 1.25rem;
   box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
   border: 1px solid #e5e7eb;
 }
@@ -62,7 +109,7 @@
   font-weight: 600;
   color: #111827;
   margin-bottom: 1.25rem;
-  padding-bottom: 0.5rem;
+  padding-bottom: 0.75rem;
   border-bottom: 1px solid #e5e7eb;
 }
 
@@ -83,10 +130,10 @@
 .form-group select,
 .form-group textarea {
   width: 100%;
-  padding: 0.625rem 0.75rem;
+  padding: 0.75rem;
   border: 1px solid #d1d5db;
-  border-radius: 0.375rem;
-  font-size: 0.875rem;
+  border-radius: 0.5rem;
+  font-size: 1rem;
   transition: all 0.15s ease;
   background-color: #f9fafb;
 }
@@ -105,7 +152,51 @@
   resize: vertical;
 }
 
-/* ✅ Number input spinner hide */
+/* Tax Fields */
+.tax-field-row {
+  display: flex;
+  gap: 0.5rem;
+  margin-bottom: 0.5rem;
+  align-items: center;
+}
+
+.tax-field-row input {
+  flex: 1;
+  padding: 0.5rem 0.75rem;
+}
+
+.remove-tax-button {
+  width: 2.5rem;
+  height: 2.5rem;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border: none;
+  background: #f3f4f6;
+  border-radius: 0.375rem;
+  cursor: pointer;
+  color: #6b7280;
+}
+
+.remove-tax-button:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+.add-tax-button {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.5rem;
+  background: #f5f5f5;
+  border: 0;
+  border-radius: 0.375rem;
+  cursor: pointer;
+  padding: 0.5rem 0.75rem;
+  font-size: 0.875rem;
+  color: #374151;
+}
+
+/* Number input spinner hide */
 input[type=number]::-webkit-inner-spin-button,
 input[type=number]::-webkit-outer-spin-button {
   -webkit-appearance: none;
@@ -113,13 +204,13 @@ input[type=number]::-webkit-outer-spin-button {
 }
 
 input[type=number] {
-  -moz-appearance: textfield; /* Firefox ke liye */
+  -moz-appearance: textfield;
 }
 
 /* File Upload */
 .file-upload {
-  border: 1px dashed #d1d5db;
-  border-radius: 0.375rem;
+  border: 2px dashed #d1d5db;
+  border-radius: 0.75rem;
   padding: 1.5rem;
   text-align: center;
   background-color: #f9fafb;
@@ -153,15 +244,15 @@ input[type=number] {
 /* Image Preview Grid */
 .image-preview-grid {
   display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(120px, 1fr));
+  grid-template-columns: repeat(auto-fill, minmax(100px, 1fr));
   gap: 0.75rem;
   margin-top: 1rem;
 }
 
 .image-preview {
   position: relative;
-  height: 120px;
-  border-radius: 0.375rem;
+  height: 100px;
+  border-radius: 0.5rem;
   overflow: hidden;
   border: 1px solid #e5e7eb;
   background-color: #f3f4f6;
@@ -177,9 +268,9 @@ input[type=number] {
   position: absolute;
   top: 0.25rem;
   right: 0.25rem;
-  width: 1.5rem;
-  height: 1.5rem;
-  background: rgba(220, 38, 38, 0.8);
+  width: 1.75rem;
+  height: 1.75rem;
+  background: rgba(220, 38, 38, 0.9);
   color: white;
   border: none;
   border-radius: 50%;
@@ -196,7 +287,7 @@ input[type=number] {
 }
 
 .remove-btn svg {
-  font-size: 0.75rem;
+  font-size: 0.875rem;
 }
 
 /* Bulk Pricing Table */
@@ -204,51 +295,52 @@ input[type=number] {
   display: grid;
   grid-template-columns: 1fr;
   border: 1px solid #e5e7eb;
-  border-radius: 0.375rem;
+  border-radius: 0.5rem;
   overflow: hidden;
   margin-bottom: 1rem;
 }
 
 .table-header {
-  display: grid;
-  grid-template-columns: 1fr 1fr 1fr auto;
-  background-color: #f3f4f6;
-  font-weight: 600;
-  font-size: 0.75rem;
-  text-transform: uppercase;
-  letter-spacing: 0.05em;
-  color: #374151;
-  padding: 0.75rem 1rem;
-  border-bottom: 1px solid #e5e7eb;
+  display: none;
 }
 
 .table-row {
-  display: grid;
-  grid-template-columns: 1fr 1fr 1fr auto;
-  padding: 0.75rem 1rem;
-  align-items: center;
-  gap: 0.5rem;
+  display: flex;
+  flex-direction: column;
+  gap: 0.75rem;
+  padding: 1rem;
   border-bottom: 1px solid #e5e7eb;
+  background: #fafafa;
+  border-radius: 0.5rem;
+  margin-bottom: 0.75rem;
 }
 
 .table-row:last-child {
   border-bottom: none;
+  margin-bottom: 0;
 }
 
-.table-row.even {
-  background-color: #ffffff;
+.table-row > div {
+  width: 100%;
+  display: flex;
+  flex-direction: column;
 }
 
-.table-row.odd {
-  background-color: #f9fafb;
+.table-row div::before {
+  content: attr(data-label);
+  font-size: 0.75rem;
+  font-weight: 600;
+  color: #374151;
+  margin-bottom: 0.25rem;
+  text-transform: uppercase;
 }
 
 .table-row input {
   width: 100%;
-  padding: 0.5rem 0.75rem;
+  padding: 0.75rem;
   border: 1px solid #d1d5db;
-  border-radius: 0.25rem;
-  font-size: 0.875rem;
+  border-radius: 0.375rem;
+  font-size: 1rem;
   background-color: #ffffff;
 }
 
@@ -259,17 +351,19 @@ input[type=number] {
 }
 
 .table-action-btn {
-  width: 1.75rem;
-  height: 1.75rem;
+  align-self: flex-end;
+  width: 2.5rem;
+  height: 2.5rem;
   display: flex;
   align-items: center;
   justify-content: center;
   border: none;
-  border-radius: 0.25rem;
+  border-radius: 0.375rem;
   background: transparent;
   cursor: pointer;
   transition: all 0.2s;
   color: #6b7280;
+  margin-top: 0.5rem;
 }
 
 .table-action-btn:hover {
@@ -282,8 +376,13 @@ input[type=number] {
   color: #dc2626;
 }
 
+.table-action-btn:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
 .table-action-btn svg {
-  font-size: 0.875rem;
+  font-size: 1rem;
 }
 
 .add-bulk-row-btn {
@@ -296,7 +395,7 @@ input[type=number] {
   font-size: 0.875rem;
   font-weight: 500;
   cursor: pointer;
-  padding: 0.5rem 0;
+  padding: 0.75rem 0;
   margin-top: 0.5rem;
 }
 
@@ -305,16 +404,17 @@ input[type=number] {
 }
 
 .add-bulk-row-btn svg {
-  font-size: 0.875rem;
+  font-size: 1rem;
 }
 
 .bulk-pricing-note {
   margin-top: 1rem;
   font-size: 0.75rem;
   color: #6b7280;
-  padding: 0.5rem;
+  padding: 0.75rem;
   background-color: #f3f4f6;
-  border-radius: 0.25rem;
+  border-radius: 0.375rem;
+  line-height: 1.4;
 }
 
 /* Form Actions */
@@ -323,20 +423,23 @@ input[type=number] {
   justify-content: flex-end;
   gap: 0.75rem;
   margin-top: 1rem;
+  padding-top: 1rem;
+  border-top: 1px solid #e5e7eb;
 }
 
 .save-btn {
   display: inline-flex;
   align-items: center;
   gap: 0.5rem;
-  padding: 0.625rem 1.25rem;
+  padding: 0.75rem 1.5rem;
   background-color: #3b82f6;
   color: white;
   border: none;
-  border-radius: 0.375rem;
+  border-radius: 0.5rem;
   font-weight: 500;
   cursor: pointer;
   transition: all 0.2s;
+  font-size: 1rem;
 }
 
 .save-btn:hover {
@@ -349,14 +452,15 @@ input[type=number] {
 }
 
 .cancel-btn {
-  padding: 0.625rem 1.25rem;
+  padding: 0.75rem 1.5rem;
   background-color: #ffffff;
   color: #374151;
   border: 1px solid #d1d5db;
-  border-radius: 0.375rem;
+  border-radius: 0.5rem;
   font-weight: 500;
   cursor: pointer;
   transition: all 0.2s;
+  font-size: 1rem;
 }
 
 .cancel-btn:hover {
@@ -379,57 +483,95 @@ input[type=number] {
   }
 }
 
-/* ✅ Mobile View Bulk Pricing Fix */
-@media (max-width: 600px) {
+/* Responsive Design */
+@media (max-width: 768px) {
+  .product-form-container {
+    padding: 0;
+  }
+  
+  .mobile-header {
+    display: flex;
+    position: sticky;
+    top: 0;
+    z-index: 10;
+  }
+  
+  .form-card {
+    border-radius: 0;
+    border-left: none;
+    border-right: none;
+    box-shadow: none;
+    padding: 1.5rem 1rem;
+  }
+  
+  .form-grid {
+    gap: 0;
+  }
+  
+  .form-actions {
+    position: fixed;
+    bottom: 0;
+    left: 0;
+    right: 0;
+    background: white;
+    padding: 1rem;
+    border-top: 1px solid #e5e7eb;
+    box-shadow: 0 -2px 10px rgba(0, 0, 0, 0.1);
+    z-index: 10;
+  }
+  
+  .image-preview-grid {
+    grid-template-columns: repeat(auto-fill, minmax(80px, 1fr));
+  }
+  
+  .image-preview {
+    height: 80px;
+  }
+  
+  .file-upload {
+    padding: 1rem;
+  }
+}
+
+@media (min-width: 769px) {
   .table-header {
+    display: grid;
+    grid-template-columns: 1fr 1fr 1fr auto;
+    background-color: #f3f4f6;
+    font-weight: 600;
+    font-size: 0.75rem;
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+    color: #374151;
+    padding: 0.75rem 1rem;
+    border-bottom: 1px solid #e5e7eb;
+  }
+  
+  .table-row {
+    display: grid;
+    grid-template-columns: 1fr 1fr 1fr auto;
+    padding: 0.75rem 1rem;
+    align-items: center;
+    gap: 0.5rem;
+    border-bottom: 1px solid #e5e7eb;
+    border-radius: 0;
+    margin-bottom: 0;
+    background: transparent;
+  }
+  
+  .table-row > div::before {
     display: none;
   }
-
-  .table-row {
-    display: flex;
-    flex-direction: column;
-    align-items: stretch;
-    gap: 12px;
-    padding: 12px;
-    border: 1px solid #e5e7eb;
-    border-radius: 6px;
-    margin-bottom: 12px;
-    background: #fafafa;
+  
+  .table-row.even {
+    background-color: #ffffff;
   }
-
-  .table-row div {
-    width: 100%;
-    display: flex;
-    flex-direction: column;
+  
+  .table-row.odd {
+    background-color: #f9fafb;
   }
-
-  .table-row div::before {
-    content: attr(data-label);
-    font-size: 13px;
-    font-weight: 600;
-    color: #374151;
-    margin-bottom: 4px;
-  }
-
-  .table-row input {
-    width: 100%;
-    font-size: 14px;
-    padding: 8px 12px;
-    border-radius: 6px;
-  }
-
+  
   .table-action-btn {
-    align-self: flex-end;
-    margin-top: 6px;
-  }
-
-  .form-actions {
-    flex-direction: column-reverse;
-  }
-
-  .save-btn,
-  .cancel-btn {
-    width: 100%;
-    justify-content: center;
+    margin-top: 0;
   }
 }

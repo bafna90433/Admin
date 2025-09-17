@@ -1,7 +1,10 @@
-// src/components/AdminDashboard.tsx
 import React, { useEffect, useMemo, useState } from "react";
 import api from "../utils/api";
 import "../styles/AdminDashboard.css";
+import { 
+  FiSearch, FiX, FiMessageSquare, FiEye, FiCheck, 
+  FiTrash2, FiUser, FiClock, FiCheckCircle, FiXCircle 
+} from "react-icons/fi";
 
 type Customer = {
   _id: string;
@@ -19,11 +22,16 @@ type Customer = {
 
 const AdminDashboard: React.FC = () => {
   const [rows, setRows] = useState<Customer[]>([]);
+  const [filteredRows, setFilteredRows] = useState<Customer[]>([]);
   const [loading, setLoading] = useState(true);
   const [err, setErr] = useState<string | null>(null);
   const [acting, setActing] = useState<string | null>(null);
+  const [searchTerm, setSearchTerm] = useState("");
+  const [statusFilter, setStatusFilter] = useState<"all" | "pending" | "approved" | "rejected">("all");
+  const [previewUrl, setPreviewUrl] = useState<string | null>(null);
+  const [isSearchFocused, setIsSearchFocused] = useState(false);
 
-  // --- Helpers for image/URL handling ---
+  // Media URL helpers
   const mediaBase = useMemo(() => {
     const apiBase = (import.meta as any).env?.VITE_API_URL || "";
     const fromApi = apiBase ? apiBase.replace(/\/api\/?$/, "") : "";
@@ -42,20 +50,12 @@ const AdminDashboard: React.FC = () => {
     return `${mediaBase}/${u.replace(/^\//, "")}`;
   };
 
-  const toCloudThumb = (url?: string, w = 120, h = 80) => {
-    if (!url) return undefined;
-    if (!/res\.cloudinary\.com/i.test(url)) return url;
-    return url.replace(
-      "/upload/",
-      `/upload/c_fill,w_${w},h_${h},q_auto,f_auto/`
-    );
-  };
-
   const fetchCustomers = async () => {
     try {
       setLoading(true);
       const { data } = await api.get<Customer[]>("/admin/customers");
       setRows(Array.isArray(data) ? data : []);
+      setFilteredRows(Array.isArray(data) ? data : []);
       setErr(null);
     } catch (e: any) {
       console.error(e);
@@ -68,6 +68,34 @@ const AdminDashboard: React.FC = () => {
   useEffect(() => {
     fetchCustomers();
   }, []);
+
+  // Filter customers based on search term and status
+  useEffect(() => {
+    let result = rows;
+    
+    if (statusFilter !== "all") {
+      result = result.filter(customer => {
+        if (statusFilter === "pending") return customer.isApproved === null;
+        if (statusFilter === "approved") return customer.isApproved === true;
+        if (statusFilter === "rejected") return customer.isApproved === false;
+        return true;
+      });
+    }
+    
+    if (searchTerm) {
+      const term = searchTerm.toLowerCase();
+      result = result.filter(customer => 
+        customer.firmName.toLowerCase().includes(term) ||
+        customer.shopName.toLowerCase().includes(term) ||
+        customer.city.toLowerCase().includes(term) ||
+        customer.state.toLowerCase().includes(term) ||
+        customer.otpMobile.includes(term) ||
+        customer.whatsapp.includes(term)
+      );
+    }
+    
+    setFilteredRows(result);
+  }, [rows, searchTerm, statusFilter]);
 
   const approveUser = async (id: string) => {
     try {
@@ -98,10 +126,6 @@ const AdminDashboard: React.FC = () => {
     }
   };
 
-  // ---- Preview modal state ----
-  const [previewUrl, setPreviewUrl] = useState<string | null>(null);
-
-  // --- WhatsApp redirect helper ---
   const openWhatsApp = (phone: string) => {
     const clean = phone.startsWith("+") ? phone : `+91${phone}`;
     const message = encodeURIComponent(
@@ -111,144 +135,181 @@ const AdminDashboard: React.FC = () => {
   };
 
   return (
-    <div className="container">
-      <h1 className="heading">Registered Customers</h1>
+    <div className="admin-dashboard-container">
+      {/* 🚫 Top mobile header removed */}
 
-      {loading && <div className="orders-loader">Loading…</div>}
-      {err && <div className="orders-error">{err}</div>}
+      <div className="dashboard-header">
+        <h1 className="heading">Registered Customers</h1>
+        <p className="subheading">Manage customer approvals and accounts</p>
+      </div>
+
+      {/* 🔍 Search Box */}
+      <div className="search-container">
+        <div className={`search-box ${isSearchFocused ? "focused" : ""}`}>
+          <FiSearch className="search-icon" />
+          <input
+            type="text"
+            placeholder="Search customers..."
+            value={searchTerm}
+            onChange={(e) => setSearchTerm(e.target.value)}
+            onFocus={() => setIsSearchFocused(true)}
+            onBlur={() => setIsSearchFocused(false)}
+          />
+          {searchTerm && (
+            <button 
+              className="clear-search"
+              onClick={() => setSearchTerm("")}
+            >
+              <FiX size={16} />
+            </button>
+          )}
+        </div>
+      </div>
+
+      {/* Stats Cards */}
+      <div className="stats-cards-container">
+        <div className="stats-card total">
+          <div className="stats-icon"><FiUser size={24} /></div>
+          <div className="stats-content">
+            <div className="stats-number">{rows.length}</div>
+            <div className="stats-label">Total</div>
+          </div>
+        </div>
+        <div className="stats-card pending">
+          <div className="stats-icon"><FiClock size={24} /></div>
+          <div className="stats-content">
+            <div className="stats-number">{rows.filter(r => r.isApproved === null).length}</div>
+            <div className="stats-label">Pending</div>
+          </div>
+        </div>
+        <div className="stats-card approved">
+          <div className="stats-icon"><FiCheckCircle size={24} /></div>
+          <div className="stats-content">
+            <div className="stats-number">{rows.filter(r => r.isApproved === true).length}</div>
+            <div className="stats-label">Approved</div>
+          </div>
+        </div>
+        <div className="stats-card rejected">
+          <div className="stats-icon"><FiXCircle size={24} /></div>
+          <div className="stats-content">
+            <div className="stats-number">{rows.filter(r => r.isApproved === false).length}</div>
+            <div className="stats-label">Rejected</div>
+          </div>
+        </div>
+      </div>
+
+      {/* Filter Tabs */}
+      <div className="filter-tabs">
+        {["all", "pending", "approved", "rejected"].map(status => (
+          <button
+            key={status}
+            className={`filter-tab ${statusFilter === status ? "active" : ""}`}
+            onClick={() => setStatusFilter(status as any)}
+          >
+            {status.charAt(0).toUpperCase() + status.slice(1)}
+          </button>
+        ))}
+      </div>
+
+      {loading && <div className="loader-container"><div className="loader"></div>Loading customers...</div>}
+      {err && <div className="error-message">{err}</div>}
 
       {!loading && !err && (
-        <div className="table-wrapper">
-          <table className="table">
-            <thead>
-              <tr className="tr">
-                <th>Firm</th>
-                <th>Shop</th>
-                <th>State</th>
-                <th>City</th>
-                <th>Zip</th>
-                <th>Mobile</th>
-                <th>WhatsApp</th>
-                <th>Visiting Card</th>
-                <th>Status / Action</th>
-              </tr>
-            </thead>
-            <tbody>
-              {rows.map((c) => {
-                const full = resolveUrl(c.visitingCardUrl);
-                const thumb = toCloudThumb(full, 120, 80);
-                return (
-                  <tr key={c._id} className="tr">
-                    <td>{c.firmName}</td>
-                    <td>{c.shopName}</td>
-                    <td>{c.state}</td>
-                    <td>{c.city}</td>
-                    <td>{c.zip}</td>
-                    <td>{c.otpMobile}</td>
-                    <td>
-                      {c.whatsapp ? (
-                        <>
-                          <span>{c.whatsapp}</span>
-                          <button
-                            className="whatsapp-row-btn"
-                            onClick={() => openWhatsApp(c.whatsapp)}
-                          >
-                            WhatsApp
-                          </button>
-                        </>
-                      ) : (
-                        "-"
-                      )}
-                    </td>
-                    <td>
-                      {full ? (
-                        <div className="vc-cell">
-                          <img
-                            className="vc-thumb"
-                            src={thumb}
-                            alt="Visiting card"
-                            onClick={() => setPreviewUrl(full)}
-                            onError={(e) => {
-                              (e.currentTarget as HTMLImageElement).src =
-                                "/placeholder-product.png";
-                            }}
-                          />
-                          <a
-                            className="image-button"
-                            href={full}
-                            target="_blank"
-                            rel="noreferrer"
-                          >
-                            View
-                          </a>
-                        </div>
-                      ) : (
-                        "-"
-                      )}
-                    </td>
-                    <td>
-                      {c.isApproved === true ? (
-                        <span className="badge approved">Approved</span>
-                      ) : c.isApproved === false ? (
-                        <span className="badge rejected">Rejected</span>
-                      ) : (
-                        <div className="action-group">
-                          <span className="badge pending">Pending</span>
-                          <button
-                            className="approve-button"
-                            disabled={acting === c._id}
-                            onClick={() => approveUser(c._id)}
-                          >
-                            {acting === c._id ? "Approving..." : "Approve"}
-                          </button>
-                          <button
-                            className="delete-button"
-                            disabled={acting === c._id}
-                            onClick={() => deleteUser(c._id)}
-                          >
-                            Delete
-                          </button>
-                        </div>
-                      )}
-                    </td>
-                  </tr>
-                );
-              })}
-              {rows.length === 0 && (
-                <tr className="tr">
-                  <td colSpan={9} style={{ textAlign: "center" }}>
-                    No customers found.
-                  </td>
-                </tr>
-              )}
-            </tbody>
-          </table>
+        <div className="customers-list">
+          {filteredRows.map((customer) => {
+            const full = resolveUrl(customer.visitingCardUrl);
+            return (
+              <div key={customer._id} className="customer-card">
+                <div className="card-header">
+                  <h3 className="firm-name">{customer.firmName}</h3>
+                  <div className="shop-name">{customer.shopName}</div>
+                </div>
+
+                <div className="card-content">
+                  <div className="info-row">
+                    <span className="info-label">Location:</span>
+                    <span className="info-value">{customer.city}, {customer.state} - {customer.zip}</span>
+                  </div>
+                  <div className="info-row">
+                    <span className="info-label">Mobile:</span>
+                    <span className="info-value">{customer.otpMobile}</span>
+                  </div>
+                  {customer.whatsapp && (
+                    <div className="info-row">
+                      <span className="info-label">WhatsApp:</span>
+                      <span className="info-value">{customer.whatsapp}</span>
+                    </div>
+                  )}
+                  <div className="info-row">
+                    <span className="info-label">Status:</span>
+                    <span className={`status-badge ${
+                      customer.isApproved === true ? "approved" : 
+                      customer.isApproved === false ? "rejected" : "pending"
+                    }`}>
+                      {customer.isApproved === true ? "Approved" : 
+                       customer.isApproved === false ? "Rejected" : "Pending"}
+                    </span>
+                  </div>
+                </div>
+
+                <div className="card-actions">
+                  {full && (
+                    <button className="action-btn view-card-btn" onClick={() => setPreviewUrl(full)}>
+                      <FiEye size={16} /> View Card
+                    </button>
+                  )}
+                  {customer.whatsapp && (
+                    <button className="action-btn whatsapp-btn" onClick={() => openWhatsApp(customer.whatsapp)}>
+                      <FiMessageSquare size={16} /> WhatsApp
+                    </button>
+                  )}
+                  {customer.isApproved !== true && (
+                    <button
+                      className="action-btn approve-btn"
+                      disabled={acting === customer._id}
+                      onClick={() => approveUser(customer._id)}
+                    >
+                      <FiCheck size={16} /> Approve
+                    </button>
+                  )}
+                  <button
+                    className="action-btn delete-btn"
+                    disabled={acting === customer._id}
+                    onClick={() => deleteUser(customer._id)}
+                  >
+                    <FiTrash2 size={16} /> Delete
+                  </button>
+                </div>
+              </div>
+            );
+          })}
+          {filteredRows.length === 0 && (
+            <div className="no-results">
+              {searchTerm || statusFilter !== "all" 
+                ? "No customers match your search criteria" 
+                : "No customers found"}
+            </div>
+          )}
         </div>
       )}
 
-      {/* Lightbox Preview */}
+      {/* Preview Modal */}
       {previewUrl && (
-        <div
-          className="vc-modal"
-          role="dialog"
-          aria-modal="true"
-          onClick={() => setPreviewUrl(null)}
-        >
-          <div className="vc-modal-content" onClick={(e) => e.stopPropagation()}>
-            <button
-              className="vc-modal-close"
-              onClick={() => setPreviewUrl(null)}
-              aria-label="Close"
-            >
-              ×
+        <div className="preview-modal" onClick={() => setPreviewUrl(null)}>
+          <div className="preview-content" onClick={(e) => e.stopPropagation()}>
+            <button className="modal-close" onClick={() => setPreviewUrl(null)}>
+              <FiX size={24} />
             </button>
             <img
-              className="vc-modal-image"
+              className="preview-image"
               src={previewUrl}
               alt="Visiting card"
+              onError={(e) => {
+                (e.currentTarget as HTMLImageElement).src = "/placeholder-product.png";
+              }}
             />
-            <div className="vc-modal-actions">
-              <a href={previewUrl} target="_blank" rel="noreferrer">
+            <div className="preview-actions">
+              <a href={previewUrl} target="_blank" rel="noreferrer" className="preview-link">
                 Open original
               </a>
             </div>

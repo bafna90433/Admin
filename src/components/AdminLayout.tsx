@@ -9,9 +9,12 @@ const AdminLayout: React.FC = () => {
   return (
     <div className="admin-layout">
       {/* Sidebar */}
-      <Sidebar sidebarOpen={sidebarOpen} closeSidebar={() => setSidebarOpen(false)} />
+      <Sidebar
+        sidebarOpen={sidebarOpen}
+        closeSidebar={() => setSidebarOpen(false)}
+      />
 
-      {/* Overlay for mobile */}
+      {/* Mobile overlay (click to close) */}
       {sidebarOpen && (
         <button
           className="overlay"
@@ -22,7 +25,7 @@ const AdminLayout: React.FC = () => {
 
       {/* Main content */}
       <div className="main-content">
-        {/* Mobile top header */}
+        {/* Sticky mobile header */}
         <div className="mobile-header">
           <button
             className="menu-btn"

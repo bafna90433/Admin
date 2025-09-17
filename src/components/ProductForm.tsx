@@ -216,12 +216,14 @@ const ProductForm: React.FC = () => {
 
   return (
     <div className="product-form-container">
+      {/* 🔥 Top mobile header removed */}
+
       {error && <div className="alert alert-error">{error}</div>}
       {success && (
         <div className="alert alert-success">{success}</div>
       )}
 
-      <form onSubmit={handleSubmit} className="product-form">
+      <form onSubmit={handleSubmit} className="product-form" id="product-form">
         <div className="form-grid">
           {/* Basic Information */}
           <div className="form-card primary">
@@ -271,7 +273,7 @@ const ProductForm: React.FC = () => {
               {taxFields.map((value, idx) => (
                 <div
                   key={idx}
-                  style={{ display: 'flex', gap: 8, marginBottom: 6 }}
+                  className="tax-field-row"
                 >
                   <input
                     type="text"
@@ -280,18 +282,12 @@ const ProductForm: React.FC = () => {
                       handleTaxFieldChange(idx, e.target.value)
                     }
                     placeholder="Enter any tax value"
-                    style={{ flex: 1 }}
                   />
                   <button
                     type="button"
                     onClick={() => removeTaxField(idx)}
                     disabled={taxFields.length === 1}
-                    style={{
-                      background: '#eee',
-                      border: 0,
-                      borderRadius: 4,
-                      cursor: taxFields.length === 1 ? 'not-allowed' : 'pointer'
-                    }}
+                    className="remove-tax-button"
                     title="Delete"
                   >
                     <FiTrash2 />
@@ -301,17 +297,7 @@ const ProductForm: React.FC = () => {
               <button
                 type="button"
                 onClick={addTaxField}
-                style={{
-                  marginTop: 6,
-                  background: '#f5f5f5',
-                  border: 0,
-                  borderRadius: 4,
-                  cursor: 'pointer',
-                  padding: '4px 8px',
-                  display: 'flex',
-                  alignItems: 'center',
-                  gap: 4
-                }}
+                className="add-tax-button"
               >
                 <FiPlus /> Add Tax Field
               </button>

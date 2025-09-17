@@ -3,6 +3,7 @@
   --bg: #f9fafb;
 }
 
+/* Root wrapper – don't let overflow break sticky/fixed */
 .admin-layout {
   display: block;
   min-height: 100vh;
@@ -10,34 +11,37 @@
   scrollbar-gutter: stable both-edges;
 }
 
-/* ====== SIDEBAR ====== */
+/* ============== SIDEBAR (STABLE) ============== */
 .sidebar {
   position: fixed;
   top: 0;
   left: 0;
   width: var(--sidebar-w);
-  height: 100vh;          /* fixed height */
-  overflow: hidden;       /* prevent sidebar scroll */
+  height: 100vh;
+  background: linear-gradient(180deg, #3b82f6, #9333ea); /* 🔹 Gradient */
+  color: #fff;
+  overflow-y: auto;
+  -webkit-overflow-scrolling: touch;
+  box-shadow: 0 0 0 1px #0b1222, 0 8px 24px rgba(0, 0, 0, 0.15);
+  scrollbar-gutter: stable;
+  transition: transform 0.3s ease-in-out;
   z-index: 1000;
-  transform: translateX(0); /* desktop visible */
 }
 
-/* ====== MAIN CONTENT ====== */
+/* ============== MAIN CONTENT ============== */
 .main-content {
   min-height: 100vh;
-  padding-left: var(--sidebar-w);
+  padding-left: var(--sidebar-w); /* reserve space for fixed sidebar */
   display: flex;
   flex-direction: column;
   min-width: 0;
-  overflow-x: hidden;
-  overflow-y: auto; /* page scrolls here */
 }
 
 .page-content {
   padding: 16px;
 }
 
-/* ====== MOBILE HEADER ====== */
+/* ============== MOBILE HEADER ============== */
 .mobile-header {
   display: none;
   align-items: center;
@@ -45,6 +49,9 @@
   background: #fff;
   border-bottom: 1px solid #e5e7eb;
   padding: 10px 16px;
+  position: sticky;
+  top: 0;
+  z-index: 900;
 }
 
 .menu-btn {
@@ -61,23 +68,34 @@
   font-weight: 600;
 }
 
-/* Overlay */
+/* ============== OVERLAY ============== */
 .overlay {
   display: none;
+  position: fixed;
+  inset: 0;
+  background: rgba(15, 23, 42, 0.35);
+  z-index: 999; /* below sidebar */
+  border: none;
+  opacity: 0;
+  transition: opacity 0.25s ease;
 }
 
-/* ====== RESPONSIVE ====== */
+.overlay.show {
+  display: block;
+  opacity: 1;
+}
+
+/* ============== RESPONSIVE ============== */
 @media (max-width: 850px) {
+  /* Content should use full width on mobile */
   .main-content {
     padding-left: 0;
   }
 
+  /* Sidebar behaves like a drawer */
   .sidebar {
     transform: translateX(-100%);
-    transition: transform 0.25s ease;
-    will-change: transform;
   }
-
   .sidebar.open {
     transform: translateX(0);
     box-shadow: 0 8px 24px rgba(0, 0, 0, 0.25);
@@ -86,13 +104,16 @@
   .mobile-header {
     display: flex;
   }
+}
 
-  .overlay {
-    display: block;
-    position: fixed;
-    inset: 0;
-    background: rgba(15, 23, 42, 0.35);
-    z-index: 999;
-    border: none;
-  }
+/* ============== MODERN SCROLLBAR ============== */
+* {
+  scrollbar-width: thin;
+}
+*::-webkit-scrollbar {
+  width: 6px;
+}
+*::-webkit-scrollbar-thumb {
+  background: rgba(255, 255, 255, 0.25);
+  border-radius: 6px;
 }

@@ -1,16 +1,21 @@
 .sidebar {
-  background: linear-gradient(180deg, #6d28d9, #4c1d95);
+  background: linear-gradient(180deg, #2563eb, #1e3a8a); /* 🔹 Blue Gradient */
   color: white;
   display: flex;
   flex-direction: column;
+  border-radius: 16px;
+  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.25);
+  overflow: hidden;
 }
 
 .sidebar-header {
-  padding: 1.5rem;
-  font-size: 1.4rem;
-  font-weight: bold;
-  letter-spacing: 0.5px;
+  padding: 1.8rem;
+  font-size: 1.5rem;
+  font-weight: 700;
+  letter-spacing: 0.6px;
   border-bottom: 1px solid rgba(255, 255, 255, 0.15);
+  background: rgba(255, 255, 255, 0.05);
+  backdrop-filter: blur(6px);
   flex-shrink: 0;
 }
 
@@ -18,35 +23,46 @@
   flex: 1;
   display: flex;
   flex-direction: column;
+  gap: 0.25rem;
+  padding: 1rem 0;
 }
 
 .sidebar-link {
   display: flex;
   align-items: center;
-  padding: 0.85rem 1.5rem;
+  padding: 1rem 1.6rem;
   color: rgba(255, 255, 255, 0.85);
   text-decoration: none;
-  transition: background 0.3s, padding-left 0.3s;
+  border-radius: 12px;
+  margin: 0 0.75rem;
+  transition: all 0.3s ease;
 }
 
 .sidebar-link:hover {
-  background: rgba(255, 255, 255, 0.12);
-  padding-left: 2rem;
+  background: rgba(255, 255, 255, 0.15);
+  padding-left: 2.2rem;
+  transform: translateX(4px);
 }
 
 .sidebar-link.active {
-  background: rgba(255, 255, 255, 0.2);
-  border-left: 4px solid #fbbf24;
+  background: linear-gradient(90deg, #fbbf24, #f59e0b);
+  color: #1f2937;
+  font-weight: 600;
+  border-left: none;
+  box-shadow: 0 4px 12px rgba(251, 191, 36, 0.4);
 }
 
 .sidebar-icon {
-  margin-right: 0.75rem;
-  font-size: 1.2rem;
+  margin-right: 0.85rem;
+  font-size: 1.3rem;
+  flex-shrink: 0;
 }
 
 .sidebar-footer {
-  padding: 1rem;
+  padding: 1.2rem;
   border-top: 1px solid rgba(255, 255, 255, 0.15);
+  background: rgba(255, 255, 255, 0.05);
+  backdrop-filter: blur(6px);
   flex-shrink: 0;
 }
 
@@ -55,12 +71,17 @@
   background: transparent;
   border: none;
   color: white;
-  font-size: 1rem;
+  font-size: 1.05rem;
   display: flex;
   align-items: center;
+  gap: 0.75rem;
   cursor: pointer;
+  padding: 0.85rem 1rem;
+  border-radius: 12px;
+  transition: background 0.3s, color 0.3s;
 }
 
 .logout-button:hover {
+  background: rgba(248, 113, 113, 0.2);
   color: #f87171;
 }

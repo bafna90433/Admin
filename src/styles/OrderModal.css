@@ -1,0 +1,108 @@
+/* src/styles/OrderModal.css */
+
+.modal-overlay {
+  position: fixed;
+  inset: 0;
+  background: rgba(0, 0, 0, 0.6);
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  z-index: 9999;
+}
+
+.modal {
+  background: #fff;
+  border-radius: 10px;
+  padding: 1.5rem;
+  max-width: 600px;
+  width: 90%;
+  position: relative;
+  box-shadow: 0 8px 30px rgba(0, 0, 0, 0.2);
+
+  /* ✅ Scroll fix */
+  max-height: 90vh;
+  overflow-y: auto;
+}
+
+.modal::-webkit-scrollbar {
+  width: 6px;
+}
+.modal::-webkit-scrollbar-thumb {
+  background: #cbd5e1;
+  border-radius: 4px;
+}
+
+.modal-close {
+  position: absolute;
+  top: 12px;
+  right: 12px;
+  background: transparent;
+  border: none;
+  font-size: 1.5rem;
+  cursor: pointer;
+}
+
+.ord-m-export {
+  margin: 0.5rem 0 1rem;
+  text-align: right;
+}
+
+.ord-btn-export {
+  background: #2563eb;
+  color: white;
+  border: none;
+  padding: 0.5rem 1rem;
+  font-size: 0.875rem;
+  border-radius: 6px;
+  cursor: pointer;
+}
+.ord-btn-export:hover {
+  background: #1d4ed8;
+}
+
+.ord-m-section {
+  margin-bottom: 1rem;
+  font-size: 0.9rem;
+  color: #374151;
+}
+.ord-m-section b {
+  color: #111827;
+}
+
+.ord-m-item {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  padding: 0.75rem 0;
+  border-bottom: 1px solid #f3f4f6;
+}
+.ord-m-item:last-child {
+  border-bottom: none;
+}
+
+.ord-m-img {
+  width: 50px;
+  height: 50px;
+  object-fit: contain;
+  border: 1px solid #e5e7eb;
+  border-radius: 6px;
+  background: #f9fafb;
+}
+
+.ord-m-iname {
+  font-weight: 500;
+  color: #1f2937;
+  flex: 1;
+}
+.ord-m-inner {
+  color: #6b7280;
+  font-size: 0.85rem;
+}
+.ord-m-qty {
+  color: #374151;
+  font-size: 0.9rem;
+}
+.ord-m-price {
+  font-weight: 600;
+  color: #111827;
+}

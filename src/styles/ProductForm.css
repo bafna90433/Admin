@@ -366,28 +366,54 @@
   to { transform: rotate(360deg); }
 }
 
-/* Responsive Adjustments */
-@media (max-width: 768px) {
-  .product-form-container {
-    padding: 1rem;
+/* ✅ Mobile View Bulk Pricing Fix */
+@media (max-width: 600px) {
+  .table-header {
+    display: none;
   }
-  
-  .table-header,
+
   .table-row {
-    grid-template-columns: 1fr 1fr;
-    grid-template-rows: auto auto;
+    display: flex;
+    flex-direction: column;
+    align-items: stretch;
+    gap: 12px;
+    padding: 12px;
+    border: 1px solid #e5e7eb;
+    border-radius: 6px;
+    margin-bottom: 12px;
+    background: #fafafa;
   }
-  
-  .table-header div:nth-child(4),
-  .table-row div:nth-child(4) {
-    grid-column: span 2;
-    justify-self: end;
+
+  .table-row div {
+    width: 100%;
+    display: flex;
+    flex-direction: column;
   }
-  
+
+  .table-row div::before {
+    content: attr(data-label);
+    font-size: 13px;
+    font-weight: 600;
+    color: #374151;
+    margin-bottom: 4px;
+  }
+
+  .table-row input {
+    width: 100%;
+    font-size: 14px;
+    padding: 8px 12px;
+    border-radius: 6px;
+  }
+
+  .table-action-btn {
+    align-self: flex-end;
+    margin-top: 6px;
+  }
+
   .form-actions {
     flex-direction: column-reverse;
   }
-  
+
   .save-btn,
   .cancel-btn {
     width: 100%;

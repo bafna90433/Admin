@@ -1,159 +1,167 @@
-/* src/styles/Dashboard.css */
+/* Dashboard.css — Mobile-First Approach */
 
-/* Outer wrapper */
 .dashboard-page {
-  padding: 32px 24px;
+  padding: 24px 8px; /* Reduce padding for mobile */
   background: var(--background, #f9f9f9);
   min-height: 100%;
 }
 
-/* Header */
+/* Header — Make font sizes smaller, reduce margins */
 .dashboard-header {
-  margin-bottom: 24px;
+  margin-bottom: 16px;
 }
-
 .dashboard-header h2 {
-  font-size: 1.5rem;
+  font-size: 1.2rem;
   font-weight: 600;
 }
-
 .welcome-emoji {
-  font-size: 1.5rem;
-  margin-left: 4px;
+  font-size: 1.2rem;
+  margin-left: 2px;
 }
-
 .dashboard-subtitle {
   color: var(--text-muted, #666);
-  font-size: 0.9rem;
+  font-size: 0.85rem;
 }
 
-/* Stats grid */
+/* Stats grid — Single column on small screens by default */
 .dashboard-stats {
   display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(240px, 1fr));
-  gap: 24px;
-  margin-bottom: 32px;
+  grid-template-columns: 1fr;
+  gap: 12px; /* Smaller gap */
+  margin-bottom: 24px;
 }
+@media (min-width: 321px) {
+  .dashboard-stats {
+    grid-template-columns: repeat(2, 1fr);
+    gap: 12px;
+  }
+}
+/* For really small screens, grid already is 1fr, no need extra media */
 
+/* Stat card — Compact card, smaller padding, flex-direction column */
 .stat-card {
-  background: var(--card-bg, #fff);
-  padding: 20px;
-  border-radius: 12px;
-  box-shadow: var(--shadow-sm, 0 2px 6px rgba(0, 0, 0, 0.05));
+  padding: 12px;
+  border-radius: 8px;
+  color: #fff;
   display: flex;
-  align-items: center;
-  gap: 16px;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 6px;
+  box-shadow: 0 2px 6px rgba(0, 0, 0, 0.04);
+  transition: transform 0.2s ease;
 }
-
+.stat-card:hover {
+  transform: translateY(-2px);
+}
 .card-icon {
-  font-size: 1.5rem;
-  flex-shrink: 0;
+  font-size: 1.2rem;
+  margin-bottom: 2px;
 }
-
 .card-content {
   flex: 1;
 }
-
 .stat-title {
-  font-size: 0.9rem;
-  color: var(--text-muted, #666);
-}
-
-.stat-value {
-  font-size: 1.25rem;
-  font-weight: bold;
-  margin-top: 4px;
-}
-
-.card-trend {
   font-size: 0.8rem;
-  margin-top: 4px;
+  opacity: 0.9;
 }
-
+.stat-value {
+  font-size: 1rem;
+  font-weight: bold;
+  margin-top: 2px;
+}
+.card-trend {
+  font-size: 0.75rem;
+  margin-top: 2px;
+}
 .card-trend.up {
-  color: #388e3c; /* green */
+  color: #a5ffb8;
 }
-
 .card-trend.down {
-  color: #d32f2f; /* red */
+  color: #ffb3b3;
+}
+.stat-card.products {
+  background: linear-gradient(135deg, #ff9800, #ff5722);
+}
+.stat-card.customers {
+  background: linear-gradient(135deg, #4caf50, #2e7d32);
+}
+.stat-card.approvals {
+  background: linear-gradient(135deg, #ffc107, #ff9800);
+  color: #333;
+}
+.stat-card.orders {
+  background: linear-gradient(135deg, #2196f3, #1565c0);
 }
 
 /* Sections */
 .dashboard-sections {
   display: grid;
   grid-template-columns: 1fr;
-  gap: 24px;
+  gap: 16px;
 }
-
 .dashboard-section {
   background: var(--card-bg, #fff);
-  border-radius: 12px;
-  box-shadow: var(--shadow-sm, 0 2px 6px rgba(0, 0, 0, 0.05));
+  border-radius: 8px;
+  box-shadow: var(--shadow-sm, 0 2px 4px rgba(0, 0, 0, 0.04));
+  overflow: hidden; /* Prevents overflow on small screens */
 }
-
 .dashboard-section h3 {
-  padding: 16px 20px;
+  padding: 12px 14px;
   border-bottom: 1px solid #eee;
-  font-size: 1rem;
+  font-size: 0.9rem;
   font-weight: 600;
 }
-
 .section-content {
-  padding: 20px;
+  padding: 14px;
+  overflow-x: auto; /* Allows horizontal scroll for tables */
 }
-
 .placeholder-text {
   color: var(--text-muted, #888);
-  font-size: 0.9rem;
+  font-size: 0.8rem;
 }
 
-/* Table styling */
+/* Table styling — Horizontal scroll for small screens */
 .admin-table {
   width: 100%;
   border-collapse: collapse;
-  font-size: 0.9rem;
+  font-size: 0.8rem;
+  min-width: fit-content; /* Ensures content is not compressed */
 }
-
 .admin-table th,
 .admin-table td {
-  padding: 10px 12px;
+  padding: 8px 10px;
   border-bottom: 1px solid #eee;
   text-align: left;
+  min-width: 60px; /* Prevents too much squeezing */
 }
-
 .admin-table th {
   background: #f5f5f5;
   font-weight: 600;
 }
-
+/* Badges — compact, smaller padding */
 .badge {
   display: inline-block;
-  padding: 4px 8px;
-  font-size: 0.75rem;
-  border-radius: 6px;
+  padding: 2px 6px;
+  font-size: 0.65rem;
+  border-radius: 4px;
   text-transform: capitalize;
 }
-
 .badge.pending {
   background: #fff3cd;
   color: #856404;
 }
-
 .badge.processing {
   background: #d1ecf1;
   color: #0c5460;
 }
-
 .badge.shipped {
   background: #d4edda;
   color: #155724;
 }
-
 .badge.delivered {
   background: #c3e6cb;
   color: #155724;
 }
-
 .badge.cancelled {
   background: #f8d7da;
   color: #721c24;

@@ -11,8 +11,8 @@ interface Category {
 
 interface BulkPrice {
   inner: string;
-  qty: string;   // string rakha gaya hai taki blank dikhaye
-  price: string; // string rakha gaya hai taki blank dikhaye
+  qty: string;
+  price: string;
 }
 
 interface ProductPayload {
@@ -40,23 +40,20 @@ const ProductForm: React.FC = () => {
   const [form, setForm] = useState({
     name: '',
     sku: '',
-    price: '',  // ✅ Blank default
+    price: '',
     description: '',
     category: ''
   });
 
   const [bulkPrices, setBulkPrices] = useState<BulkPrice[]>([
-    { inner: '', qty: '', price: '' } // ✅ Blank defaults
+    { inner: '', qty: '', price: '' }
   ]);
   const [gallery, setGallery] = useState<GalleryImage[]>([]);
   const [categories, setCategories] = useState<Category[]>([]);
   const [error, setError] = useState<string | null>(null);
   const [success, setSuccess] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
-
-  // --- TAX FIELDS STATE ---
   const [taxFields, setTaxFields] = useState<string[]>(['']);
-  // ------------------------
 
   useEffect(() => {
     const fetchData = async () => {
@@ -70,7 +67,7 @@ const ProductForm: React.FC = () => {
           setForm({
             name: data.name,
             sku: data.sku || '',
-            price: data.price?.toString() || '', // ✅ string
+            price: data.price?.toString() || '',
             description: data.description,
             category:
               typeof data.category === 'string'
@@ -108,7 +105,7 @@ const ProductForm: React.FC = () => {
     const { name, value } = e.target;
     setForm(prev => ({
       ...prev,
-      [name]: value // ✅ price ko string hi rakho
+      [name]: value
     }));
   };
 
@@ -148,7 +145,6 @@ const ProductForm: React.FC = () => {
       setBulkPrices(bp => bp.filter((_, i) => i !== idx));
   };
 
-  // -- TAX FIELD HANDLERS --
   const handleTaxFieldChange = (idx: number, value: string) => {
     setTaxFields(fields =>
       fields.map((v, i) => (i === idx ? value : v))
@@ -159,7 +155,6 @@ const ProductForm: React.FC = () => {
     if (taxFields.length > 1)
       setTaxFields(fields => fields.filter((_, i) => i !== idx));
   };
-  // ------------------------
 
   const handleSubmit = async (e: FormEvent) => {
     e.preventDefault();
@@ -174,7 +169,6 @@ const ProductForm: React.FC = () => {
       if (!form.price || Number(form.price) <= 0) throw new Error('Price must be > 0');
       if (!gallery.length) throw new Error('At least one image is required');
 
-      // ✅ Upload only new images to Cloudinary
       const newImages = gallery.filter(g => !g.isExisting && g.file);
       let uploadedUrls: string[] = [];
       if (newImages.length) {
@@ -190,7 +184,7 @@ const ProductForm: React.FC = () => {
 
       const payload: ProductPayload = {
         ...form,
-        price: Number(form.price), // ✅ convert string → number
+        price: Number(form.price),
         images: [
           ...gallery.filter(g => g.isExisting).map(g => g.url),
           ...uploadedUrls
@@ -333,7 +327,7 @@ const ProductForm: React.FC = () => {
                 min="0"
                 step="0.01"
                 required
-                placeholder="0.00"   // ✅ Blank by default
+                placeholder="0.00"
               />
             </div>
             <div className="form-group">
@@ -404,7 +398,7 @@ const ProductForm: React.FC = () => {
                   key={idx}
                   className={`table-row ${idx % 2 === 0 ? 'even' : 'odd'}`}
                 >
-                  <div>
+                  <div data-label="Min Qty (Inner)">
                     <input
                       type="number"
                       value={bp.inner}
@@ -415,7 +409,7 @@ const ProductForm: React.FC = () => {
                       placeholder="e.g. 5"
                     />
                   </div>
-                  <div>
+                  <div data-label="Total Qty">
                     <input
                       type="number"
                       value={bp.qty}
@@ -426,7 +420,7 @@ const ProductForm: React.FC = () => {
                       placeholder="e.g. 50"
                     />
                   </div>
-                  <div>
+                  <div data-label="Unit Price (₹)">
                     <input
                       type="number"
                       value={bp.price}
@@ -438,7 +432,7 @@ const ProductForm: React.FC = () => {
                       placeholder="0.00"
                     />
                   </div>
-                  <div>
+                  <div data-label="Actions">
                     <button
                       type="button"
                       onClick={() => removeBulkRow(idx)}

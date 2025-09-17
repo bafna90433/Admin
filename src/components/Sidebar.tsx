@@ -1,4 +1,3 @@
-// src/components/Sidebar.tsx
 import React from "react";
 import { Link, useLocation, useNavigate } from "react-router-dom";
 import { IconType } from "react-icons";
@@ -13,8 +12,6 @@ import {
   FiShoppingCart,
   FiMessageSquare,
 } from "react-icons/fi";
-
-// ✅ FIXED: match the real file name (Sidebar.css with capital S)
 import "../styles/Sidebar.css";
 
 interface SidebarItem {
@@ -24,7 +21,12 @@ interface SidebarItem {
   exact?: boolean;
 }
 
-const Sidebar: React.FC = () => {
+interface SidebarProps {
+  sidebarOpen: boolean;
+  closeSidebar: () => void;
+}
+
+const Sidebar: React.FC<SidebarProps> = ({ sidebarOpen, closeSidebar }) => {
   const { pathname } = useLocation();
   const navigate = useNavigate();
 
@@ -48,10 +50,11 @@ const Sidebar: React.FC = () => {
       localStorage.removeItem("adminToken");
       navigate("/admin/login");
     }
+    closeSidebar(); // auto-close on logout too
   };
 
   return (
-    <aside className="sidebar">
+    <aside className={`sidebar ${sidebarOpen ? "open" : ""}`}>
       <div className="sidebar-header">
         <h2 className="sidebar-title">Admin Pro</h2>
       </div>
@@ -62,6 +65,7 @@ const Sidebar: React.FC = () => {
             key={item.path}
             to={item.path}
             className={`sidebar-link ${isActive(item.path, item.exact) ? "active" : ""}`}
+            onClick={closeSidebar}   // ✅ auto-close on link click
           >
             <item.icon className="sidebar-icon" />
             <span>{item.name}</span>

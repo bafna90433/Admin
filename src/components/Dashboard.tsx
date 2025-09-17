@@ -1,6 +1,6 @@
 // src/components/Dashboard.tsx
 import React, { useEffect, useState } from "react";
-import api from "../utils/api";  // ✅ use our axios instance
+import api from "../utils/api";
 import "../styles/Dashboard.css";
 import { FiPackage, FiUsers, FiClock, FiShoppingCart } from "react-icons/fi";
 
@@ -19,6 +19,7 @@ interface StatCardProps {
   icon: React.ReactNode;
   trend?: "up" | "down";
   trendValue?: string;
+  className?: string;
 }
 
 const StatCard: React.FC<StatCardProps> = ({
@@ -27,8 +28,9 @@ const StatCard: React.FC<StatCardProps> = ({
   icon,
   trend,
   trendValue,
+  className,
 }) => (
-  <div className="stat-card">
+  <div className={`stat-card ${className || ""}`}>
     <div className="card-icon">{icon}</div>
     <div className="card-content">
       <h3 className="stat-title">{title}</h3>
@@ -60,9 +62,9 @@ const Dashboard: React.FC = () => {
     const load = async () => {
       try {
         const [prodRes, custRes, orderRes] = await Promise.all([
-          api.get("/products"),         // ✅ no localhost
-          api.get("/admin/customers"),  // ✅ no localhost
-          api.get<Order[]>("/orders"),  // ✅ no localhost
+          api.get("/products"),
+          api.get("/admin/customers"),
+          api.get<Order[]>("/orders"),
         ]);
 
         setProductsCount(prodRes.data?.length || 0);
@@ -91,31 +93,35 @@ const Dashboard: React.FC = () => {
     load();
   }, []);
 
-  const stats: StatCardProps[] = [
+  const stats: (StatCardProps & { className: string })[] = [
     {
       title: "Total Products",
       value: productsCount,
-      icon: <FiPackage size={24} color="#f57c00" />,
+      icon: <FiPackage size={24} />,
       trend: "down",
       trendValue: "3%",
+      className: "products",
     },
     {
       title: "Total Customers",
       value: customersCount,
-      icon: <FiUsers size={24} color="#388e3c" />,
+      icon: <FiUsers size={24} />,
       trend: "up",
       trendValue: "5%",
+      className: "customers",
     },
     {
       title: "Pending Approval",
       value: pendingApprovals,
-      icon: <FiClock size={24} color="#bdb313" />,
+      icon: <FiClock size={24} />,
       trend: "up",
+      className: "approvals",
     },
     {
       title: "Total Orders",
       value: ordersCount,
-      icon: <FiShoppingCart size={24} color="#1976d2" />,
+      icon: <FiShoppingCart size={24} />,
+      className: "orders",
     },
   ];
 
@@ -130,14 +136,17 @@ const Dashboard: React.FC = () => {
         </p>
       </header>
 
+      {/* Stats Grid */}
       <div className="dashboard-stats">
         {stats.map((s, i) => (
           <StatCard key={i} {...s} />
         ))}
       </div>
 
+      {/* Sections */}
       <div className="dashboard-sections">
-        <section className="dashboard-section">
+        {/* Recent Orders */}
+        <section className="dashboard-section recent-orders">
           <h3>Recent Orders</h3>
           <div className="section-content">
             {loading ? (
@@ -145,38 +154,41 @@ const Dashboard: React.FC = () => {
             ) : recentOrders.length === 0 ? (
               <p className="placeholder-text">No orders yet.</p>
             ) : (
-              <table className="admin-table">
-                <thead>
-                  <tr>
-                    <th>Order #</th>
-                    <th>Date</th>
-                    <th>Items</th>
-                    <th>Total</th>
-                    <th>Status</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {recentOrders.map((o) => (
-                    <tr key={o._id}>
-                      <td>{o.orderNumber || o._id.slice(-6)}</td>
-                      <td>
-                        {o.createdAt
-                          ? new Date(o.createdAt).toLocaleString()
-                          : "-"}
-                      </td>
-                      <td>{o.items?.length || 0}</td>
-                      <td>{currency.format(o.total || 0)}</td>
-                      <td>
-                        <span className={`badge ${o.status}`}>{o.status}</span>
-                      </td>
+              <div className="table-wrapper">
+                <table className="admin-table">
+                  <thead>
+                    <tr>
+                      <th>Order #</th>
+                      <th>Date</th>
+                      <th>Items</th>
+                      <th>Total</th>
+                      <th>Status</th>
                     </tr>
-                  ))}
-                </tbody>
-              </table>
+                  </thead>
+                  <tbody>
+                    {recentOrders.map((o) => (
+                      <tr key={o._id}>
+                        <td>{o.orderNumber || o._id.slice(-6)}</td>
+                        <td>
+                          {o.createdAt
+                            ? new Date(o.createdAt).toLocaleString()
+                            : "-"}
+                        </td>
+                        <td>{o.items?.length || 0}</td>
+                        <td>{currency.format(o.total || 0)}</td>
+                        <td>
+                          <span className={`badge ${o.status}`}>{o.status}</span>
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
             )}
           </div>
         </section>
 
+        {/* Sales Overview */}
         <section className="dashboard-section">
           <h3>Sales Overview</h3>
           <div className="section-content">

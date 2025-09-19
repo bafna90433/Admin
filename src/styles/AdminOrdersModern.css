@@ -1,18 +1,34 @@
 /* ------------------------------
-   Base Styles
+   Base Container
 --------------------------------*/
 .ord-app {
-  padding: 20px;
+  width: 100%;
+  max-width: 1200px;
+  margin: 0 auto;
+  padding: 16px;
   font-family: 'Segoe UI', Tahoma, sans-serif;
   color: #2d3748;
+  box-sizing: border-box;
+  overflow-x: hidden;   /* ✅ prevent horizontal scroll */
 }
 
+body {
+  margin: 0;
+  overflow-x: hidden;   /* ✅ block global horizontal scroll */
+}
+
+/* ------------------------------
+   Header
+--------------------------------*/
 .ord-header {
   font-size: 1.5rem;
   font-weight: 600;
   margin-bottom: 16px;
 }
 
+/* ------------------------------
+   Toolbar
+--------------------------------*/
 .ord-toolbar {
   display: flex;
   justify-content: space-between;
@@ -20,11 +36,9 @@
   gap: 12px;
   margin-bottom: 20px;
   flex-wrap: wrap;
+  width: 100%;
 }
 
-/* ------------------------------
-   Search Box
---------------------------------*/
 .ord-srch {
   display: flex;
   align-items: center;
@@ -33,7 +47,9 @@
   border-radius: 6px;
   padding: 6px 10px;
   flex: 1;
-  min-width: 280px;
+  min-width: 200px; /* ✅ smaller on small screens */
+  max-width: 100%;
+  overflow: hidden;
 }
 
 .ord-srch-icon {
@@ -66,6 +82,7 @@
   cursor: pointer;
   font-size: 0.85rem;
   font-weight: 500;
+  flex-shrink: 0; /* ✅ prevent overflow */
 }
 
 .ord-btn-export {
@@ -124,7 +141,9 @@
 --------------------------------*/
 .ord-list {
   display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(280px, 1fr)); /* ✅ smaller min width */
   gap: 16px;
+  width: 100%;
 }
 
 .ord-card {
@@ -135,6 +154,9 @@
   display: flex;
   flex-direction: column;
   gap: 10px;
+  width: 100%;
+  box-sizing: border-box;
+  overflow: hidden;   /* ✅ no child overflow */
 }
 
 .ord-main {
@@ -200,10 +222,11 @@
   display: flex;
   gap: 8px;
   margin-top: 10px;
+  flex-wrap: wrap; /* ✅ avoid overflow on smaller screens */
 }
 
 /* ------------------------------
-   Modal Styles
+   Modal
 --------------------------------*/
 .ord-modal-backdrop {
   position: fixed;
@@ -222,7 +245,7 @@
   width: 90%;
   max-width: 800px;
   max-height: 90vh;
-  overflow-y: auto; /* ✅ scroll inside modal */
+  overflow-y: auto;
   box-shadow: 0 6px 20px rgba(0,0,0,0.2);
   position: relative;
 }
@@ -253,7 +276,7 @@
 }
 
 /* ------------------------------
-   Items inside Modal
+   Items in Modal
 --------------------------------*/
 .ord-m-item {
   display: grid;
@@ -302,14 +325,21 @@
    Responsive
 --------------------------------*/
 @media (max-width: 768px) {
+  .ord-app {
+    padding: 10px;
+  }
+
+  .ord-list {
+    grid-template-columns: 1fr; /* ✅ full-width on small screens */
+  }
+
   .ord-toolbar {
     flex-direction: column;
     align-items: stretch;
   }
 
-  .ord-modal {
-    width: 95%;
-    padding: 15px;
+  .ord-srch {
+    width: 100%;
   }
 
   .ord-m-item {

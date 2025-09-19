@@ -12,7 +12,6 @@ type Agent = {
   enabled?: boolean;
   message?: string;
 };
-
 type Settings = {
   enabled: boolean;
   phone: string;
@@ -34,12 +33,22 @@ type Settings = {
   agents: Agent[];
 };
 
-/* ------------ Helpers ------------ */
+/* ------------ Helpers & Constants ------------ */
 const resolveUrl = (u?: string) => {
   if (!u) return "";
   if (u.startsWith("http")) return u;
   return `${API_URL}${u.startsWith("/") ? u : `/uploads/${u}`}`;
 };
+
+const WEEK_DAYS = [
+  { label: "Sun", value: 0 },
+  { label: "Mon", value: 1 },
+  { label: "Tue", value: 2 },
+  { label: "Wed", value: 3 },
+  { label: "Thu", value: 4 },
+  { label: "Fri", value: 5 },
+  { label: "Sat", value: 6 },
+];
 
 const AdminWhatsApp: React.FC = () => {
   const [settings, setSettings] = useState<Settings | null>(null);
@@ -51,10 +60,19 @@ const AdminWhatsApp: React.FC = () => {
     (async () => {
       try {
         const { data } = await axios.get<Settings>(`${API_URL}/whatsapp`);
+        // Set sane defaults for new fields
         data.showOnPaths ||= [];
         data.hideOnPaths ||= [];
-        data.days ||= [1, 2, 3, 4, 5, 6];
+        data.days ||= [1, 2, 3, 4, 5];
         data.agents ||= [];
+        data.greetingText ||= "Hey there! How can we help?";
+        data.defaultMessage ||= "I have a question about...";
+        data.position ||= "right";
+        data.offsetX ||= 20;
+        data.offsetY ||= 20;
+        data.startHour ||= 9;
+        data.endHour ||= 18;
+
         if (data.agents.length === 0 && data.phone) {
           data.agents.push({
             name: "Support",
@@ -78,14 +96,7 @@ const AdminWhatsApp: React.FC = () => {
     update({
       agents: [
         ...(settings?.agents || []),
-        {
-          name: "New Agent",
-          phone: "",
-          title: "Customer Executive",
-          enabled: true,
-          avatar: "",
-          message: "",
-        },
+        { name: "New Agent", phone: "", title: "Support", enabled: true, avatar: "" },
       ],
     });
 
@@ -94,9 +105,7 @@ const AdminWhatsApp: React.FC = () => {
 
   const updateAgent = (idx: number, patch: Partial<Agent>) =>
     update({
-      agents: (settings?.agents || []).map((a, i) =>
-        i === idx ? { ...a, ...patch } : a
-      ),
+      agents: (settings?.agents || []).map((a, i) => (i === idx ? { ...a, ...patch } : a)),
     });
 
   const pickAvatar = async (idx: number) => {
@@ -119,6 +128,16 @@ const AdminWhatsApp: React.FC = () => {
     input.click();
   };
 
+  /* ------------ Day Toggle ------------ */
+  const toggleDay = (day: number) => {
+    if (!settings) return;
+    const currentDays = settings.days || [];
+    const newDays = currentDays.includes(day)
+      ? currentDays.filter((d) => d !== day)
+      : [...currentDays, day];
+    update({ days: newDays.sort() });
+  };
+
   /* ------------ Save ------------ */
   const handleSave = async () => {
     if (!settings) return;
@@ -135,190 +154,220 @@ const AdminWhatsApp: React.FC = () => {
       };
       const { data } = await axios.put(`${API_URL}/whatsapp`, payload);
       setSettings(data.settings || payload);
-      setMessage("Saved!");
+      setMessage("Settings saved successfully!");
+      setTimeout(() => setMessage(null), 3000);
     } catch (e: any) {
-      setMessage(e?.response?.data?.message || "Save failed");
+      setMessage(e?.response?.data?.message || "Save failed. Please try again.");
     } finally {
       setSaving(false);
     }
   };
 
-  if (!settings) return <div className="ws-loading">Loading…</div>;
+  if (!settings) return <div className="ws-loading">Loading Settings…</div>;
 
   /* ------------ UI ------------ */
   return (
-    <div className="ws-admin">
-      <header className="ws-header">
-        <h1>WhatsApp Chat Settings</h1>
-        <p>Configure how your WhatsApp widget appears and behaves for customers.</p>
-      </header>
+    <div className="ws-admin-container">
+      <div className="ws-header">
+        <div>
+          <h1>WhatsApp Widget</h1>
+          <p>Manage your customer chat widget settings and agents.</p>
+        </div>
+        <button className="ws-save-button" onClick={handleSave} disabled={saving}>
+          {saving ? "Saving…" : "Save Changes"}
+        </button>
+      </div>
 
       {message && (
-        <div className={`ws-alert ${message === "Saved!" ? "success" : "error"}`}>
+        <div className={`ws-alert ${message.includes("success") ? "success" : "error"}`}>
           {message}
         </div>
       )}
 
-      <form onSubmit={(e) => e.preventDefault()} className="ws-form">
-
-        {/* GENERAL */}
-        <div className="ws-section">
-          <label>
-            <input
-              type="checkbox"
-              checked={settings.enabled}
-              onChange={(e) => update({ enabled: e.target.checked })}
-            />
-            Enable Widget
-          </label>
-
-          <label>
-            Phone:
-            <input
-              type="text"
-              value={settings.phone}
-              onChange={(e) => update({ phone: e.target.value })}
-            />
-          </label>
-
-          <label>
-            Default Message:
-            <input
-              type="text"
-              value={settings.defaultMessage}
-              onChange={(e) => update({ defaultMessage: e.target.value })}
-            />
-          </label>
-
-          <label>
-            Greeting:
-            <input
-              type="text"
-              value={settings.greetingText}
-              onChange={(e) => update({ greetingText: e.target.value })}
-            />
-          </label>
-
-          <label>
-            Position:
-            <select
-              value={settings.position}
-              onChange={(e) => update({ position: e.target.value as "right" | "left" })}
-            >
-              <option value="right">Right</option>
-              <option value="left">Left</option>
-            </select>
-          </label>
-
-          <label>
-            OffsetX:
-            <input
-              type="number"
-              value={settings.offsetX}
-              onChange={(e) => update({ offsetX: Number(e.target.value) })}
-            />
-          </label>
-
-          <label>
-            OffsetY:
-            <input
-              type="number"
-              value={settings.offsetY}
-              onChange={(e) => update({ offsetY: Number(e.target.value) })}
-            />
-          </label>
-        </div>
-
-        {/* SCHEDULE */}
-        <div className="ws-section">
-          <h3>Schedule</h3>
-          <label>
-            <input
-              type="checkbox"
-              checked={settings.enableSchedule}
-              onChange={(e) => update({ enableSchedule: e.target.checked })}
-            />
-            Enable Schedule
-          </label>
-
-          <label>
-            Start Hour:
-            <input
-              type="number"
-              value={settings.startHour}
-              onChange={(e) => update({ startHour: Number(e.target.value) })}
-            />
-          </label>
-
-          <label>
-            End Hour:
-            <input
-              type="number"
-              value={settings.endHour}
-              onChange={(e) => update({ endHour: Number(e.target.value) })}
-            />
-          </label>
-
-          <label>
-            Days (0=Sun,6=Sat):
-            <input
-              type="text"
-              value={settings.days.join(",")}
-              onChange={(e) =>
-                update({
-                  days: e.target.value
-                    .split(",")
-                    .map((n) => parseInt(n.trim()))
-                    .filter((n) => !isNaN(n)),
-                })
-              }
-            />
-          </label>
-        </div>
-
-        {/* TEAM MEMBERS */}
-        <div className="ws-section">
-          <h3>Agents</h3>
-          {settings.agents.map((a, i) => (
-            <div key={i} className="ws-agent">
+      <form className="ws-form-grid" onSubmit={(e) => e.preventDefault()}>
+        {/* -- WIDGET SETTINGS -- */}
+        <div className="ws-card">
+          <div className="ws-card-header">
+            <h3>General Settings</h3>
+            <label className="ws-toggle-switch">
+              <input
+                type="checkbox"
+                checked={settings.enabled}
+                onChange={(e) => update({ enabled: e.target.checked })}
+              />
+              <span className="ws-slider"></span>
+            </label>
+          </div>
+          <div className="ws-card-body">
+            <div className="ws-input-group">
+              <label>Default Phone Number</label>
               <input
                 type="text"
-                value={a.name}
-                onChange={(e) => updateAgent(i, { name: e.target.value })}
-                placeholder="Name"
+                value={settings.phone}
+                onChange={(e) => update({ phone: e.target.value })}
+                placeholder="e.g., +15551234567"
               />
-              <input
-                type="text"
-                value={a.phone}
-                onChange={(e) => updateAgent(i, { phone: e.target.value })}
-                placeholder="Phone"
-              />
-              <input
-                type="text"
-                value={a.title || ""}
-                onChange={(e) => updateAgent(i, { title: e.target.value })}
-                placeholder="Title"
-              />
-              <button type="button" onClick={() => pickAvatar(i)}>
-                {a.avatar ? "Change Avatar" : "Upload Avatar"}
-              </button>
-              <button type="button" onClick={() => removeAgent(i)}>Remove</button>
+              <p className="ws-hint">
+                This number is used if no agents are available or if agents are disabled.
+              </p>
             </div>
-          ))}
-          <button type="button" onClick={addAgent}>Add Agent</button>
+            <div className="ws-input-group">
+              <label>Default Pre-filled Message</label>
+              <textarea
+                value={settings.defaultMessage}
+                onChange={(e) => update({ defaultMessage: e.target.value })}
+                placeholder="I have a question about..."
+              />
+            </div>
+            <div className="ws-input-group">
+              <label>Greeting Text</label>
+              <input
+                type="text"
+                value={settings.greetingText}
+                onChange={(e) => update({ greetingText: e.target.value })}
+              />
+            </div>
+          </div>
         </div>
 
-        {/* SAVE */}
-        <div className="ws-save-row">
-          <button
-            type="button"
-            className="ws-primary-button"
-            onClick={handleSave}
-            disabled={saving}
-          >
-            {saving ? "Saving..." : "Save All Settings"}
-          </button>
+        {/* -- APPEARANCE -- */}
+        <div className="ws-card">
+          <div className="ws-card-header">
+            <h3>Appearance</h3>
+          </div>
+          <div className="ws-card-body ws-grid-2">
+            <div className="ws-input-group">
+              <label>Position</label>
+              <select
+                value={settings.position}
+                onChange={(e) => update({ position: e.target.value as "right" | "left" })}
+              >
+                <option value="right">Right</option>
+                <option value="left">Left</option>
+              </select>
+            </div>
+            <div className="ws-input-group">
+              <label>Auto-open Delay (seconds)</label>
+              <input
+                type="number"
+                value={settings.autoOpenDelay}
+                onChange={(e) => update({ autoOpenDelay: Number(e.target.value) })}
+              />
+            </div>
+            <div className="ws-input-group">
+              <label>Offset X (px)</label>
+              <input
+                type="number"
+                value={settings.offsetX}
+                onChange={(e) => update({ offsetX: Number(e.target.value) })}
+              />
+            </div>
+            <div className="ws-input-group">
+              <label>Offset Y (px)</label>
+              <input
+                type="number"
+                value={settings.offsetY}
+                onChange={(e) => update({ offsetY: Number(e.target.value) })}
+              />
+            </div>
+          </div>
         </div>
+
+        {/* -- TEAM MEMBERS -- */}
+        <div className="ws-card">
+          <div className="ws-card-header">
+            <h3>Agents / Team Members</h3>
+            <button type="button" className="ws-add-agent-button" onClick={addAgent}>
+              + Add Agent
+            </button>
+          </div>
+          <div className="ws-card-body">
+            {settings.agents.length === 0 ? (
+              <p className="ws-hint">No agents added. The default phone number will be used.</p>
+            ) : (
+              settings.agents.map((a, i) => (
+                <div key={i} className="ws-agent-card">
+                  <div className="ws-agent-avatar" onClick={() => pickAvatar(i)}>
+                    {a.avatar ? (
+                      <img src={resolveUrl(a.avatar)} alt={a.name} />
+                    ) : (
+                      <span className="ws-agent-initials">{a.name.charAt(0)}</span>
+                    )}
+                    <div className="ws-change-photo">Change</div>
+                  </div>
+                  <div className="ws-agent-details">
+                    <div className="ws-grid-2">
+                      <input
+                        type="text"
+                        value={a.name}
+                        onChange={(e) => updateAgent(i, { name: e.target.value })}
+                        placeholder="Agent Name"
+                      />
+                      <input
+                        type="text"
+                        value={a.phone}
+                        onChange={(e) => updateAgent(i, { phone: e.target.value })}
+                        placeholder="Agent Phone Number"
+                      />
+                    </div>
+                    <input
+                      type="text"
+                      value={a.title || ""}
+                      onChange={(e) => updateAgent(i, { title: e.target.value })}
+                      placeholder="Title (e.g., Sales, Support)"
+                    />
+                  </div>
+                  <div className="ws-agent-actions">
+                    <button type="button" className="ws-icon-button danger" onClick={() => removeAgent(i)}>
+                      Remove
+                    </button>
+                  </div>
+                </div>
+              ))
+            )}
+          </div>
+        </div>
+        
+        {/* -- SCHEDULE -- */}
+        <div className="ws-card">
+          <div className="ws-card-header">
+            <h3>Schedule Widget</h3>
+             <label className="ws-toggle-switch">
+              <input
+                type="checkbox"
+                checked={settings.enableSchedule}
+                onChange={(e) => update({ enableSchedule: e.target.checked })}
+              />
+              <span className="ws-slider"></span>
+            </label>
+          </div>
+          <div className={`ws-card-body ${!settings.enableSchedule ? 'ws-disabled-section' : ''}`}>
+             <div className="ws-input-group">
+                <label>Active Days</label>
+                <div className="ws-chip-group">
+                    {WEEK_DAYS.map(day => (
+                         <div key={day.value} 
+                            className={`ws-chip ${settings.days.includes(day.value) ? 'active' : ''}`}
+                            onClick={() => toggleDay(day.value)}>
+                            {day.label}
+                        </div>
+                    ))}
+                </div>
+             </div>
+             <div className="ws-grid-2">
+                <div className="ws-input-group">
+                    <label>From (Hour)</label>
+                     <input type="number" min="0" max="23" value={settings.startHour} onChange={e => update({ startHour: Number(e.target.value) })}/>
+                </div>
+                 <div className="ws-input-group">
+                    <label>To (Hour)</label>
+                     <input type="number" min="0" max="23" value={settings.endHour} onChange={e => update({ endHour: Number(e.target.value) })}/>
+                </div>
+             </div>
+             <p className="ws-hint">The widget will only be shown during the selected days and hours (24h format).</p>
+          </div>
+        </div>
+
       </form>
     </div>
   );

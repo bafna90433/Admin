@@ -1,18 +1,15 @@
+// src/components/AdminDashboard.tsx
 import React, { useEffect, useMemo, useState } from "react";
 import api from "../utils/api";
 import "../styles/AdminDashboard.css";
-import { 
-  FiSearch, FiX, FiMessageSquare, FiEye, FiCheck, 
-  FiTrash2, FiUser, FiClock, FiCheckCircle, FiXCircle 
+import {
+  FiSearch, FiX, FiMessageSquare, FiEye, FiCheck,
+  FiTrash2, FiUser, FiClock, FiCheckCircle, FiXCircle
 } from "react-icons/fi";
 
 type Customer = {
   _id: string;
-  firmName: string;
   shopName: string;
-  state: string;
-  city: string;
-  zip: string;
   otpMobile: string;
   whatsapp: string;
   visitingCardUrl?: string;
@@ -27,7 +24,9 @@ const AdminDashboard: React.FC = () => {
   const [err, setErr] = useState<string | null>(null);
   const [acting, setActing] = useState<string | null>(null);
   const [searchTerm, setSearchTerm] = useState("");
-  const [statusFilter, setStatusFilter] = useState<"all" | "pending" | "approved" | "rejected">("all");
+  const [statusFilter, setStatusFilter] = useState<
+    "all" | "pending" | "approved" | "rejected"
+  >("all");
   const [previewUrl, setPreviewUrl] = useState<string | null>(null);
   const [isSearchFocused, setIsSearchFocused] = useState(false);
 
@@ -69,31 +68,29 @@ const AdminDashboard: React.FC = () => {
     fetchCustomers();
   }, []);
 
-  // Filter customers based on search term and status
+  // Filter customers
   useEffect(() => {
     let result = rows;
-    
+
     if (statusFilter !== "all") {
-      result = result.filter(customer => {
+      result = result.filter((customer) => {
         if (statusFilter === "pending") return customer.isApproved === null;
         if (statusFilter === "approved") return customer.isApproved === true;
         if (statusFilter === "rejected") return customer.isApproved === false;
         return true;
       });
     }
-    
+
     if (searchTerm) {
       const term = searchTerm.toLowerCase();
-      result = result.filter(customer => 
-        customer.firmName.toLowerCase().includes(term) ||
-        customer.shopName.toLowerCase().includes(term) ||
-        customer.city.toLowerCase().includes(term) ||
-        customer.state.toLowerCase().includes(term) ||
-        customer.otpMobile.includes(term) ||
-        customer.whatsapp.includes(term)
+      result = result.filter(
+        (customer) =>
+          customer.shopName.toLowerCase().includes(term) ||
+          customer.otpMobile.includes(term) ||
+          customer.whatsapp.includes(term)
       );
     }
-    
+
     setFilteredRows(result);
   }, [rows, searchTerm, statusFilter]);
 
@@ -136,8 +133,6 @@ const AdminDashboard: React.FC = () => {
 
   return (
     <div className="admin-dashboard-container">
-      {/* 🚫 Top mobile header removed */}
-
       <div className="dashboard-header">
         <h1 className="heading">Registered Customers</h1>
         <p className="subheading">Manage customer approvals and accounts</p>
@@ -156,10 +151,7 @@ const AdminDashboard: React.FC = () => {
             onBlur={() => setIsSearchFocused(false)}
           />
           {searchTerm && (
-            <button 
-              className="clear-search"
-              onClick={() => setSearchTerm("")}
-            >
+            <button className="clear-search" onClick={() => setSearchTerm("")}>
               <FiX size={16} />
             </button>
           )}
@@ -169,30 +161,44 @@ const AdminDashboard: React.FC = () => {
       {/* Stats Cards */}
       <div className="stats-cards-container">
         <div className="stats-card total">
-          <div className="stats-icon"><FiUser size={24} /></div>
+          <div className="stats-icon">
+            <FiUser size={24} />
+          </div>
           <div className="stats-content">
             <div className="stats-number">{rows.length}</div>
             <div className="stats-label">Total</div>
           </div>
         </div>
         <div className="stats-card pending">
-          <div className="stats-icon"><FiClock size={24} /></div>
+          <div className="stats-icon">
+            <FiClock size={24} />
+          </div>
           <div className="stats-content">
-            <div className="stats-number">{rows.filter(r => r.isApproved === null).length}</div>
+            <div className="stats-number">
+              {rows.filter((r) => r.isApproved === null).length}
+            </div>
             <div className="stats-label">Pending</div>
           </div>
         </div>
         <div className="stats-card approved">
-          <div className="stats-icon"><FiCheckCircle size={24} /></div>
+          <div className="stats-icon">
+            <FiCheckCircle size={24} />
+          </div>
           <div className="stats-content">
-            <div className="stats-number">{rows.filter(r => r.isApproved === true).length}</div>
+            <div className="stats-number">
+              {rows.filter((r) => r.isApproved === true).length}
+            </div>
             <div className="stats-label">Approved</div>
           </div>
         </div>
         <div className="stats-card rejected">
-          <div className="stats-icon"><FiXCircle size={24} /></div>
+          <div className="stats-icon">
+            <FiXCircle size={24} />
+          </div>
           <div className="stats-content">
-            <div className="stats-number">{rows.filter(r => r.isApproved === false).length}</div>
+            <div className="stats-number">
+              {rows.filter((r) => r.isApproved === false).length}
+            </div>
             <div className="stats-label">Rejected</div>
           </div>
         </div>
@@ -200,7 +206,7 @@ const AdminDashboard: React.FC = () => {
 
       {/* Filter Tabs */}
       <div className="filter-tabs">
-        {["all", "pending", "approved", "rejected"].map(status => (
+        {["all", "pending", "approved", "rejected"].map((status) => (
           <button
             key={status}
             className={`filter-tab ${statusFilter === status ? "active" : ""}`}
@@ -211,7 +217,11 @@ const AdminDashboard: React.FC = () => {
         ))}
       </div>
 
-      {loading && <div className="loader-container"><div className="loader"></div>Loading customers...</div>}
+      {loading && (
+        <div className="loader-container">
+          <div className="loader"></div>Loading customers...
+        </div>
+      )}
       {err && <div className="error-message">{err}</div>}
 
       {!loading && !err && (
@@ -221,15 +231,10 @@ const AdminDashboard: React.FC = () => {
             return (
               <div key={customer._id} className="customer-card">
                 <div className="card-header">
-                  <h3 className="firm-name">{customer.firmName}</h3>
-                  <div className="shop-name">{customer.shopName}</div>
+                  <h3 className="shop-name">{customer.shopName}</h3>
                 </div>
 
                 <div className="card-content">
-                  <div className="info-row">
-                    <span className="info-label">Location:</span>
-                    <span className="info-value">{customer.city}, {customer.state} - {customer.zip}</span>
-                  </div>
                   <div className="info-row">
                     <span className="info-label">Mobile:</span>
                     <span className="info-value">{customer.otpMobile}</span>
@@ -242,24 +247,38 @@ const AdminDashboard: React.FC = () => {
                   )}
                   <div className="info-row">
                     <span className="info-label">Status:</span>
-                    <span className={`status-badge ${
-                      customer.isApproved === true ? "approved" : 
-                      customer.isApproved === false ? "rejected" : "pending"
-                    }`}>
-                      {customer.isApproved === true ? "Approved" : 
-                       customer.isApproved === false ? "Rejected" : "Pending"}
+                    <span
+                      className={`status-badge ${
+                        customer.isApproved === true
+                          ? "approved"
+                          : customer.isApproved === false
+                          ? "rejected"
+                          : "pending"
+                      }`}
+                    >
+                      {customer.isApproved === true
+                        ? "Approved"
+                        : customer.isApproved === false
+                        ? "Rejected"
+                        : "Pending"}
                     </span>
                   </div>
                 </div>
 
                 <div className="card-actions">
                   {full && (
-                    <button className="action-btn view-card-btn" onClick={() => setPreviewUrl(full)}>
+                    <button
+                      className="action-btn view-card-btn"
+                      onClick={() => setPreviewUrl(full)}
+                    >
                       <FiEye size={16} /> View Card
                     </button>
                   )}
                   {customer.whatsapp && (
-                    <button className="action-btn whatsapp-btn" onClick={() => openWhatsApp(customer.whatsapp)}>
+                    <button
+                      className="action-btn whatsapp-btn"
+                      onClick={() => openWhatsApp(customer.whatsapp)}
+                    >
                       <FiMessageSquare size={16} /> WhatsApp
                     </button>
                   )}
@@ -285,8 +304,8 @@ const AdminDashboard: React.FC = () => {
           })}
           {filteredRows.length === 0 && (
             <div className="no-results">
-              {searchTerm || statusFilter !== "all" 
-                ? "No customers match your search criteria" 
+              {searchTerm || statusFilter !== "all"
+                ? "No customers match your search criteria"
                 : "No customers found"}
             </div>
           )}
@@ -305,11 +324,17 @@ const AdminDashboard: React.FC = () => {
               src={previewUrl}
               alt="Visiting card"
               onError={(e) => {
-                (e.currentTarget as HTMLImageElement).src = "/placeholder-product.png";
+                (e.currentTarget as HTMLImageElement).src =
+                  "/placeholder-product.png";
               }}
             />
             <div className="preview-actions">
-              <a href={previewUrl} target="_blank" rel="noreferrer" className="preview-link">
+              <a
+                href={previewUrl}
+                target="_blank"
+                rel="noreferrer"
+                className="preview-link"
+              >
                 Open original
               </a>
             </div>

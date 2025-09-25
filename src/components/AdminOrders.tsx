@@ -1,4 +1,3 @@
-// src/components/AdminOrders.tsx
 import React, { useEffect, useMemo, useState, useCallback } from "react";
 import api, { MEDIA_URL } from "../utils/api";
 import "../styles/AdminOrdersModern.css";
@@ -19,12 +18,9 @@ type OrderItem = {
 };
 
 type CustomerLite = {
-  firmName?: string;
   shopName?: string;
   otpMobile?: string;
-  city?: string;
-  state?: string;
-  zip?: string;
+  whatsapp?: string;
   visitingCardUrl?: string;
 };
 
@@ -35,12 +31,7 @@ type ShippingInfo = {
   notes?: string;
 };
 
-type OrderStatus =
-  | "pending"
-  | "processing"
-  | "shipped"
-  | "delivered"
-  | "cancelled";
+type OrderStatus = "pending" | "processing" | "shipped" | "delivered" | "cancelled";
 
 type Order = {
   _id: string;
@@ -58,17 +49,12 @@ type Order = {
 const resolveImage = (img?: string): string => {
   if (!img) return "";
   if (img.startsWith("http")) return img;
-  if (img.startsWith("/uploads") || img.startsWith("/images"))
-    return `${MEDIA_URL}${img}`;
-  if (img.startsWith("uploads/") || img.startsWith("images/"))
-    return `${MEDIA_URL}/${img}`;
+  if (img.startsWith("/uploads") || img.startsWith("/images")) return `${MEDIA_URL}${img}`;
+  if (img.startsWith("uploads/") || img.startsWith("images/")) return `${MEDIA_URL}/${img}`;
   return `${MEDIA_URL}/uploads/${encodeURIComponent(img)}`;
 };
 
-const statusMeta: Record<
-  OrderStatus,
-  { color: string; icon: string; text: string }
-> = {
+const statusMeta: Record<OrderStatus, { color: string; icon: string; text: string }> = {
   pending: { color: "#FFD600", icon: "⏳", text: "Pending" },
   processing: { color: "#2196F3", icon: "🔄", text: "Processing" },
   shipped: { color: "#64B5F6", icon: "🚚", text: "Shipped" },
@@ -114,12 +100,9 @@ const exportAllOrders = (orders: Order[]) => {
     Total: o.total,
     Payment: o.paymentMethod || "-",
     CreatedAt: o.createdAt,
-    CustomerFirm: o.customerId?.firmName || "",
     Shop: o.customerId?.shopName || "",
     Phone: o.customerId?.otpMobile || "",
-    City: o.customerId?.city || "",
-    State: o.customerId?.state || "",
-    Zip: o.customerId?.zip || "",
+    WhatsApp: o.customerId?.whatsapp || "",
     TotalInners: o.items.reduce((sum, it) => sum + toInners(it), 0),
   }));
 
@@ -127,22 +110,16 @@ const exportAllOrders = (orders: Order[]) => {
   const wb = XLSX.utils.book_new();
   XLSX.utils.book_append_sheet(wb, ws, "Orders");
   const buf = XLSX.write(wb, { bookType: "xlsx", type: "array" });
-  saveAs(
-    new Blob([buf], { type: "application/octet-stream" }),
-    "all_orders.xlsx"
-  );
+  saveAs(new Blob([buf], { type: "application/octet-stream" }), "all_orders.xlsx");
 };
 
 // ✅ Export a single order
 const exportSingleOrder = (order: Order) => {
   const rows = order.items.map((it) => ({
     OrderNumber: order.orderNumber || order._id.slice(-6),
-    CustomerFirm: order.customerId?.firmName || "",
     Shop: order.customerId?.shopName || "",
     Phone: order.customerId?.otpMobile || "",
-    City: order.customerId?.city || "",
-    State: order.customerId?.state || "",
-    Zip: order.customerId?.zip || "",
+    WhatsApp: order.customerId?.whatsapp || "",
     Item: it.name,
     Qty: it.qty,
     Price: it.price,
@@ -194,9 +171,7 @@ const AdminOrders: React.FC = () => {
   const updateStatus = async (id: string, status: OrderStatus) => {
     try {
       setActOn(id);
-      const { data } = await api.patch<Order>(`/orders/${id}/status`, {
-        status,
-      });
+      const { data } = await api.patch<Order>(`/orders/${id}/status`, { status });
       setOrders((prev) =>
         prev.map((o) => (o._id === id ? { ...o, status: data.status } : o))
       );
@@ -228,25 +203,13 @@ const AdminOrders: React.FC = () => {
       const inIdSuffix = o._id.toLowerCase().endsWith(q);
       const cust = o.customerId;
       const inCustomer =
-        norm(cust?.firmName).includes(q) ||
         norm(cust?.shopName).includes(q) ||
-        norm(cust?.otpMobile).includes(q);
-      const inLocation =
-        norm(cust?.city).includes(q) ||
-        norm(cust?.state).includes(q) ||
-        norm(cust?.zip).includes(q);
+        norm(cust?.otpMobile).includes(q) ||
+        norm(cust?.whatsapp).includes(q);
       const inPayment = norm(o.paymentMethod).includes(q);
       const inStatus = norm(o.status).includes(q);
       const inItems = o.items?.some((it) => norm(it.name).includes(q));
-      return (
-        inOrderNum ||
-        inIdSuffix ||
-        inCustomer ||
-        inLocation ||
-        inPayment ||
-        inStatus ||
-        inItems
-      );
+      return inOrderNum || inIdSuffix || inCustomer || inPayment || inStatus || inItems;
     });
   }, [orders, debounced]);
 
@@ -265,27 +228,20 @@ const AdminOrders: React.FC = () => {
           <input
             className="ord-srch-input"
             type="text"
-            placeholder="Search orders by number, customer, phone, city, payment, status, or item…"
+            placeholder="Search orders by number, shop name, phone, WhatsApp, payment, status, or item…"
             value={search}
             onChange={(e) => setSearch(e.target.value)}
             onKeyDown={onBigSearchKeyDown}
           />
           {!!search && (
-            <button
-              className="ord-srch-clear"
-              onClick={() => setSearch("")}
-              aria-label="Clear"
-            >
+            <button className="ord-srch-clear" onClick={() => setSearch("")} aria-label="Clear">
               ✕
             </button>
           )}
         </div>
 
         {/* ✅ Export All Button */}
-        <button
-          className="ord-btn-export"
-          onClick={() => exportAllOrders(filteredOrders)}
-        >
+        <button className="ord-btn-export" onClick={() => exportAllOrders(filteredOrders)}>
           ⬇️ Export All
         </button>
       </div>
@@ -307,12 +263,9 @@ const AdminOrders: React.FC = () => {
           ) : (
             filteredOrders.map((o) => {
               const qSmall = debounced.trim();
-              const firm = o.customerId?.firmName || "-";
               const shop = o.customerId?.shopName || "";
               const phone = o.customerId?.otpMobile || "";
-              const cityStZip = [o.customerId?.city, o.customerId?.state, o.customerId?.zip]
-                .filter(Boolean)
-                .join(", ");
+              const whats = o.customerId?.whatsapp || "";
               return (
                 <div className="ord-card" key={o._id}>
                   <div className="ord-main">
@@ -328,22 +281,17 @@ const AdminOrders: React.FC = () => {
                     <div className="ord-row ord-cust">
                       <span className="ord-label">Customer:</span>
                       <div>
-                        <b>{qSmall ? highlight(firm, qSmall) : firm}</b>{" "}
-                        <span className="ord-cmeta">
-                          {qSmall ? highlight(shop, qSmall) : shop}
-                        </span>{" "}
+                        <b>{qSmall ? highlight(shop, qSmall) : shop}</b>{" "}
                         <span className="ord-cmeta">
                           {qSmall ? highlight(phone, qSmall) : phone}
                         </span>{" "}
                         <span className="ord-cmeta">
-                          {qSmall ? highlight(cityStZip, qSmall) : cityStZip}
+                          {qSmall ? highlight(whats, qSmall) : whats}
                         </span>
                       </div>
                     </div>
                     <div className="ord-row ord-itemsum">
-                      <span>
-                        {o.items.length} item{o.items.length > 1 ? "s" : ""}
-                      </span>
+                      <span>{o.items.length} item{o.items.length > 1 ? "s" : ""}</span>
                       <span className="ord-total">₹ {o.total.toFixed(2)}</span>
                     </div>
                   </div>
@@ -364,19 +312,14 @@ const AdminOrders: React.FC = () => {
                     </span>
                   </div>
                   <div className="ord-actions">
-                    <button
-                      className="ord-btn ord-btn-view"
-                      onClick={() => setViewing(o)}
-                    >
+                    <button className="ord-btn ord-btn-view" onClick={() => setViewing(o)}>
                       View
                     </button>
                     <select
                       className="ord-select"
                       disabled={actOn === o._id}
                       value={o.status}
-                      onChange={(e) =>
-                        updateStatus(o._id, e.target.value as OrderStatus)
-                      }
+                      onChange={(e) => updateStatus(o._id, e.target.value as OrderStatus)}
                     >
                       <option value="pending">Pending</option>
                       <option value="processing">Processing</option>
@@ -384,10 +327,7 @@ const AdminOrders: React.FC = () => {
                       <option value="delivered">Delivered</option>
                       <option value="cancelled">Cancelled</option>
                     </select>
-                    <button
-                      className="ord-btn ord-btn-del"
-                      onClick={() => deleteOrder(o._id)}
-                    >
+                    <button className="ord-btn ord-btn-del" onClick={() => deleteOrder(o._id)}>
                       Delete
                     </button>
                   </div>
@@ -399,69 +339,35 @@ const AdminOrders: React.FC = () => {
       )}
 
       {viewing && (
-        <div
-          className="ord-modal-backdrop"
-          onClick={() => setViewing(null)}
-          role="dialog"
-          aria-modal="true"
-        >
+        <div className="ord-modal-backdrop" onClick={() => setViewing(null)} role="dialog" aria-modal="true">
           <div className="ord-modal" onClick={(e) => e.stopPropagation()}>
-            <button
-              className="ord-close"
-              onClick={() => setViewing(null)}
-              aria-label="Close order details"
-            >
+            <button className="ord-close" onClick={() => setViewing(null)} aria-label="Close order details">
               &times;
             </button>
             <h3>Order #{viewing.orderNumber || viewing._id.slice(-6)}</h3>
 
             {/* ✅ Export Single Order Button */}
             <div className="ord-m-export">
-              <button
-                className="ord-btn-export"
-                onClick={() => exportSingleOrder(viewing)}
-              >
+              <button className="ord-btn-export" onClick={() => exportSingleOrder(viewing)}>
                 ⬇️ Export This Order
               </button>
             </div>
 
             <div className="ord-m-section">
-              <div>
-                <b>Status:</b> {viewing.status.toUpperCase()}
-              </div>
-              <div>
-                <b>Total:</b> ₹ {viewing.total.toFixed(2)}
-              </div>
-              <div>
-                <b>Total Inners:</b>{" "}
-                {viewing.items.reduce((sum, it) => sum + toInners(it), 0)}
-              </div>
-              <div>
-                <b>Payment:</b> {viewing.paymentMethod || "-"}
-              </div>
-              <div>
-                <b>Created:</b> {formatDate(viewing.createdAt)}
-              </div>
+              <div><b>Status:</b> {viewing.status.toUpperCase()}</div>
+              <div><b>Total:</b> ₹ {viewing.total.toFixed(2)}</div>
+              <div><b>Total Inners:</b> {viewing.items.reduce((sum, it) => sum + toInners(it), 0)}</div>
+              <div><b>Payment:</b> {viewing.paymentMethod || "-"}</div>
+              <div><b>Created:</b> {formatDate(viewing.createdAt)}</div>
             </div>
 
             <div className="ord-m-section">
               <b>Customer:</b>
               <br />
-              {viewing.customerId?.firmName}{" "}
-              {viewing.customerId?.shopName
-                ? `(${viewing.customerId.shopName})`
-                : ""}
+              {viewing.customerId?.shopName}
               <br />
-              {viewing.customerId?.otpMobile && (
-                <>
-                  📞 {viewing.customerId.otpMobile}
-                  <br />
-                </>
-              )}
-              {[viewing.customerId?.city, viewing.customerId?.state, viewing.customerId?.zip]
-                .filter(Boolean)
-                .join(", ")}
-              <br />
+              {viewing.customerId?.otpMobile && <>📞 {viewing.customerId.otpMobile}<br /></>}
+              {viewing.customerId?.whatsapp && <>💬 {viewing.customerId.whatsapp}<br /></>}
               {viewing.customerId?.visitingCardUrl && (
                 <a
                   href={resolveImage(viewing.customerId.visitingCardUrl)}
@@ -477,24 +383,9 @@ const AdminOrders: React.FC = () => {
             <div className="ord-m-section">
               <b>Shipping:</b>
               <br />
-              {viewing.shipping?.address && (
-                <>
-                  📍 {viewing.shipping.address}
-                  <br />
-                </>
-              )}
-              {viewing.shipping?.phone && (
-                <>
-                  📞 {viewing.shipping.phone}
-                  <br />
-                </>
-              )}
-              {viewing.shipping?.email && (
-                <>
-                  ✉️ {viewing.shipping.email}
-                  <br />
-                </>
-              )}
+              {viewing.shipping?.address && <>📍 {viewing.shipping.address}<br /></>}
+              {viewing.shipping?.phone && <>📞 {viewing.shipping.phone}<br /></>}
+              {viewing.shipping?.email && <>✉️ {viewing.shipping.email}<br /></>}
               {viewing.shipping?.notes && <>📝 {viewing.shipping.notes}</>}
               {!viewing.shipping?.address &&
                 !viewing.shipping?.phone &&
@@ -519,9 +410,7 @@ const AdminOrders: React.FC = () => {
                     <span className="ord-m-iname">{it.name}</span>
                     <span className="ord-m-inner">({iTotal} inners)</span>
                     <span className="ord-m-qty">x{it.qty}</span>
-                    <span className="ord-m-price">
-                      ₹ {(it.price * it.qty).toFixed(2)}
-                    </span>
+                    <span className="ord-m-price">₹ {(it.price * it.qty).toFixed(2)}</span>
                   </div>
                 );
               })}

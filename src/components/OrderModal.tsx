@@ -27,16 +27,13 @@ const resolveImage = (img?: string): string => {
   return `${MEDIA_URL}/uploads/${encodeURIComponent(img)}`;
 };
 
-// ✅ Export single order
+// ✅ Export single order (only new fields)
 const exportSingleOrder = (order: any) => {
   const rows = order.items.map((it: any) => ({
     OrderNumber: order.orderNumber || order._id.slice(-6),
-    CustomerFirm: order.customerId?.firmName || "",
     Shop: order.customerId?.shopName || "",
-    Phone: order.customerId?.otpMobile || "",
-    City: order.customerId?.city || "",
-    State: order.customerId?.state || "",
-    Zip: order.customerId?.zip || "",
+    Mobile: order.customerId?.otpMobile || "",
+    WhatsApp: order.customerId?.whatsapp || "",
     Item: it.name,
     Qty: it.qty,
     Price: it.price,
@@ -81,7 +78,7 @@ const OrderModal: React.FC<OrderModalProps> = ({ order, onClose }) => {
         {/* ✅ Order Info */}
         <div className="ord-m-section">
           <div>
-            <b>Status:</b> {order.status.toUpperCase()}
+            <b>Status:</b> {order.status?.toUpperCase()}
           </div>
           <div>
             <b>Total:</b> {currency.format(order.total)}
@@ -104,10 +101,7 @@ const OrderModal: React.FC<OrderModalProps> = ({ order, onClose }) => {
         <div className="ord-m-section">
           <b>Customer:</b>
           <br />
-          {order.customerId?.firmName}{" "}
-          {order.customerId?.shopName
-            ? `(${order.customerId.shopName})`
-            : ""}
+          {order.customerId?.shopName || "N/A"}
           <br />
           {order.customerId?.otpMobile && (
             <>
@@ -115,10 +109,12 @@ const OrderModal: React.FC<OrderModalProps> = ({ order, onClose }) => {
               <br />
             </>
           )}
-          {[order.customerId?.city, order.customerId?.state, order.customerId?.zip]
-            .filter(Boolean)
-            .join(", ")}
-          <br />
+          {order.customerId?.whatsapp && (
+            <>
+              💬 {order.customerId.whatsapp}
+              <br />
+            </>
+          )}
           {order.customerId?.visitingCardUrl && (
             <a
               href={resolveImage(order.customerId.visitingCardUrl)}

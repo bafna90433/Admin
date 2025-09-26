@@ -220,7 +220,11 @@ const generateInvoice = (order: Order) => {
     <body>
       <div class="invoice-container">
         <div class="header">
-          <img src="logo.webp" alt="BafnaToys"/>
+          <img 
+  src="https://res.cloudinary.com/dpdecxqb9/image/upload/v1758783697/bafnatoys/lwccljc9kkosfv9wnnrq.png" 
+  alt="BafnaToys" 
+/>
+
           <div><b>Bafna Toys Wholesaler</b></div>
           <div>1-12, Sundapalayam Rd, Coimbatore, Tamil Nadu 641007</div>
           <div>Phone: +91 9043347300 | Email: bafnatoysphotos@gmail.com</div>

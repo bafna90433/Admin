@@ -50,13 +50,13 @@ const Sidebar: React.FC<SidebarProps> = ({ sidebarOpen, closeSidebar }) => {
       localStorage.removeItem("adminToken");
       navigate("/admin/login");
     }
-    closeSidebar(); // auto-close on logout too
+    closeSidebar();
   };
 
   return (
     <aside className={`sidebar ${sidebarOpen ? "open" : ""}`}>
       <div className="sidebar-header">
-        <h2 className="sidebar-title">Admin Pro</h2>
+        <img src="/logo.webp" alt="BafnaToys Logo" className="sidebar-logo" />
       </div>
 
       <nav className="sidebar-nav">
@@ -65,7 +65,7 @@ const Sidebar: React.FC<SidebarProps> = ({ sidebarOpen, closeSidebar }) => {
             key={item.path}
             to={item.path}
             className={`sidebar-link ${isActive(item.path, item.exact) ? "active" : ""}`}
-            onClick={closeSidebar}   // ✅ auto-close on link click
+            onClick={closeSidebar}
           >
             <item.icon className="sidebar-icon" />
             <span>{item.name}</span>

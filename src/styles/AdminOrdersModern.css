@@ -365,3 +365,45 @@ body {
     text-align: right;
   }
 }
+/* Add to your AdminOrdersModern.css */
+.ord-export-group {
+  display: flex;
+  gap: 8px;
+  align-items: center;
+}
+
+.ord-export-select {
+  padding: 8px 12px;
+  border: 1px solid #ddd;
+  border-radius: 6px;
+  background: white;
+  font-size: 14px;
+  cursor: pointer;
+}
+
+.ord-btn-export {
+  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+  color: white;
+  border: none;
+  padding: 10px 16px;
+  border-radius: 8px;
+  cursor: pointer;
+  font-weight: 600;
+  font-size: 14px;
+  transition: all 0.3s ease;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.ord-btn-export:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 4px 12px rgba(102, 126, 234, 0.4);
+}
+
+.ord-m-export {
+  display: flex;
+  gap: 12px;
+  margin: 15px 0;
+  flex-wrap: wrap;
+}

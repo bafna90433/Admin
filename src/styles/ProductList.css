@@ -363,3 +363,48 @@
     display: none;
   }
 }
+/* ... आपके अन्य ProductList.css स्टाइल्स ... */
+
+.product-table td {
+    vertical-align: middle;
+}
+
+.category-select-wrapper {
+    display: flex;
+    align-items: center;
+    gap: 8px; /* Select और Button के बीच की दूरी */
+}
+
+.product-category-select {
+    padding: 8px;
+    border: 1px solid #ccc;
+    border-radius: 4px;
+    background-color: #fff;
+    cursor: pointer;
+    flex-grow: 1; /* Select element को ज़्यादा जगह दे */
+    min-width: 150px; /* Minimum चौड़ाई */
+}
+
+.product-category-select:focus {
+    border-color: #007bff;
+    box-shadow: 0 0 0 2px rgba(0, 123, 255, 0.25);
+    outline: none;
+}
+
+.save-category-btn {
+    padding: 8px 12px;
+    background-color: #28a745; /* Green color for save */
+    color: white;
+    border: none;
+    border-radius: 4px;
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    transition: background-color 0.2s ease;
+    height: 38px; /* Select element के साथ align करने के लिए */
+}
+
+.save-category-btn:hover {
+    background-color: #218838;
+}

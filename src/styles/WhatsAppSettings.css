@@ -1,333 +1,522 @@
-/* ROOT VARIABLES & GLOBAL STYLES */
+/*
+ * ADMIN SETTINGS CSS - PROFESSIONAL REVISION
+ * Theme: Light & Structured | Accent: Rich Indigo (#4f46e5)
+ * File: src/styles/WhatsAppSettings.css
+ */
+
+/* =========================================================================
+ * 1. ROOT VARIABLES & GLOBAL STYLES
+ * =======================================================================*/
 :root {
-  --ws-bg: #f7f8fa;
-  --ws-card-bg: #ffffff;
-  --ws-border-color: #e5e7eb;
-  --ws-text-primary: #111827;
-  --ws-text-secondary: #6b7280;
-  --ws-primary: #3b82f6;
-  --ws-primary-hover: #2563eb;
-  --ws-danger: #ef4444;
-  --ws-danger-hover: #dc2626;
-  --ws-success: #22c55e;
-  --ws-radius: 12px;
-  --ws-shadow: 0 1px 3px rgba(0, 0, 0, 0.05), 0 1px 2px rgba(0, 0, 0, 0.06);
-  --ws-font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+    /* Base Colors - Slightly richer palette */
+    --ws-bg: #f3f4f6; /* Lighter background for better contrast */
+    --ws-card-bg: #ffffff;
+    --ws-border-color: #e2e8f0; /* Softer border */
+    --ws-text-primary: #1e293b; /* Darker primary text (Slate-800) */
+    --ws-text-secondary: #64748b; /* Deeper secondary text (Slate-500) */
+
+    /* Accent Colors - Rich Indigo */
+    --ws-primary: #4f46e5; /* Tailwind Indigo-600 */
+    --ws-primary-hover: #4338ca; /* Tailwind Indigo-700 */
+    --ws-danger: #ef4444; /* Red-500 */
+    --ws-danger-hover: #dc2626; /* Red-600 */
+    --ws-success: #10b981; /* Green-500 */
+    
+    /* Structure & Effects */
+    --ws-radius: 10px; /* Consistent, clean radius */
+    /* Deeper, softer shadow for a more premium look */
+    --ws-shadow: 0 4px 15px rgba(0, 0, 0, 0.08);
+    --ws-focus-shadow: 0 0 0 3px rgba(79, 70, 229, 0.2); /* Indigo focus ring */
+    --ws-font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
 }
+
 body {
-  background-color: var(--ws-bg);
+    background-color: var(--ws-bg);
 }
+
 .ws-admin-container {
-  max-width: 1000px;
-  margin: 0 auto;
-  padding: 24px;
-  font-family: var(--ws-font-family);
-  color: var(--ws-text-primary);
+    max-width: 1100px; /* Slightly wider for modern layout */
+    margin: 0 auto;
+    padding: 32px 24px; /* Increased top/bottom padding */
+    font-family: var(--ws-font-family);
+    color: var(--ws-text-primary);
 }
-/* HEADER */
+
+/* Loading State */
+.ws-loading {
+    text-align: center;
+    padding: 50px;
+    font-size: 1.1rem;
+    color: var(--ws-text-secondary);
+}
+
+/* =========================================================================
+ * 2. HEADER & MAIN BUTTON
+ * =======================================================================*/
 .ws-header {
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-  margin-bottom: 24px;
-  padding-bottom: 16px;
-  border-bottom: 1px solid var(--ws-border-color);
+    display: flex;
+    justify-content: space-between;
+    align-items: flex-end; /* Align to the bottom of the text block */
+    margin-bottom: 30px;
+    padding-bottom: 20px;
+    border-bottom: 1px solid var(--ws-border-color);
 }
+
 .ws-header h1 {
-  font-size: 1.5rem;
-  font-weight: 700;
-  margin: 0;
+    font-size: 1.875rem; /* Larger heading */
+    font-weight: 700;
+    margin: 0;
 }
+
 .ws-header p {
-  font-size: 0.9rem;
-  color: var(--ws-text-secondary);
-  margin-top: 4px;
+    font-size: 1rem;
+    color: var(--ws-text-secondary);
+    margin-top: 4px;
 }
+
 .ws-save-button {
-  background: var(--ws-primary);
-  color: #fff;
-  border: none;
-  padding: 10px 20px;
-  font-size: 0.9rem;
-  font-weight: 600;
-  border-radius: 8px;
-  cursor: pointer;
-  transition: background-color 0.2s;
+    background: var(--ws-primary);
+    color: #fff;
+    border: none;
+    padding: 12px 24px;
+    font-size: 1rem;
+    font-weight: 600;
+    border-radius: 8px;
+    cursor: pointer;
+    transition: all 0.2s;
+    box-shadow: 0 4px 10px rgba(79, 70, 229, 0.3); /* Button shadow */
+    flex-shrink: 0;
 }
+
 .ws-save-button:hover:not(:disabled) {
-  background: var(--ws-primary-hover);
+    background: var(--ws-primary-hover);
+    box-shadow: 0 6px 14px rgba(79, 70, 229, 0.4);
+    transform: translateY(-1px);
 }
+
 .ws-save-button:disabled {
-  background: #9ca3af;
-  cursor: not-allowed;
+    background: #9ca3af;
+    box-shadow: none;
+    cursor: not-allowed;
+    transform: none;
 }
-/* ALERT */
+
+/* =========================================================================
+ * 3. ALERT MESSAGES
+ * =======================================================================*/
 .ws-alert {
-  padding: 12px 16px;
-  border-radius: 8px;
-  margin-bottom: 20px;
-  font-weight: 500;
-  border: 1px solid transparent;
+    padding: 14px 18px;
+    border-radius: 8px;
+    margin-bottom: 24px;
+    font-weight: 500;
+    border-left: 4px solid; /* Stronger visual cue */
+    display: flex;
+    align-items: center;
+    gap: 12px;
 }
+
 .ws-alert.success {
-  background-color: #f0fdf4;
-  color: #15803d;
-  border-color: #bbf7d0;
+    background-color: #ecfdf5; /* Light Green */
+    color: #065f46;
+    border-left-color: var(--ws-success);
 }
+
 .ws-alert.error {
-  background-color: #fef2f2;
-  color: #b91c1c;
-  border-color: #fecaca;
+    background-color: #fef2f2; /* Light Red */
+    color: #991b1b;
+    border-left-color: var(--ws-danger);
 }
-/* FORM & CARDS */
+
+/* =========================================================================
+ * 4. FORM & CARDS
+ * =======================================================================*/
 .ws-form-grid {
-  display: grid;
-  gap: 24px;
+    display: grid;
+    gap: 24px;
 }
+
 .ws-card {
-  background: var(--ws-card-bg);
-  border: 1px solid var(--ws-border-color);
-  border-radius: var(--ws-radius);
-  box-shadow: var(--ws-shadow);
+    background: var(--ws-card-bg);
+    border: 1px solid var(--ws-border-color);
+    border-radius: var(--ws-radius);
+    box-shadow: var(--ws-shadow);
+    overflow: hidden; /* For clean borders */
 }
+
 .ws-card-header {
-  padding: 16px 20px;
-  border-bottom: 1px solid var(--ws-border-color);
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
+    padding: 18px 20px;
+    border-bottom: 1px solid var(--ws-border-color);
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    background: #fcfdfe; /* Slight header background */
 }
+
 .ws-card-header h3 {
-  font-size: 1.1rem;
-  font-weight: 600;
-  margin: 0;
+    font-size: 1.25rem;
+    font-weight: 600;
+    margin: 0;
+    color: var(--ws-text-primary);
 }
+
 .ws-card-body {
-  padding: 20px;
-  display: grid;
-  gap: 20px;
+    padding: 24px 20px; /* Increased body padding */
+    display: grid;
+    gap: 24px;
 }
+
 .ws-grid-2 {
-  display: grid;
-  grid-template-columns: 1fr 1fr;
-  gap: 16px;
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 20px;
 }
+
 .ws-disabled-section {
-  opacity: 0.5;
-  pointer-events: none;
+    opacity: 0.5;
+    pointer-events: none;
+    transition: opacity 0.3s;
 }
-/* INPUT GROUP */
+
+/* =========================================================================
+ * 5. INPUT GROUP & HINTS
+ * =======================================================================*/
 .ws-input-group {
-  display: grid;
-  gap: 6px;
+    display: grid;
+    gap: 8px; /* Increased gap for label/input separation */
 }
+
 .ws-input-group label {
-  font-size: 0.875rem;
-  font-weight: 500;
-  color: #374151;
+    font-size: 0.9rem;
+    font-weight: 600; /* Bolder label */
+    color: #374151; /* Slate-700 */
 }
+
 .ws-input-group input,
 .ws-input-group select,
 .ws-input-group textarea {
-  width: 100%;
-  padding: 10px 12px;
-  border: 1px solid var(--ws-border-color);
-  border-radius: 8px;
-  background: #fff;
-  color: var(--ws-text-primary);
-  font-size: 0.9rem;
-  transition: border-color 0.2s, box-shadow 0.2s;
-  box-sizing: border-box;
+    padding: 12px;
+    border: 1px solid #cbd5e0;
+    border-radius: 8px;
+    background: #ffffff;
+    color: var(--ws-text-primary);
+    font-size: 1rem;
+    transition: border-color 0.2s, box-shadow 0.2s;
 }
+
 .ws-input-group textarea {
-  min-height: 80px;
-  resize: vertical;
+    min-height: 100px;
 }
+
 .ws-input-group input:focus,
 .ws-input-group select:focus,
 .ws-input-group textarea:focus {
-  outline: none;
-  border-color: var(--ws-primary);
-  box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.2);
+    outline: none;
+    border-color: var(--ws-primary);
+    box-shadow: var(--ws-focus-shadow);
 }
+
 .ws-hint {
-  font-size: 0.8rem;
-  color: var(--ws-text-secondary);
-  margin: 2px 0 0;
+    font-size: 0.85rem;
+    color: var(--ws-text-secondary);
+    margin: 2px 0 0;
 }
-/* TOGGLE SWITCH */
+
+/* =========================================================================
+ * 6. TOGGLE SWITCH (Enhanced Visuals)
+ * =======================================================================*/
+/* Basic structure for toggle to work (assuming standard checkbox/slider pattern) */
 .ws-toggle-switch {
-  position: relative;
-  display: inline-block;
-  width: 40px;
-  height: 22px;
+    position: relative;
+    display: inline-block;
+    width: 44px; /* Slightly wider */
+    height: 24px; /* Slightly taller */
+    flex-shrink: 0;
 }
 .ws-toggle-switch input {
-  opacity: 0;
-  width: 0;
-  height: 0;
+    opacity: 0;
+    width: 0;
+    height: 0;
 }
 .ws-slider {
-  position: absolute;
-  cursor: pointer;
-  top: 0;
-  left: 0;
-  right: 0;
-  bottom: 0;
-  background-color: #ccc;
-  transition: .4s;
-  border-radius: 22px;
+    position: absolute;
+    cursor: pointer;
+    top: 0;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    background-color: #e2e8f0; /* Neutral off state (Slate-300) */
+    transition: .4s;
+    border-radius: 24px;
 }
 .ws-slider:before {
-  position: absolute;
-  content: "";
-  height: 16px;
-  width: 16px;
-  left: 3px;
-  bottom: 3px;
-  background-color: white;
-  transition: .4s;
-  border-radius: 50%;
+    position: absolute;
+    content: "";
+    height: 18px; /* Larger handle */
+    width: 18px;
+    left: 3px;
+    bottom: 3px;
+    background-color: white;
+    transition: .4s;
+    border-radius: 50%;
+    box-shadow: 0 1px 3px rgba(0, 0, 0, 0.2); /* Handle shadow */
 }
+
 input:checked + .ws-slider {
-  background-color: var(--ws-primary);
+    background-color: var(--ws-primary);
 }
+
 input:checked + .ws-slider:before {
-  transform: translateX(18px);
+    transform: translateX(20px); /* Adjusted movement */
 }
-/* AGENT CARD */
+
+
+/* =========================================================================
+ * 7. AGENT CARD (List Item Styling)
+ * =======================================================================*/
 .ws-agent-card {
-  display: flex;
-  align-items: center;
-  gap: 16px;
-  padding: 12px;
-  border: 1px solid transparent;
-  border-radius: 10px;
-  transition: border-color 0.2s, background-color 0.2s;
-}
-.ws-agent-card:not(:last-child) {
-    border-bottom: 1px solid var(--ws-bg);
-}
-.ws-agent-avatar {
-  position: relative;
-  width: 48px;
-  height: 48px;
-  border-radius: 50%;
-  background: #e0e7ff;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  flex-shrink: 0;
-  cursor: pointer;
-  overflow: hidden;
-}
-.ws-agent-avatar img {
-  width: 100%;
-  height: 100%;
-  object-fit: cover;
-}
-.ws-agent-initials {
-  font-weight: 600;
-  color: #4338ca;
-}
-.ws-change-photo {
-  position: absolute;
-  bottom: 0; right: 0; left: 0;
-  background: rgba(0,0,0,0.5);
-  color: white;
-  font-size: 10px;
-  text-align: center;
-  padding: 2px 0;
-  opacity: 0;
-  transition: opacity 0.2s;
-}
-.ws-agent-avatar:hover .ws-change-photo {
-  opacity: 1;
-}
-.ws-agent-details {
-  flex-grow: 1;
-  display: grid;
-  gap: 8px;
-}
-.ws-agent-actions .ws-icon-button {
-  background: transparent;
-  border: 1px solid var(--ws-border-color);
-  color: var(--ws-text-secondary);
-  border-radius: 6px;
-  padding: 6px 10px;
-  cursor: pointer;
-  font-size: 0.85rem;
-}
-.ws-icon-button.danger {
-  color: var(--ws-danger);
-}
-.ws-icon-button.danger:hover {
-  background-color: #fef2f2;
-  border-color: #fecaca;
-}
-.ws-add-agent-button {
-  background: transparent;
-  border: 1px dashed var(--ws-border-color);
-  color: var(--ws-text-secondary);
-  padding: 6px 14px;
-  border-radius: 8px;
-  font-weight: 500;
-  cursor: pointer;
-  transition: all 0.2s;
-}
-.ws-add-agent-button:hover {
-  background: #eff6ff;
-  color: var(--ws-primary);
-  border-color: var(--ws-primary);
-}
-/* DAY CHIPS */
-.ws-chip-group {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 8px;
-}
-.ws-chip {
-  padding: 8px 16px;
-  border: 1px solid var(--ws-border-color);
-  border-radius: 99px;
-  font-size: 0.875rem;
-  font-weight: 500;
-  cursor: pointer;
-  user-select: none;
-  transition: all 0.2s;
-}
-.ws-chip:hover {
-  background-color: #f3f4f6;
-}
-.ws-chip.active {
-  background-color: #dbeafe;
-  color: var(--ws-primary-hover);
-  border-color: #93c5fd;
-}
-/* RESPONSIVE DESIGN */
-@media (max-width: 768px) {
-  .ws-admin-container {
-    padding: 16px;
-  }
-  .ws-header {
-    flex-direction: column;
-    align-items: flex-start;
-    gap: 16px;
-  }
-  .ws-header .ws-save-button {
-    width: 100%;
-  }
-  .ws-grid-2 {
-    grid-template-columns: 1fr;
-  }
-  .ws-agent-card {
-    flex-direction: column;
-    align-items: stretch;
+    display: flex;
+    align-items: flex-start; /* Align contents to top */
+    gap: 20px;
     padding: 16px;
     border: 1px solid var(--ws-border-color);
-    margin-bottom: 12px;
-  }
-  .ws-agent-actions {
-      text-align: right;
-  }
+    border-radius: var(--ws-radius);
+    transition: background-color 0.2s;
+}
+
+.ws-agent-card:hover {
+    background-color: #f7f9fc; /* Slight hover background */
+}
+
+.ws-agent-avatar {
+    width: 60px; /* Slightly larger avatar */
+    height: 60px;
+    border-radius: 50%;
+    background: #eef2ff; /* Light Indigo background */
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    flex-shrink: 0;
+    position: relative;
+    cursor: pointer;
+    overflow: hidden;
+    border: 2px solid #eef2ff;
+}
+
+.ws-agent-avatar img {
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+    display: block;
+}
+
+.ws-agent-initials {
+    font-weight: 700;
+    color: #4338ca; /* Indigo-700 */
+    font-size: 1.4rem;
+}
+
+.ws-change-photo {
+    position: absolute;
+    bottom: 0;
+    left: 0;
+    right: 0;
+    background: rgba(0, 0, 0, 0.5);
+    color: white;
+    font-size: 0.7rem;
+    padding: 2px 0;
+    text-align: center;
+    opacity: 0;
+    transition: opacity 0.2s;
+    pointer-events: none; /* Only the container handles the click */
+}
+
+.ws-agent-avatar:hover .ws-change-photo {
+    opacity: 1;
+}
+
+/* Avatar Remove Button - Added for professional UX */
+.ws-remove-avatar-btn {
+    position: absolute;
+    top: 2px;
+    right: 2px;
+    background: var(--ws-danger);
+    color: white;
+    border: none;
+    border-radius: 50%;
+    width: 20px;
+    height: 20px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 0.7rem;
+    line-height: 1;
+    font-weight: 700;
+    cursor: pointer;
+    opacity: 0;
+    transition: opacity 0.2s, background 0.2s;
+    z-index: 10;
+}
+
+.ws-agent-avatar:hover .ws-remove-avatar-btn {
+    opacity: 1;
+}
+.ws-remove-avatar-btn:hover {
+    background: var(--ws-danger-hover);
+}
+
+.ws-agent-details {
+    flex-grow: 1;
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
+}
+
+/* Agent Actions */
+.ws-agent-actions {
+    flex-shrink: 0;
+    margin-left: auto;
+}
+
+.ws-agent-actions .ws-icon-button {
+    background: #f1f5f9;
+    border: none;
+    color: var(--ws-text-secondary);
+    border-radius: 6px;
+    padding: 8px 12px;
+    font-size: 0.9rem;
+    font-weight: 500;
+    cursor: pointer;
+    transition: all 0.2s;
+}
+
+.ws-icon-button.danger {
+    color: var(--ws-danger);
+}
+
+.ws-icon-button.danger:hover {
+    background-color: #fee2e2;
+    color: var(--ws-danger-hover);
+}
+
+.ws-icon-button:hover:not(.danger) {
+    background-color: #e2e8f0;
+    color: var(--ws-text-primary);
+}
+
+.ws-add-agent-button {
+    background: transparent;
+    border: 2px dashed #cbd5e0; /* Stronger dashed line */
+    color: var(--ws-text-secondary);
+    padding: 10px 16px;
+    border-radius: 8px;
+    font-weight: 600;
+    cursor: pointer;
+    transition: all 0.2s;
+}
+
+.ws-add-agent-button:hover {
+    background: #eef2ff;
+    color: var(--ws-primary);
+    border-color: var(--ws-primary);
+}
+
+/* =========================================================================
+ * 8. DAY CHIPS
+ * =======================================================================*/
+.ws-chip-group {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 10px;
+}
+
+.ws-chip {
+    padding: 9px 18px;
+    border: 1px solid var(--ws-border-color);
+    border-radius: 99px;
+    font-size: 0.9rem;
+    font-weight: 500;
+    cursor: pointer;
+    user-select: none;
+    transition: all 0.2s;
+    color: var(--ws-text-primary);
+    background-color: var(--ws-card-bg);
+}
+
+.ws-chip:hover:not(.active) {
+    background-color: #f7f9fc;
+    border-color: #a0aec0;
+}
+
+.ws-chip.active {
+    background-color: #eef2ff; /* Light Indigo background */
+    color: var(--ws-primary-hover);
+    border-color: var(--ws-primary);
+    font-weight: 600;
+}
+
+/* =========================================================================
+ * 9. RESPONSIVE DESIGN
+ * =======================================================================*/
+@media (max-width: 900px) { /* Increased breakpoint for better tablet layout */
+    .ws-admin-container {
+        padding: 24px 16px;
+    }
+
+    .ws-header {
+        flex-direction: column;
+        align-items: flex-start;
+        gap: 16px;
+        padding-bottom: 24px;
+    }
+
+    .ws-header .ws-save-button {
+        width: 100%;
+        order: 1;
+    }
+
+    .ws-header h1 {
+        font-size: 1.5rem;
+    }
+
+    .ws-grid-2 {
+        grid-template-columns: 1fr;
+    }
+    
+    .ws-card-body {
+        padding: 20px 16px;
+    }
+
+    /* Stacked Agent Card for Mobile */
+    .ws-agent-card {
+        flex-direction: column;
+        align-items: center; /* Center items for better mobile flow */
+        padding: 16px;
+        border: 1px solid var(--ws-border-color);
+        border-radius: 10px;
+        margin-bottom: 0;
+        background: var(--ws-card-bg);
+        gap: 12px;
+    }
+    
+    .ws-agent-avatar {
+        margin-bottom: 0;
+    }
+
+    .ws-agent-details {
+        width: 100%;
+        gap: 8px;
+    }
+    .ws-agent-details .ws-grid-2 {
+        gap: 10px;
+    }
+    
+    .ws-agent-actions {
+        width: 100%;
+        display: flex;
+        justify-content: flex-end;
+        gap: 8px;
+        border-top: 1px solid #f1f5f9;
+        padding-top: 10px;
+        margin-top: 8px;
+    }
 }

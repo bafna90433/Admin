@@ -1,7 +1,18 @@
 import React, { useEffect, useMemo, useState } from "react";
 import { Link, useNavigate } from "react-router-dom";
 import api, { MEDIA_URL } from "../utils/api";
-import { FiEdit2, FiTrash2, FiPlus, FiSearch, FiX, FiCheck } from "react-icons/fi"; // FiCheck import किया गया
+import {
+  FiEdit2,
+  FiTrash2,
+  FiPlus,
+  FiSearch,
+  FiX,
+  FiCheck,
+  FiArrowUp,
+  FiArrowDown,
+  FiChevronDown,
+  FiChevronUp,
+} from "react-icons/fi";
 import "../styles/ProductList.css";
 
 interface Category {
@@ -14,125 +25,171 @@ interface Product {
   name: string;
   sku: string;
   price?: number | string;
-  category?: { _id: string; name: string }; // Category को _id भी चाहिए
+  category?: { _id: string; name: string };
   createdAt?: string;
   images?: string[];
+  order?: number;
 }
 
 const getImageUrl = (url: string) =>
   url?.startsWith("http") ? url : url ? `${MEDIA_URL}${url}` : "";
 
-// Safe normalize for search
 const norm = (v?: string) => (v || "").toString().toLowerCase().trim();
 
 export default function ProductList() {
   const [products, setProducts] = useState<Product[]>([]);
-  const [categories, setCategories] = useState<Category[]>([]); // New state for categories
+  const [categories, setCategories] = useState<Category[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [search, setSearch] = useState("");
   const [debounced, setDebounced] = useState("");
-  const [editingCategory, setEditingCategory] = useState<{ productId: string; categoryId: string } | null>(null); // New state for inline edit
+  const [expanded, setExpanded] = useState<Record<string, boolean>>({});
+  const [editingCategory, setEditingCategory] = useState<{
+    productId: string;
+    categoryId: string;
+  } | null>(null);
+
   const navigate = useNavigate();
 
+  // 🧠 Fetch products + categories
   useEffect(() => {
     const fetchData = async () => {
       try {
-        const [productsRes, categoriesRes] = await Promise.all([
+        const [prodRes, catRes] = await Promise.all([
           api.get("/products"),
-          api.get("/categories"), // Categories को भी fetch करें
+          api.get("/categories"),
         ]);
-        setProducts(productsRes.data);
-        setCategories(categoriesRes.data);
-        setLoading(false);
+        const sorted = prodRes.data.sort(
+          (a: Product, b: Product) => (a.order || 0) - (b.order || 0)
+        );
+        setProducts(sorted);
+        setCategories(catRes.data);
       } catch (err: any) {
-        setError(err.response?.data?.message || err.message || "Failed to load data.");
+        setError(err.response?.data?.message || "Failed to load data.");
+      } finally {
         setLoading(false);
       }
     };
     fetchData();
   }, []);
 
-  // Debounce search (300ms) - unchanged
+  // 🕐 Debounce search
   useEffect(() => {
     const t = setTimeout(() => setDebounced(search), 300);
     return () => clearTimeout(t);
   }, [search]);
 
-  // Filtered products - unchanged
-  const filtered = useMemo(() => {
+  // 🧩 Group products by category
+  const groupedProducts = useMemo(() => {
     const q = norm(debounced);
-    if (!q) return products;
-    return products.filter((p) => {
-      const n = norm(p.name);
-      const s = norm(p.sku);
-      const c = norm(p.category?.name);
-      return n.includes(q) || s.includes(q) || c.includes(q);
+    const filtered = !q
+      ? products
+      : products.filter((p) => {
+          const n = norm(p.name);
+          const s = norm(p.sku);
+          const c = norm(p.category?.name);
+          return n.includes(q) || s.includes(q) || c.includes(q);
+        });
+
+    const groups: Record<string, Product[]> = {};
+    filtered.forEach((p) => {
+      const cat = p.category?.name || "Uncategorized";
+      if (!groups[cat]) groups[cat] = [];
+      groups[cat].push(p);
     });
+    return groups;
   }, [products, debounced]);
 
-  const handleDelete = (id: string) => {
+  // 🗑 Delete product
+  const handleDelete = async (id: string) => {
     if (!window.confirm("Are you sure you want to delete this product?")) return;
-    api
-      .delete(`/products/${id}`)
-      .then(() => setProducts((p) => p.filter((prod) => prod._id !== id)))
-      .catch((err) => alert(err.response?.data?.message || err.message));
+    try {
+      await api.delete(`/products/${id}`);
+      setProducts((prev) => prev.filter((p) => p._id !== id));
+    } catch (err: any) {
+      alert(err.response?.data?.message || "Failed to delete product");
+    }
   };
-  
-  // 🔥 New Handlers for Inline Category Edit
 
+  // 🖊 Inline Category Change
   const handleCategoryChange = (productId: string, newCategoryId: string) => {
     setEditingCategory({ productId, categoryId: newCategoryId });
   };
 
   const saveCategoryChange = async (productId: string) => {
-    const product = products.find(p => p._id === productId);
+    const product = products.find((p) => p._id === productId);
     const newCategoryId = editingCategory?.categoryId;
-    
     if (!product || !newCategoryId || newCategoryId === product.category?._id) {
-        setEditingCategory(null);
-        return;
+      setEditingCategory(null);
+      return;
     }
 
     try {
-        // Optimistic UI Update: पहले UI में बदल दें
-        const newCategory = categories.find(c => c._id === newCategoryId);
-        setProducts(prev => prev.map(p => 
-            p._id === productId 
-                ? { ...p, category: { _id: newCategoryId, name: newCategory?.name || '—' } } 
-                : p
-        ));
-        setEditingCategory(null); // Editing mode band karein
-
-        // API Call: फिर सर्वर पर अपडेट करें
-        await api.put(`/products/${productId}`, { category: newCategoryId });
-        // Success alert or message if needed
-    } catch (err: any) {
-        // Error handling: अगर API fail हो जाए, तो पुरानी category वापस लाएं
-        alert("Failed to update category. Please try again.");
-        // Re-fetch or revert UI state (simple revert for this example)
-        setProducts(prev => prev.map(p => 
-            p._id === productId 
-                ? { ...p, category: product.category } 
-                : p
-        ));
-        setEditingCategory(null);
+      const newCategory = categories.find((c) => c._id === newCategoryId);
+      setProducts((prev) =>
+        prev.map((p) =>
+          p._id === productId
+            ? {
+                ...p,
+                category: { _id: newCategoryId, name: newCategory?.name || "—" },
+              }
+            : p
+        )
+      );
+      await api.put(`/products/${productId}`, { category: newCategoryId });
+      setEditingCategory(null);
+    } catch {
+      alert("Failed to update category.");
+      setEditingCategory(null);
     }
   };
 
-  if (loading) return <div className="product-list-loading">Loading products...</div>;
-  if (error) return <div className="product-list-error">{error}</div>;
+  // ⬆⬇ Move Product (within category only)
+  const moveProduct = async (id: string, direction: "up" | "down") => {
+    try {
+      const res = await api.put(`/products/${id}/move`, { direction });
 
-  const showEmpty = filtered.length === 0;
+      if (res.data.updatedCategoryProducts) {
+        const updated = res.data.updatedCategoryProducts;
+
+        // Replace category’s products locally
+        setProducts((prev) => {
+          const updatedIds = updated.map((u: Product) => u._id);
+          const newList = prev.map((p) => {
+            const match = updated.find((u: Product) => u._id === p._id);
+            return match ? match : p;
+          });
+          // sort to maintain correct order after replace
+          return newList.sort(
+            (a, b) => (a.order || 0) - (b.order || 0)
+          );
+        });
+      }
+
+      console.log(res.data.message);
+    } catch (err: any) {
+      console.error("❌ Move failed:", err);
+      alert(err.response?.data?.message || "Failed to move product.");
+    }
+  };
+
+  // 🔽 Expand / Collapse Category
+  const toggleExpand = (catName: string) => {
+    setExpanded((prev) => ({ ...prev, [catName]: !prev[catName] }));
+  };
+
+  if (loading) return <div className="product-list-loading">Loading...</div>;
+  if (error) return <div className="product-list-error">{error}</div>;
 
   return (
     <div className="product-list-container">
-      {/* ... (product-list-header, table-meta, empty-state unchanged) ... */}
+      {/* 🔹 Header */}
       <div className="product-list-header">
         <div className="header-content">
           <h1>Product Management</h1>
-          <p className="header-description">View and manage your product inventory</p>
+          <p>Manage your full product inventory grouped by category</p>
         </div>
+
         <div className="header-actions">
           <div className="products-search">
             <FiSearch className="products-search-icon" />
@@ -141,18 +198,17 @@ export default function ProductList() {
               value={search}
               onChange={(e) => setSearch(e.target.value)}
               placeholder="Search by name, SKU, or category…"
-              aria-label="Search products"
             />
             {search && (
               <button
                 className="products-search-clear"
-                aria-label="Clear search"
                 onClick={() => setSearch("")}
               >
                 <FiX size={16} />
               </button>
             )}
           </div>
+
           <button
             className="add-product-button"
             onClick={() => navigate("/admin/products/new")}
@@ -161,45 +217,45 @@ export default function ProductList() {
           </button>
         </div>
       </div>
-      <div className="table-meta">
-        <span>
-          Showing <strong>{filtered.length}</strong> of <strong>{products.length}</strong> products
-        </span>
-        {debounced && !showEmpty && (
-          <span className="meta-filter">Filtered by “{debounced}”</span>
-        )}
-      </div>
-      
-      {/* Table Layout */}
-      <div className="product-list-card">
-        <div className="product-table-container">
-          {showEmpty ? (
-            <div className="empty-state">
-              <p>
-                No results for <strong>“{debounced}”</strong>. Try a different keyword
-                or <button className="link-btn" onClick={() => setSearch("")}>clear search</button>.
-              </p>
-            </div>
-          ) : (
+
+      {/* 🔹 Category Sections */}
+      {Object.keys(groupedProducts).map((catName) => (
+        <div key={catName} className="category-group">
+          <div
+            className="category-header"
+            onClick={() => toggleExpand(catName)}
+          >
+            <h2>
+              {catName}{" "}
+              <span className="count">
+                ({groupedProducts[catName].length} products)
+              </span>
+            </h2>
+            {expanded[catName] ? <FiChevronUp /> : <FiChevronDown />}
+          </div>
+
+          {expanded[catName] && (
             <table className="product-table">
               <thead>
                 <tr>
+                  <th>#</th>
                   <th>Image</th>
-                  <th>Product Name</th>
+                  <th>Name</th>
                   <th>SKU</th>
-                  <th>Category</th> {/* Column for Category */}
+                  <th>Category</th>
                   <th>Price</th>
                   <th>Created</th>
                   <th>Actions</th>
                 </tr>
               </thead>
               <tbody>
-                {filtered.map((p) => {
+                {groupedProducts[catName].map((p, index) => {
                   const isEditing = editingCategory?.productId === p._id;
-                  const currentCategory = p.category?._id || '';
+                  const currentCat = p.category?._id || "";
 
                   return (
                     <tr key={p._id}>
+                      <td>{index + 1}</td>
                       <td>
                         {p.images?.[0] ? (
                           <img
@@ -213,59 +269,75 @@ export default function ProductList() {
                           <div className="product-thumb">📦</div>
                         )}
                       </td>
-                      <td>
-                        <span className="product-name">{p.name}</span>
-                      </td>
-                      <td>
-                        <span className="product-sku">{p.sku || "—"}</span>
-                      </td>
-                      {/* 🔥 Category Cell with Inline Edit */}
+                      <td>{p.name}</td>
+                      <td>{p.sku}</td>
+
+                      {/* 🔄 Inline Category Edit */}
                       <td>
                         <div className="category-select-wrapper">
                           <select
-                            value={isEditing ? editingCategory.categoryId : currentCategory}
-                            onChange={(e) => handleCategoryChange(p._id, e.target.value)}
+                            value={
+                              isEditing
+                                ? editingCategory.categoryId
+                                : currentCat
+                            }
+                            onChange={(e) =>
+                              handleCategoryChange(p._id, e.target.value)
+                            }
                             className="product-category-select"
-                            disabled={isEditing && editingCategory.categoryId === currentCategory}
                           >
                             <option value="">Select Category</option>
-                            {categories.map(cat => (
+                            {categories.map((cat) => (
                               <option key={cat._id} value={cat._id}>
                                 {cat.name}
                               </option>
                             ))}
                           </select>
-                          {/* Save Button */}
-                          {isEditing && editingCategory.categoryId !== currentCategory && (
+
+                          {isEditing &&
+                            editingCategory.categoryId !== currentCat && (
                               <button
-                                type="button"
                                 onClick={() => saveCategoryChange(p._id)}
                                 className="save-category-btn"
-                                title="Save Category"
+                                title="Save"
                               >
                                 <FiCheck size={18} />
                               </button>
-                          )}
+                            )}
                         </div>
                       </td>
-                      {/* End of Category Cell */}
+
                       <td>
-                        <span className="product-price">
-                          {p.price !== undefined &&
-                          p.price !== null &&
-                          !isNaN(Number(p.price))
-                            ? `₹${Number(p.price).toFixed(2)}`
-                            : "—"}
-                        </span>
+                        {p.price ? `₹${Number(p.price).toFixed(2)}` : "—"}
                       </td>
                       <td>
-                        <span className="product-date">
-                          {p.createdAt
-                            ? new Date(p.createdAt).toLocaleDateString()
-                            : "—"}
-                        </span>
+                        {p.createdAt
+                          ? new Date(p.createdAt).toLocaleDateString()
+                          : "—"}
                       </td>
+
+                      {/* Actions */}
                       <td className="product-actions">
+                        <div className="move-buttons">
+                          <button
+                            onClick={() => moveProduct(p._id, "up")}
+                            disabled={index === 0}
+                            title="Move Up"
+                            className="move-btn"
+                          >
+                            <FiArrowUp />
+                          </button>
+                          <button
+                            onClick={() => moveProduct(p._id, "down")}
+                            disabled={
+                              index === groupedProducts[catName].length - 1
+                            }
+                            title="Move Down"
+                            className="move-btn"
+                          >
+                            <FiArrowDown />
+                          </button>
+                        </div>
                         <Link
                           to={`/admin/products/edit/${p._id}`}
                           className="edit-button"
@@ -286,8 +358,7 @@ export default function ProductList() {
             </table>
           )}
         </div>
-      </div>
-      {/* ... (Mobile Cards Layout - इसे भी अपडेट करना होगा) ... */}
+      ))}
     </div>
   );
 }

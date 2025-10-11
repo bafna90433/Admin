@@ -1,410 +1,464 @@
-/* Mobile-first Product Card Grid — Put in ProductList.css */
-/* Reset */
+/*
+ * ProductList.css - Modern, Professional, and Responsive Design
+ * Primary Accent: Indigo (#4F46E5) | Theme: Light & Clean
+ */
+
+/* =========================================================================
+ * 1. Global / Reset / Utility Styles
+ * =======================================================================*/
 .product-list-container {
-  font-family: 'Inter', -apple-system, sans-serif;
-  max-width: 100%;
+    font-family: 'Inter', -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Oxygen, Ubuntu, Cantarell, "Fira Sans", "Droid Sans", "Helvetica Neue", sans-serif;
+    max-width: 100%;
+    padding: 24px;
+    background-color: #f8f9fc; /* Very light page background */
+    min-height: 100vh;
 }
+
+/* =========================================================================
+ * 2. Header & Actions
+ * =======================================================================*/
 .product-list-header {
-  display: flex;
-  flex-direction: column;
-  gap: 16px;
-  margin-bottom: 1.5rem;
+    display: flex;
+    flex-direction: column;
+    gap: 16px;
+    margin-bottom: 24px;
+    padding: 20px;
+    background: #ffffff;
+    border-radius: 16px;
+    box-shadow: 0 8px 24px rgba(40, 50, 100, 0.08); /* Stronger, softer shadow */
+    border: 1px solid #eef2f6;
 }
+
 .header-content h1 {
-  font-size: 1.5rem;
-  font-weight: 700;
-  color: #2d3748;
-  margin: 0 0 0.5rem 0;
+    font-size: 1.875rem; /* Larger heading */
+    font-weight: 700;
+    color: #1a202c;
+    margin: 0 0 4px 0;
 }
-.header-description {
-  font-size: 0.95rem;
-  color: #718096;
-  margin: 0;
+
+.header-content p {
+    font-size: 1rem;
+    color: #718096;
+    margin: 0;
 }
+
 .header-actions {
-  order: 1;
-  margin-bottom: 0;
-  width: 100%;
-  flex-wrap: wrap;
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
+    width: 100%;
 }
+
+/* Search Bar Styling */
 .products-search {
-  order: 1;
-  width: 100%;
-  display: inline-flex;
-  align-items: center;
-  background: #f9fafb;
-  border: 1px solid #e5e7eb;
-  border-radius: 12px;
-  position: relative;
-  margin-bottom: 12px;
+    display: flex;
+    align-items: center;
+    background: #ffffff;
+    border: 1px solid #cbd5e0;
+    border-radius: 10px;
+    position: relative;
+    flex-grow: 1;
+    transition: border-color 0.2s, box-shadow 0.2s;
 }
+
+.products-search:focus-within {
+    border-color: #4f46e5;
+    box-shadow: 0 0 0 3px rgba(79, 70, 229, 0.1);
+}
+
 .products-search input {
-  width: 100%;
-  border: none;
-  background: transparent;
-  padding: 12px 16px 12px 44px;
-  font-size: 1rem;
-  color: #1f2937;
+    width: 100%;
+    border: none;
+    background: transparent;
+    padding: 12px 16px 12px 48px;
+    font-size: 1rem;
+    color: #2d3748;
 }
+
 .products-search input:focus {
-  border-radius: 12px;
-  outline: none;
-  box-shadow: 0 0 0 3px rgba(99, 102, 241, 0.15);
+    outline: none;
 }
+
 .products-search-icon {
-  position: absolute;
-  left: 14px;
-  color: #9ca3af;
+    position: absolute;
+    left: 16px;
+    color: #9da8b7;
 }
+
 .products-search-clear {
-  background: none;
-  border: none;
-  right: 14px;
-  position: absolute;
-  color: #9ca3af;
-  cursor: pointer;
-  font-size: 18px;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  width: 28px;
-  height: 28px;
-  border-radius: 6px;
+    background: none;
+    border: none;
+    right: 8px;
+    color: #9da8b7;
+    cursor: pointer;
+    font-size: 18px;
+    width: 36px;
+    height: 36px;
+    border-radius: 8px;
+    transition: background-color 0.2s ease;
 }
+
 .products-search-clear:hover {
-  background: #f3f4f6;
+    background: #f1f5f9;
+    color: #4a5568;
 }
+
+/* Add Product Button */
 .add-product-button {
-  order: 2;
-  width: 100%;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  gap: 8px;
-  background: linear-gradient(135deg, #6e8efb, #a777e3);
-  color: white;
-  font-weight: 500;
-  height: 48px;
-  border: none;
-  border-radius: 12px;
-  margin-bottom: 12px;
-  cursor: pointer;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 8px;
+    background: #4f46e5; /* Solid Indigo */
+    color: white;
+    font-weight: 600;
+    height: 48px;
+    border: none;
+    border-radius: 10px;
+    cursor: pointer;
+    transition: all 0.2s ease;
+    box-shadow: 0 4px 10px rgba(79, 70, 229, 0.3);
 }
-.table-meta {
-  display: flex;
-  flex-wrap: wrap;
-  font-size: 0.9rem;
-  color: #6b7280;
-  margin: 0 0 16px 0;
-  gap: 8px;
+
+.add-product-button:hover {
+    background: #4338ca; /* Darker Indigo */
+    box-shadow: 0 6px 15px rgba(79, 70, 229, 0.4);
 }
-.meta-filter {
-  background: #eef2ff;
-  color: #4f46e5;
-  font-weight: 500;
-  padding: 4px 8px;
-  border-radius: 99px;
-  font-size: 0.85rem;
+
+/* =========================================================================
+ * 3. Category Grouping
+ * =======================================================================*/
+.category-group {
+    background: #ffffff;
+    border-radius: 12px;
+    margin-bottom: 20px;
+    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.05);
+    border: 1px solid #eef2f6;
+    overflow: hidden;
 }
-.link-btn {
-  background: none;
-  color: #4f46e5;
-  font-weight: 600;
-  padding: 0;
-  text-decoration: underline;
-  cursor: pointer;
-  border: none;
-}
-/* Products Grid/Cards */
-.mobile-product-cards {
-  display: grid;
-  grid-template-columns: 1fr;
-  gap: 12px;
-}
-.product-card-mobile {
-  background: white;
-  border-radius: 12px;
-  padding: 16px;
-  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.05);
-  border: 1px solid #e2e8f0;
-}
-.product-card-header {
-  display: flex;
-  align-items: flex-start;
-  gap: 12px;
-  margin-bottom: 12px;
-}
-.card-product-image {
-  width: 64px;
-  height: 64px;
-  background: #f8fafc;
-  border-radius: 8px;
-  object-fit: cover;
-  border: 1px solid #e2e8f0;
-}
-.card-product-details {
-  flex: 1;
-}
-.card-product-name {
-  font-weight: 600;
-  color: #1f2937;
-  margin-bottom: 4px;
-  word-break: break-word;
-  font-size: 1rem;
-}
-.card-product-sku {
-  color: #6b7280;
-  font-size: 0.85rem;
-  margin-bottom: 4px;
-}
-.card-product-category {
-  display: inline-block;
-  background: #e2e8f0;
-  color: #4b5563;
-  font-size: 0.8rem;
-  padding: 3px 8px;
-  border-radius: 4px;
-  margin-bottom: 6px;
-}
-.card-product-meta {
-  color: #6b7280;
-  font-size: 0.85rem;
-}
-.card-product-meta strong {
-  color: #1f2937;
-  font-size: 0.9rem;
-  font-weight: 600;
-}
-.card-product-price {
-  font-weight: 700;
-  color: #2563eb;
-}
-.card-product-date {
-  color: #6b7280;
-  font-size: 0.8rem;
-}
-.card-product-actions {
-  display: grid;
-  grid-template-columns: 1fr 1fr;
-  gap: 8px;
-  width: 100%;
-  padding-top: 12px;
-  margin-top: 10px;
-  border-top: 1px solid #e2e8f0;
-}
-.card-edit-btn, .card-delete-btn {
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  gap: 6px;
-  height: 36px;
-  border-radius: 8px;
-  border: none;
-  cursor: pointer;
-  font-weight: 500;
-  font-size: 0.85rem;
-  transition: all 0.2s ease;
-}
-.card-edit-btn {
-  background: #e0f2fe;
-  color: #0ea5e9;
-}
-.card-delete-btn {
-  background: #fee2e2;
-  color: #dc2626;
-}
-.card-edit-btn:hover {
-  background: #bfdbfe;
-}
-.card-delete-btn:hover {
-  background: #fecaca;
-}
-/* Empty state */
-.empty-state-mobile {
-  background: white;
-  padding: 32px 20px;
-  text-align: center;
-  color: #6b7280;
-  border-radius: 12px;
-  margin: 16px 0;
-  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.05);
-  border: 1px dashed #e2e8f0;
-}
-.empty-state-mobile .link-btn {
-  margin-left: 6px;
-}
-/* Loading/Error states */
-.product-list-loading, .product-list-error {
-  padding: 32px 20px;
-  text-align: center;
-  color: #64748b;
-  margin: 16px 0;
-  background: #f8fafc;
-  border-radius: 12px;
-  border: 1px dashed #e2e8f0;
-}
-.product-list-error {
-  color: #dc2626;
-  border-left: 4px solid #ef4444;
-  background: #fef2f2;
-  padding: 24px 20px;
-}
-/* Desktop — Only show table on larger screens */
-@media (min-width: 900px) {
-  .product-list-header {
-    flex-direction: row;
+
+.category-header {
+    display: flex;
     justify-content: space-between;
     align-items: center;
-  }
-  .header-actions {
-    width: auto;
-    order: initial;
-  }
-  .products-search {
-    min-width: 300px;
-    margin-bottom: 0;
-    width: 320px;
-    order: initial;
-  }
-  .add-product-button {
-    width: auto;
-    margin-bottom: 0;
-    padding: 12px 20px;
-    order: initial;
-  }
-  .mobile-product-cards {
-    display: none;
-  }
-  .product-list-card, .product-table-container, .product-table {
-    display: block;
-  }
-  
-  /* Desktop Table Enhancements */
-  .product-table-container {
-    background: #fff;
-    border-radius: 16px;
-    box-shadow: 0 6px 24px rgba(40, 50, 100, 0.08);
-    border: 1px solid #e5e7eb;
-    padding: 32px 24px;
-    margin-bottom: 1.5rem;
-    overflow-x: auto;
-  }
-  .product-table {
+    padding: 18px 20px;
+    cursor: pointer;
+    background: #ffffff;
+    border-bottom: 1px solid #f1f5f9;
+    user-select: none;
+    transition: background-color 0.15s ease;
+}
+
+.category-header:hover {
+    background-color: #f7f9fd;
+}
+
+.category-header h2 {
+    font-size: 1.25rem;
+    font-weight: 600;
+    color: #1a202c;
+    margin: 0;
+    display: flex;
+    align-items: center;
+    gap: 10px;
+}
+
+.category-header .count {
+    font-size: 0.85rem;
+    font-weight: 500;
+    color: #4f46e5;
+    background: #eef2ff; /* Light Indigo background */
+    padding: 3px 10px;
+    border-radius: 99px;
+}
+
+/* =========================================================================
+ * 4. Product Table (Desktop Only)
+ * =======================================================================*/
+.product-table {
     width: 100%;
     border-collapse: separate;
     border-spacing: 0;
-    font-size: 1rem;
-    color: #253047;
-    background: transparent;
-  }
-  .product-table th, .product-table td {
-    padding: 14px 18px;
+    font-size: 0.95rem;
+    color: #2d3748;
+}
+
+.product-table th, .product-table td {
+    padding: 14px 20px;
     text-align: left;
-    border-bottom: 1px solid #e5e7eb;
+    border-bottom: 1px solid #f1f5f9; /* Lighter border */
     vertical-align: middle;
-  }
-  .product-table th {
-    color: #4b5563;
-    font-weight: 700;
-    background: #f9fafb;
-    letter-spacing: 0.03em;
-    font-size: 1.07rem;
-  }
-  .product-table tr:last-child td {
+}
+
+.product-table th {
+    color: #718096;
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+    font-size: 0.8rem;
+    background: #f7f9fc; /* Light header background */
+}
+
+.product-table tbody tr:hover {
+    background-color: #fefeff; /* Subtle row hover effect */
+}
+
+.product-table tbody tr:last-child td {
     border-bottom: none;
-  }
-  .product-table td {
-    background: #fff;
-    font-weight: 400;
-  }
-  .product-table td img {
+}
+
+.product-thumb {
     width: 48px;
     height: 48px;
     object-fit: cover;
     border-radius: 8px;
-    border: 1px solid #e5e7eb;
-    background: #f8fafc;
-  }
-  .product-table .edit-btn, .product-table .delete-btn {
-    display: inline-flex;
-    align-items: center;
-    gap: 5px;
-    font-weight: 500;
-    font-size: 0.93rem;
-    padding: 7px 16px;
-    border-radius: 9px;
-    border: none;
-    cursor: pointer;
-    transition: background 0.2s;
-  }
-  .product-table .edit-btn {
-    background: #e0f2fe;
-    color: #0284c7;
-  }
-  .product-table .edit-btn:hover {
-    background: #bae6fd;
-  }
-  .product-table .delete-btn {
-    background: #fee2e2;
-    color: #dc2626;
-  }
-  .product-table .delete-btn:hover {
-    background: #fecaca;
-  }
-  /* Action buttons spacing */
-  .product-table .product-actions {
+    border: 1px solid #e2e8f0;
+    background: #fdfdfd;
     display: flex;
-    gap: 8px;
-  }
-}
-/* Mobile — Hide table, show cards */
-@media (max-width: 899px) {
-  .product-list-card, .product-table-container, .product-table {
-    display: none;
-  }
-}
-/* ... आपके अन्य ProductList.css स्टाइल्स ... */
-
-.product-table td {
-    vertical-align: middle;
+    align-items: center;
+    justify-content: center;
+    font-size: 1.5rem;
+    color: #9da8b7;
+    box-shadow: 0 1px 3px rgba(0,0,0,0.05);
 }
 
+/* Category Inline Edit */
 .category-select-wrapper {
     display: flex;
     align-items: center;
-    gap: 8px; /* Select और Button के बीच की दूरी */
+    gap: 8px;
+    min-width: 180px;
 }
 
 .product-category-select {
-    padding: 8px;
-    border: 1px solid #ccc;
-    border-radius: 4px;
+    padding: 8px 12px;
+    border: 1px solid #cbd5e0;
+    border-radius: 6px;
     background-color: #fff;
     cursor: pointer;
-    flex-grow: 1; /* Select element को ज़्यादा जगह दे */
-    min-width: 150px; /* Minimum चौड़ाई */
+    flex-grow: 1;
+    font-size: 0.95rem;
+    color: #2d3748;
+    transition: border-color 0.2s, box-shadow 0.2s;
 }
 
 .product-category-select:focus {
-    border-color: #007bff;
-    box-shadow: 0 0 0 2px rgba(0, 123, 255, 0.25);
+    border-color: #4f46e5;
+    box-shadow: 0 0 0 2px rgba(79, 70, 229, 0.2);
     outline: none;
 }
 
 .save-category-btn {
-    padding: 8px 12px;
-    background-color: #28a745; /* Green color for save */
+    padding: 8px 10px;
+    background-color: #10b981; /* Success Green */
     color: white;
     border: none;
-    border-radius: 4px;
+    border-radius: 6px;
     cursor: pointer;
     display: flex;
     align-items: center;
     justify-content: center;
-    transition: background-color 0.2s ease;
-    height: 38px; /* Select element के साथ align करने के लिए */
+    transition: background-color 0.2s ease, transform 0.1s ease;
+    height: 38px;
+    width: 38px;
+    flex-shrink: 0;
 }
 
 .save-category-btn:hover {
-    background-color: #218838;
+    background-color: #059669;
+}
+
+/* Price Styling */
+.product-table td:nth-child(6) {
+    font-weight: 600;
+    color: #059669; /* Price in green */
+}
+
+/* Created Date Styling */
+.product-table td:nth-child(7) {
+    color: #718096;
+    font-size: 0.85rem;
+}
+
+/* Move Buttons */
+.move-buttons {
+    display: flex;
+    gap: 4px;
+    flex-shrink: 0;
+    border-right: 1px solid #f1f5f9;
+    padding-right: 12px;
+    margin-right: 12px;
+}
+
+.move-btn {
+    background: #ffffff;
+    border: 1px solid #cbd5e0;
+    color: #4a5568;
+    border-radius: 6px;
+    cursor: pointer;
+    padding: 6px;
+    width: 32px;
+    height: 32px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    transition: background 0.2s ease, border-color 0.2s ease, transform 0.1s;
+}
+
+.move-btn:hover:not(:disabled) {
+    background: #f1f5f9;
+    border-color: #a0aec0;
+    transform: translateY(-1px);
+}
+
+.move-btn:disabled {
+    opacity: 0.5;
+    cursor: not-allowed;
+    background: #f7f9fc;
+    border-color: #e2e8f0;
+    transform: none;
+}
+
+/* Action Buttons */
+.product-actions {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    flex-wrap: wrap;
+    min-width: 200px;
+}
+
+.edit-button, .delete-button {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    font-weight: 500;
+    font-size: 0.875rem;
+    padding: 8px 12px;
+    border-radius: 6px;
+    border: none;
+    cursor: pointer;
+    transition: all 0.2s;
+    text-decoration: none;
+}
+
+.edit-button {
+    background: #eef2ff; /* Light Indigo */
+    color: #4f46e5;
+}
+
+.edit-button:hover {
+    background: #e0e7ff;
+}
+
+.delete-button {
+    background: #fee2e2; /* Light Red */
+    color: #ef4444;
+}
+
+.delete-button:hover {
+    background: #fecaca;
+}
+
+/* =========================================================================
+ * 5. State / Utility Components
+ * =======================================================================*/
+/* Existing styles for loading/error remain solid */
+.product-list-loading, .product-list-error {
+    padding: 32px 20px;
+    text-align: center;
+    margin: 16px 0;
+    border-radius: 12px;
+    font-size: 1.1rem;
+    font-weight: 500;
+}
+
+.product-list-loading {
+    color: #64748b;
+    background: #f9fafb;
+    border: 1px dashed #e5e7eb;
+}
+
+.product-list-error {
+    color: #dc2626;
+    background: #fef2f2;
+    border: 1px solid #fecaca;
+    border-left: 4px solid #ef4444;
+    padding: 24px 20px;
+}
+
+/* =========================================================================
+ * 6. Responsive Design (Media Queries)
+ * =======================================================================*/
+
+/* Desktop Styles (min-width: 900px) */
+@media (min-width: 900px) {
+    .product-list-container {
+        padding: 40px;
+    }
+
+    .product-list-header {
+        flex-direction: row;
+        justify-content: space-between;
+        align-items: center;
+    }
+
+    .header-actions {
+        flex-direction: row;
+        width: auto;
+        gap: 16px;
+    }
+
+    .products-search {
+        min-width: 320px;
+        width: 320px;
+    }
+
+    .add-product-button {
+        width: auto;
+        padding: 12px 20px;
+    }
+
+    /* Hide Mobile Card view on Desktop */
+    .mobile-product-cards {
+        display: none;
+    }
+}
+
+/* Mobile/Tablet Styles (max-width: 899px) */
+@media (max-width: 899px) {
+    .product-list-container {
+        padding: 16px;
+    }
+
+    /* Hide Table on Mobile */
+    .product-table {
+        display: none;
+    }
+
+    /* Mobile Card View Placeholder */
+    .mobile-product-cards {
+        /* This grid should be rendered by your React component when on mobile */
+        display: grid;
+        grid-template-columns: 1fr;
+        gap: 16px;
+        padding: 12px 0;
+    }
+
+    /* Adjusted Mobile Action Buttons (if you implement the mobile cards) */
+    .card-product-actions {
+        display: flex;
+        flex-direction: row; /* Layout side-by-side */
+        justify-content: space-between;
+        gap: 8px;
+        padding-top: 12px;
+        margin-top: 10px;
+        border-top: 1px solid #f1f5f9;
+    }
+    
+    .card-edit-btn, .card-delete-btn {
+        flex: 1; /* Makes buttons fill the space */
+        font-size: 0.95rem;
+        height: 40px;
+    }
 }

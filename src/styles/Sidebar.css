@@ -1,98 +1,138 @@
+/*
+ * Sidebar.css - Professional Dark Theme with Subtle Depth
+ * Base Color: Dark Navy/Slate (#1f2937) | Accent: Vibrant Cyan/Teal (#22d3ee)
+ */
+
+/* =========================================================================
+ * 1. Sidebar Container
+ * =======================================================================*/
 .sidebar {
-  background: linear-gradient(180deg, #2563eb, #1e3a8a); /* 🔹 Blue Gradient */
-  color: white;
-  display: flex;
-  flex-direction: column;
-  border-radius: 16px;
-  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.25);
-  overflow: hidden;
+    /* Use a solid, deep background for a professional dark look */
+    background: #1f2937; /* Dark Slate Gray/Navy */
+    color: white;
+    display: flex;
+    flex-direction: column;
+    border-radius: 12px; /* Slightly less aggressive corner radius */
+    /* Refined, softer shadow */
+    box-shadow: 0 10px 30px rgba(0, 0, 0, 0.4);
+    overflow: hidden;
+    height: 100%; /* Ensure it fills its container height */
+    font-family: 'Inter', -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Oxygen, Ubuntu, Cantarell, "Fira Sans", "Droid Sans", "Helvetica Neue", sans-serif;
+    min-width: 260px; /* Define a minimum width */
 }
 
+/* =========================================================================
+ * 2. Header & Logo
+ * =======================================================================*/
 .sidebar-header {
-  padding: 1.8rem;
-  font-size: 1.5rem;
-  font-weight: 700;
-  letter-spacing: 0.6px;
-  border-bottom: 1px solid rgba(255, 255, 255, 0.15);
-  background: rgba(255, 255, 255, 0.05);
-  backdrop-filter: blur(6px);
-  flex-shrink: 0;
-}
-
-.sidebar-nav {
-  flex: 1;
-  display: flex;
-  flex-direction: column;
-  gap: 0.25rem;
-  padding: 1rem 0;
-}
-
-.sidebar-link {
-  display: flex;
-  align-items: center;
-  padding: 1rem 1.6rem;
-  color: rgba(255, 255, 255, 0.85);
-  text-decoration: none;
-  border-radius: 12px;
-  margin: 0 0.75rem;
-  transition: all 0.3s ease;
-}
-
-.sidebar-link:hover {
-  background: rgba(255, 255, 255, 0.15);
-  padding-left: 2.2rem;
-  transform: translateX(4px);
-}
-
-.sidebar-link.active {
-  background: linear-gradient(90deg, #fbbf24, #f59e0b);
-  color: #1f2937;
-  font-weight: 600;
-  border-left: none;
-  box-shadow: 0 4px 12px rgba(251, 191, 36, 0.4);
-}
-
-.sidebar-icon {
-  margin-right: 0.85rem;
-  font-size: 1.3rem;
-  flex-shrink: 0;
-}
-
-.sidebar-footer {
-  padding: 1.2rem;
-  border-top: 1px solid rgba(255, 255, 255, 0.15);
-  background: rgba(255, 255, 255, 0.05);
-  backdrop-filter: blur(6px);
-  flex-shrink: 0;
-}
-
-.logout-button {
-  width: 100%;
-  background: transparent;
-  border: none;
-  color: white;
-  font-size: 1.05rem;
-  display: flex;
-  align-items: center;
-  gap: 0.75rem;
-  cursor: pointer;
-  padding: 0.85rem 1rem;
-  border-radius: 12px;
-  transition: background 0.3s, color 0.3s;
-}
-
-.logout-button:hover {
-  background: rgba(248, 113, 113, 0.2);
-  color: #f87171;
-}
-.sidebar-header {
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  padding: 16px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    padding: 24px 20px;
+    font-size: 1.5rem;
+    font-weight: 700;
+    letter-spacing: 0.5px;
+    /* Use a slightly lighter internal border for contrast */
+    border-bottom: 1px solid rgba(255, 255, 255, 0.08);
+    background: rgba(0, 0, 0, 0.1); /* Subtle dark overlay */
+    flex-shrink: 0;
 }
 
 .sidebar-logo {
-  max-height: 50px;
-  width: auto;
+    max-height: 40px; /* Reduced logo size for refinement */
+    width: auto;
+    /* Apply a slight filter to help it stand out on the dark background */
+    filter: drop-shadow(0 0 3px rgba(255, 255, 255, 0.1));
+}
+
+/* =========================================================================
+ * 3. Navigation Links
+ * =======================================================================*/
+.sidebar-nav {
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+    padding: 16px 0;
+}
+
+.sidebar-link {
+    display: flex;
+    align-items: center;
+    padding: 12px 24px;
+    color: #cbd5e0; /* Off-white for better accessibility/contrast */
+    text-decoration: none;
+    border-radius: 8px;
+    margin: 0 12px;
+    transition: all 0.25s ease;
+    font-weight: 500;
+    position: relative;
+    overflow: hidden; /* Hide transition lines */
+}
+
+.sidebar-link:hover {
+    background: rgba(255, 255, 255, 0.08);
+    color: white;
+    /* Remove aggressive hover animation for a calmer UI */
+    padding-left: 28px;
+    transform: none; /* Keep element static on hover */
+}
+
+.sidebar-link.active {
+    background: #06b6d4; /* Vibrant Cyan/Teal accent */
+    color: #1a202c; /* Dark text for contrast */
+    font-weight: 600;
+    /* Clear, subtle active state shadow */
+    box-shadow: 0 4px 10px rgba(6, 182, 212, 0.3);
+}
+
+.sidebar-link.active::before {
+    content: '';
+    position: absolute;
+    top: 0;
+    left: 0;
+    width: 4px;
+    height: 100%;
+    background-color: #22d3ee; /* Subtle bright border on active */
+    border-radius: 4px 0 0 4px;
+}
+
+.sidebar-icon {
+    margin-right: 14px;
+    font-size: 1.25rem;
+    flex-shrink: 0;
+}
+
+/* =========================================================================
+ * 4. Footer & Logout Button
+ * =======================================================================*/
+.sidebar-footer {
+    padding: 16px;
+    border-top: 1px solid rgba(255, 255, 255, 0.08);
+    background: rgba(0, 0, 0, 0.1);
+    flex-shrink: 0;
+}
+
+.logout-button {
+    width: 100%;
+    background: transparent;
+    border: 1px solid rgba(255, 255, 255, 0.2); /* Defined border for presence */
+    color: #cbd5e0;
+    font-size: 1rem;
+    display: flex;
+    align-items: center;
+    justify-content: center; /* Center content */
+    gap: 8px;
+    cursor: pointer;
+    padding: 10px 16px;
+    border-radius: 8px;
+    transition: all 0.2s ease;
+    font-weight: 500;
+}
+
+.logout-button:hover {
+    background: #dc2626; /* Solid red background on hover */
+    color: white;
+    border-color: #dc2626;
+    box-shadow: 0 2px 8px rgba(220, 38, 38, 0.4);
 }

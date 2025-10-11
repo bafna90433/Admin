@@ -1,10 +1,15 @@
-import React, { useEffect, useState, ChangeEvent, FormEvent } from 'react';
-import { useNavigate, useParams } from 'react-router-dom';
-import { FiPlus, FiTrash2, FiX, FiUpload, FiSave } from 'react-icons/fi';
-import api from '../utils/api';
-import '../styles/ProductForm.css';
+import React, { useEffect, useState, ChangeEvent, FormEvent } from "react";
+import { useNavigate, useParams } from "react-router-dom";
+import { FiPlus, FiTrash2, FiX, FiUpload, FiSave } from "react-icons/fi";
+import api from "../utils/api";
+import "../styles/ProductForm.css";
 
 interface Category {
+  _id: string;
+  name: string;
+}
+
+interface ProductOption {
   _id: string;
   name: string;
 }
@@ -24,6 +29,7 @@ interface ProductPayload {
   images: string[];
   bulkPricing?: { inner: string; qty: number; price: number }[];
   taxFields?: string[];
+  relatedProducts?: string[];
 }
 
 type GalleryImage = {
@@ -38,61 +44,76 @@ const ProductForm: React.FC = () => {
   const editMode = Boolean(id);
 
   const [form, setForm] = useState({
-    name: '',
-    sku: '',
-    price: '',
-    description: '',
-    category: ''
+    name: "",
+    sku: "",
+    price: "",
+    description: "",
+    category: "",
   });
 
   const [bulkPrices, setBulkPrices] = useState<BulkPrice[]>([
-    { inner: '', qty: '', price: '' }
+    { inner: "", qty: "", price: "" },
   ]);
   const [gallery, setGallery] = useState<GalleryImage[]>([]);
   const [categories, setCategories] = useState<Category[]>([]);
+  const [products, setProducts] = useState<ProductOption[]>([]);
+  const [relatedProducts, setRelatedProducts] = useState<string[]>([]);
+
   const [error, setError] = useState<string | null>(null);
   const [success, setSuccess] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
-  const [taxFields, setTaxFields] = useState<string[]>(['']);
+  const [taxFields, setTaxFields] = useState<string[]>([""]);
 
   useEffect(() => {
     const fetchData = async () => {
       try {
-        const categoriesRes = await api.get('/categories');
+        const [categoriesRes, productsRes] = await Promise.all([
+          api.get("/categories"),
+          api.get("/products"),
+        ]);
         setCategories(categoriesRes.data);
+        setProducts(productsRes.data);
 
         if (editMode && id) {
           const productRes = await api.get(`/products/${id}`);
           const data = productRes.data;
+
           setForm({
             name: data.name,
-            sku: data.sku || '',
-            price: data.price?.toString() || '',
-            description: data.description,
+            sku: data.sku || "",
+            price: data.price?.toString() || "",
+            description: data.description || "",
             category:
-              typeof data.category === 'string'
+              typeof data.category === "string"
                 ? data.category
-                : data.category?._id || ''
+                : data.category?._id || "",
           });
+
           setBulkPrices(
             data.bulkPricing?.map((bp: any) => ({
-              inner: bp.inner || '',
-              qty: bp.qty?.toString() || '',
-              price: bp.price?.toString() || ''
-            })) || [{ inner: '', qty: '', price: '' }]
+              inner: bp.inner || "",
+              qty: bp.qty?.toString() || "",
+              price: bp.price?.toString() || "",
+            })) || [{ inner: "", qty: "", price: "" }]
           );
+
           setGallery(
-            data.images.map((url: string) => ({
+            data.images?.map((url: string) => ({
               url,
-              isExisting: true
-            }))
+              isExisting: true,
+            })) || []
           );
+
           setTaxFields(
-            data.taxFields && data.taxFields.length ? data.taxFields : ['']
+            data.taxFields && data.taxFields.length ? data.taxFields : [""]
           );
+
+          if (Array.isArray(data.relatedProducts)) {
+            setRelatedProducts(data.relatedProducts.map((p: any) => p._id || p));
+          }
         }
       } catch (err) {
-        setError('Failed to load data. Please try again later.');
+        setError("Failed to load data. Please try again later.");
       }
     };
 
@@ -103,27 +124,32 @@ const ProductForm: React.FC = () => {
     e: ChangeEvent<HTMLInputElement | HTMLSelectElement | HTMLTextAreaElement>
   ) => {
     const { name, value } = e.target;
-    setForm(prev => ({
+    setForm((prev) => ({
       ...prev,
-      [name]: value
+      [name]: value,
     }));
+  };
+
+  const handleRelatedChange = (e: ChangeEvent<HTMLSelectElement>) => {
+    const values = Array.from(e.target.selectedOptions, (opt) => opt.value);
+    setRelatedProducts(values);
   };
 
   const handleGalleryFiles = (e: ChangeEvent<HTMLInputElement>) => {
     if (!e.target.files) return;
     const files = Array.from(e.target.files).slice(0, 10 - gallery.length);
-    const images = files.map(file => ({
+    const images = files.map((file) => ({
       file,
       url: URL.createObjectURL(file),
-      isExisting: false
+      isExisting: false,
     }));
-    setGallery(g => [...g, ...images]);
-    e.target.value = '';
+    setGallery((g) => [...g, ...images]);
+    e.target.value = "";
   };
 
   const removeImage = (idx: number) => {
     if (!gallery[idx].isExisting) URL.revokeObjectURL(gallery[idx].url);
-    setGallery(g => g.filter((_, i) => i !== idx));
+    setGallery((g) => g.filter((_, i) => i !== idx));
   };
 
   const handleBulkChange = (
@@ -131,29 +157,28 @@ const ProductForm: React.FC = () => {
     field: keyof BulkPrice,
     value: string
   ) => {
-    setBulkPrices(prices =>
-      prices.map((row, i) =>
-        i === idx ? { ...row, [field]: value } : row
-      )
+    setBulkPrices((prices) =>
+      prices.map((row, i) => (i === idx ? { ...row, [field]: value } : row))
     );
   };
 
   const addBulkRow = () =>
-    setBulkPrices(bp => [...bp, { inner: '', qty: '', price: '' }]);
+    setBulkPrices((bp) => [...bp, { inner: "", qty: "", price: "" }]);
+
   const removeBulkRow = (idx: number) => {
     if (bulkPrices.length > 1)
-      setBulkPrices(bp => bp.filter((_, i) => i !== idx));
+      setBulkPrices((bp) => bp.filter((_, i) => i !== idx));
   };
 
   const handleTaxFieldChange = (idx: number, value: string) => {
-    setTaxFields(fields =>
+    setTaxFields((fields) =>
       fields.map((v, i) => (i === idx ? value : v))
     );
   };
-  const addTaxField = () => setTaxFields(fields => [...fields, '']);
+  const addTaxField = () => setTaxFields((fields) => [...fields, ""]);
   const removeTaxField = (idx: number) => {
     if (taxFields.length > 1)
-      setTaxFields(fields => fields.filter((_, i) => i !== idx));
+      setTaxFields((fields) => fields.filter((_, i) => i !== idx));
   };
 
   const handleSubmit = async (e: FormEvent) => {
@@ -163,21 +188,20 @@ const ProductForm: React.FC = () => {
     setSuccess(null);
 
     try {
-      if (!form.name.trim()) throw new Error('Product name is required');
-      if (!form.sku.trim()) throw new Error('SKU is required');
-      if (!form.category) throw new Error('Category is required');
-      if (!form.price || Number(form.price) <= 0) throw new Error('Price must be > 0');
-      if (!gallery.length) throw new Error('At least one image is required');
+      if (!form.name.trim()) throw new Error("Product name is required");
+      if (!form.sku.trim()) throw new Error("SKU is required");
+      if (!form.category) throw new Error("Category is required");
+      if (!form.price || Number(form.price) <= 0)
+        throw new Error("Price must be > 0");
+      if (!gallery.length) throw new Error("At least one image is required");
 
-      const newImages = gallery.filter(g => !g.isExisting && g.file);
+      const newImages = gallery.filter((g) => !g.isExisting && g.file);
       let uploadedUrls: string[] = [];
       if (newImages.length) {
         const formData = new FormData();
-        newImages.forEach(
-          g => g.file && formData.append('images', g.file)
-        );
-        const res = await api.post('/upload', formData, {
-          headers: { 'Content-Type': 'multipart/form-data' }
+        newImages.forEach((g) => g.file && formData.append("images", g.file));
+        const res = await api.post("/upload", formData, {
+          headers: { "Content-Type": "multipart/form-data" },
         });
         uploadedUrls = res.data.urls;
       }
@@ -186,29 +210,30 @@ const ProductForm: React.FC = () => {
         ...form,
         price: Number(form.price),
         images: [
-          ...gallery.filter(g => g.isExisting).map(g => g.url),
-          ...uploadedUrls
+          ...gallery.filter((g) => g.isExisting).map((g) => g.url),
+          ...uploadedUrls,
         ],
         bulkPricing: bulkPrices
-          .filter(bp => Number(bp.qty) > 0 && Number(bp.price) > 0)
-          .map(bp => ({
+          .filter((bp) => Number(bp.qty) > 0 && Number(bp.price) > 0)
+          .map((bp) => ({
             inner: bp.inner,
             qty: Number(bp.qty),
-            price: Number(bp.price)
+            price: Number(bp.price),
           })),
-        taxFields
+        taxFields,
+        relatedProducts,
       };
 
       if (editMode && id) {
         await api.put(`/products/${id}`, payload);
-        setSuccess('Product updated successfully');
+        setSuccess("Product updated successfully");
       } else {
-        await api.post('/products', payload);
-        setSuccess('Product created successfully');
-        setTimeout(() => navigate('/admin/products'), 1500);
+        await api.post("/products", payload);
+        setSuccess("Product created successfully");
+        setTimeout(() => navigate("/admin/products"), 1500);
       }
     } catch (err: any) {
-      setError(err.message || 'Unexpected error, try again.');
+      setError(err.message || "Unexpected error, try again.");
     } finally {
       setLoading(false);
     }
@@ -216,18 +241,15 @@ const ProductForm: React.FC = () => {
 
   return (
     <div className="product-form-container">
-      {/* 🔥 Top mobile header removed */}
-
       {error && <div className="alert alert-error">{error}</div>}
-      {success && (
-        <div className="alert alert-success">{success}</div>
-      )}
+      {success && <div className="alert alert-success">{success}</div>}
 
       <form onSubmit={handleSubmit} className="product-form" id="product-form">
         <div className="form-grid">
-          {/* Basic Information */}
+          {/* === Product Info === */}
           <div className="form-card primary">
             <h2 className="section-title">Product Information</h2>
+
             <div className="form-group">
               <label>Product Name *</label>
               <input
@@ -236,9 +258,9 @@ const ProductForm: React.FC = () => {
                 value={form.name}
                 onChange={handleChange}
                 required
-                placeholder="Enter product name"
               />
             </div>
+
             <div className="form-group">
               <label>SKU *</label>
               <input
@@ -247,9 +269,9 @@ const ProductForm: React.FC = () => {
                 value={form.sku}
                 onChange={handleChange}
                 required
-                placeholder="Enter SKU"
               />
             </div>
+
             <div className="form-group">
               <label>Category *</label>
               <select
@@ -259,7 +281,7 @@ const ProductForm: React.FC = () => {
                 required
               >
                 <option value="">Select Category</option>
-                {categories.map(cat => (
+                {categories.map((cat) => (
                   <option key={cat._id} value={cat._id}>
                     {cat.name}
                   </option>
@@ -267,18 +289,37 @@ const ProductForm: React.FC = () => {
               </select>
             </div>
 
-            {/* TAX FIELDS */}
+            {/* ✅ Related Products */}
+            <div className="form-group">
+              <label>Related Products</label>
+              <select
+                multiple
+                value={relatedProducts}
+                onChange={handleRelatedChange}
+              >
+                {products
+                  .filter((p) => p._id !== id)
+                  .map((p) => (
+                    <option key={p._id} value={p._id}>
+                      {p.name}
+                    </option>
+                  ))}
+              </select>
+              <p className="hint">
+                Hold <strong>Ctrl</strong> (Windows) or <strong>Cmd</strong> (Mac)
+                to select multiple.
+              </p>
+            </div>
+
+            {/* Tax Fields */}
             <div className="form-group">
               <label>Tax Fields</label>
               {taxFields.map((value, idx) => (
-                <div
-                  key={idx}
-                  className="tax-field-row"
-                >
+                <div key={idx} className="tax-field-row">
                   <input
                     type="text"
                     value={value}
-                    onChange={e =>
+                    onChange={(e) =>
                       handleTaxFieldChange(idx, e.target.value)
                     }
                     placeholder="Enter any tax value"
@@ -288,7 +329,6 @@ const ProductForm: React.FC = () => {
                     onClick={() => removeTaxField(idx)}
                     disabled={taxFields.length === 1}
                     className="remove-tax-button"
-                    title="Delete"
                   >
                     <FiTrash2 />
                   </button>
@@ -313,9 +353,9 @@ const ProductForm: React.FC = () => {
                 min="0"
                 step="0.01"
                 required
-                placeholder="0.00"
               />
             </div>
+
             <div className="form-group">
               <label>Description *</label>
               <textarea
@@ -324,33 +364,28 @@ const ProductForm: React.FC = () => {
                 onChange={handleChange}
                 rows={4}
                 required
-                placeholder="Enter product description"
               />
             </div>
           </div>
 
-          {/* Product Images */}
+          {/* === Images === */}
           <div className="form-card secondary">
             <h2 className="section-title">Product Images</h2>
-            <div className="form-group">
-              <label>Upload Images (Max 10) *</label>
-              <div className="file-upload">
-                <label>
-                  <FiUpload className="upload-icon" />
-                  <span>Click to upload</span>
-                  <input
-                    type="file"
-                    multiple
-                    accept="image/*"
-                    onChange={handleGalleryFiles}
-                    style={{ display: 'none' }}
-                  />
-                </label>
-                <p className="file-upload-hint">
-                  Supports JPG, PNG up to 5MB each
-                </p>
-              </div>
+            <label>Upload Images (Max 10)</label>
+            <div className="file-upload">
+              <label>
+                <FiUpload className="upload-icon" />
+                <span>Click to upload</span>
+                <input
+                  type="file"
+                  multiple
+                  accept="image/*"
+                  onChange={handleGalleryFiles}
+                  style={{ display: "none" }}
+                />
+              </label>
             </div>
+
             <div className="image-preview-grid">
               {gallery.map((img, idx) => (
                 <div key={idx} className="image-preview">
@@ -359,7 +394,6 @@ const ProductForm: React.FC = () => {
                     type="button"
                     onClick={() => removeImage(idx)}
                     className="remove-btn"
-                    aria-label="Remove image"
                   >
                     <FiX />
                   </button>
@@ -368,7 +402,7 @@ const ProductForm: React.FC = () => {
             </div>
           </div>
 
-          {/* Bulk Pricing */}
+          {/* === Bulk Pricing === */}
           <div className="form-card tertiary">
             <h2 className="section-title">Bulk Pricing</h2>
             <div className="bulk-pricing-table">
@@ -380,55 +414,43 @@ const ProductForm: React.FC = () => {
               </div>
 
               {bulkPrices.map((bp, idx) => (
-                <div
-                  key={idx}
-                  className={`table-row ${idx % 2 === 0 ? 'even' : 'odd'}`}
-                >
-                  <div data-label="Min Qty (Inner)">
-                    <input
-                      type="number"
-                      value={bp.inner}
-                      onChange={e =>
-                        handleBulkChange(idx, 'inner', e.target.value)
-                      }
-                      min="1"
-                      placeholder="e.g. 5"
-                    />
-                  </div>
-                  <div data-label="Total Qty">
-                    <input
-                      type="number"
-                      value={bp.qty}
-                      onChange={e =>
-                        handleBulkChange(idx, 'qty', e.target.value)
-                      }
-                      min="1"
-                      placeholder="e.g. 50"
-                    />
-                  </div>
-                  <div data-label="Unit Price (₹)">
-                    <input
-                      type="number"
-                      value={bp.price}
-                      onChange={e =>
-                        handleBulkChange(idx, 'price', e.target.value)
-                      }
-                      min="0"
-                      step="0.01"
-                      placeholder="0.00"
-                    />
-                  </div>
-                  <div data-label="Actions">
-                    <button
-                      type="button"
-                      onClick={() => removeBulkRow(idx)}
-                      disabled={bulkPrices.length === 1}
-                      className="table-action-btn danger"
-                      aria-label="Remove row"
-                    >
-                      <FiTrash2 />
-                    </button>
-                  </div>
+                <div key={idx} className="table-row">
+                  <input
+                    type="number"
+                    value={bp.inner}
+                    onChange={(e) =>
+                      handleBulkChange(idx, "inner", e.target.value)
+                    }
+                    min="1"
+                    placeholder="5"
+                  />
+                  <input
+                    type="number"
+                    value={bp.qty}
+                    onChange={(e) =>
+                      handleBulkChange(idx, "qty", e.target.value)
+                    }
+                    min="1"
+                    placeholder="50"
+                  />
+                  <input
+                    type="number"
+                    value={bp.price}
+                    onChange={(e) =>
+                      handleBulkChange(idx, "price", e.target.value)
+                    }
+                    min="0"
+                    step="0.01"
+                    placeholder="0.00"
+                  />
+                  <button
+                    type="button"
+                    onClick={() => removeBulkRow(idx)}
+                    disabled={bulkPrices.length === 1}
+                    className="table-action-btn danger"
+                  >
+                    <FiTrash2 />
+                  </button>
                 </div>
               ))}
             </div>
@@ -440,13 +462,6 @@ const ProductForm: React.FC = () => {
             >
               <FiPlus /> Add Bulk Pricing Tier
             </button>
-
-            <div className="bulk-pricing-note">
-              <p>
-                <strong>Note:</strong> Bulk pricing will apply when
-                customer orders reach the minimum quantity.
-              </p>
-            </div>
           </div>
         </div>
 
@@ -458,19 +473,14 @@ const ProductForm: React.FC = () => {
           >
             Cancel
           </button>
-          <button
-            type="submit"
-            className="save-btn"
-            disabled={loading}
-          >
+          <button type="submit" className="save-btn" disabled={loading}>
             {loading ? (
               <>
-                <span className="spinner"></span>
-                Saving...
+                <span className="spinner"></span> Saving...
               </>
             ) : (
               <>
-                <FiSave /> {editMode ? 'Update Product' : 'Create Product'}
+                <FiSave /> {editMode ? "Update Product" : "Create Product"}
               </>
             )}
           </button>

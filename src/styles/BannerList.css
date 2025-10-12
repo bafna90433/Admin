@@ -1,82 +1,250 @@
+/* =======================================
+   1. Page Layout and Global Styles
+   ======================================= */
 .banner-list {
-  padding: 2rem;
-  max-width: 1000px;
-  margin: auto;
+  padding: 30px 5%;
+  background: #f8fafc;
+  min-height: 100vh;
+  font-family: 'Inter', sans-serif; /* A more modern font */
 }
 
 .banner-list h2 {
-  font-size: 1.8rem;
-  margin-bottom: 1.5rem;
   text-align: center;
+  font-size: 2rem;
+  font-weight: 800;
+  color: #1e293b;
+  margin-bottom: 35px;
+  letter-spacing: -0.5px;
 }
 
 .banner-items {
   display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
-  gap: 1.5rem;
+  /* Modern grid layout: Min 300px wide cards, as many as fit */
+  grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+  gap: 30px;
 }
 
-.banner-card {
-  border: 1px solid #ddd;
-  border-radius: 10px;
-  padding: 1rem;
+.banner-list > p, .banner-list > div.banner-list { /* For loading/empty state */
   text-align: center;
-  box-shadow: 0 2px 5px rgba(0,0,0,0.1);
-  background-color: #fff;
-  transition: box-shadow 0.3s ease;
+  font-size: 1.1rem;
+  color: #64748b;
+  padding: 20px;
+}
+
+
+/* =======================================
+   2. Banner Card Styling
+   ======================================= */
+.banner-card {
+  background: #ffffff;
+  border-radius: 12px;
+  box-shadow: 0 4px 10px rgba(0, 0, 0, 0.05), 0 10px 20px rgba(0, 0, 0, 0.04);
+  overflow: hidden;
+  transition: transform 0.2s ease, box-shadow 0.3s ease;
+  display: flex;
+  flex-direction: column;
 }
 
 .banner-card:hover {
-  box-shadow: 0 4px 12px rgba(0,0,0,0.15);
+  transform: translateY(-5px);
+  box-shadow: 0 8px 15px rgba(0, 0, 0, 0.08), 0 15px 30px rgba(0, 0, 0, 0.06);
 }
 
-.banner-card img {
+/* --- Image and Status Badge --- */
+.banner-image-wrapper {
+  position: relative;
+  height: 200px; /* Taller image */
+  background: #e2e8f0;
+  overflow: hidden;
+}
+
+.banner-image {
   width: 100%;
-  height: auto;
-  border-radius: 6px;
+  height: 100%;
   object-fit: cover;
-  max-height: 180px;
+  transition: transform 0.4s ease;
 }
 
-button.enabled {
-  margin-top: 10px;
-  background-color: #e74c3c;
+.banner-card:hover .banner-image {
+  transform: scale(1.05);
+}
+
+.status-badge {
+  position: absolute;
+  top: 15px;
+  right: 15px;
+  padding: 6px 14px;
+  border-radius: 20px;
+  font-size: 0.9rem;
+  font-weight: 700;
   color: white;
-  padding: 8px 14px;
-  border: none;
-  border-radius: 6px;
-  cursor: pointer;
+  z-index: 10;
+  box-shadow: 0 2px 5px rgba(0, 0, 0, 0.2);
 }
 
-button.disabled {
-  margin-top: 10px;
-  background-color: #2ecc71;
-  color: white;
-  padding: 8px 14px;
-  border: none;
-  border-radius: 6px;
-  cursor: pointer;
+.status-badge.enabled {
+  background: #10b981; /* Green */
 }
 
-button.enabled:hover,
-button.disabled:hover {
-  opacity: 0.9;
+.status-badge.disabled {
+  background: #f97316; /* Orange */
 }
+
+/* --- Info Section --- */
+.banner-info {
+  padding: 18px 20px 20px;
+  flex-grow: 1;
+  display: flex;
+  flex-direction: column;
+  justify-content: space-between;
+  gap: 15px;
+}
+
+.banner-link-row {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  border-bottom: 1px solid #f1f5f9;
+  padding-bottom: 15px;
+  margin-bottom: 5px;
+}
+
+.banner-link {
+  color: #3b82f6; /* Blue */
+  text-decoration: none;
+  font-size: 0.95rem;
+  font-weight: 500;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  max-width: calc(100% - 40px); /* Leave space for copy button */
+  display: inline-flex;
+  align-items: center;
+  transition: color 0.2s;
+}
+
+.banner-link:hover {
+  color: #2563eb;
+}
+
+.no-link {
+  font-style: italic;
+  color: #94a3b8;
+  font-size: 0.9rem;
+  padding-bottom: 15px;
+  border-bottom: 1px solid #f1f5f9;
+}
+
+.copy-btn {
+  background: none;
+  border: none;
+  color: #94a3b8;
+  cursor: pointer;
+  padding: 5px;
+  border-radius: 4px;
+  transition: all 0.2s;
+}
+
+.copy-btn:hover {
+  color: #3b82f6;
+  background-color: #eff6ff;
+}
+
+/* =======================================
+   3. Button Group and Toast
+   ======================================= */
 .button-group {
   display: flex;
   justify-content: space-between;
+  gap: 10px;
   margin-top: 10px;
 }
 
-.delete-btn {
-  background-color: #e67e22;
-  color: white;
-  padding: 8px 14px;
+.toggle-btn, .delete-btn {
+  flex: 1;
+  padding: 10px 15px;
   border: none;
-  border-radius: 6px;
+  border-radius: 8px;
+  font-weight: 600;
   cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  font-size: 1rem;
+  transition: all 0.2s ease;
+  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+}
+
+.toggle-btn.enabled {
+  background-color: #22c55e;
+  color: white;
+}
+
+.toggle-btn.disabled {
+  background-color: #f1f5f9;
+  color: #475569;
+}
+
+.toggle-btn.enabled:hover {
+  background-color: #16a34a;
+  box-shadow: 0 4px 8px rgba(34, 197, 94, 0.4);
+}
+
+.toggle-btn.disabled:hover {
+  background-color: #e2e8f0;
+}
+
+.delete-btn {
+  background-color: #ef4444;
+  color: white;
 }
 
 .delete-btn:hover {
-  background-color: #d35400;
+  background-color: #dc2626;
+  box-shadow: 0 4px 8px rgba(239, 68, 68, 0.4);
+}
+
+/* --- Toast Notification --- */
+.toast-notification {
+  position: fixed;
+  bottom: 20px;
+  right: 20px;
+  background-color: #10b981;
+  color: white;
+  padding: 12px 20px;
+  border-radius: 8px;
+  box-shadow: 0 5px 15px rgba(0, 0, 0, 0.2);
+  z-index: 1000;
+  font-size: 1rem;
+  animation: fadein 0.5s, fadeout 0.5s 2.5s;
+}
+
+@keyframes fadein {
+  from {opacity: 0; transform: translateY(20px);}
+  to {opacity: 1; transform: translateY(0);}
+}
+
+@keyframes fadeout {
+  from {opacity: 1; transform: translateY(0);}
+  to {opacity: 0; transform: translateY(20px);}
+}
+
+/* =======================================
+   4. Media Queries for Responsiveness
+   ======================================= */
+@media (max-width: 600px) {
+  .banner-list {
+    padding: 20px;
+  }
+  .banner-list h2 {
+    font-size: 1.5rem;
+    margin-bottom: 25px;
+  }
+  .banner-items {
+    gap: 20px;
+  }
+  .button-group {
+    flex-direction: column;
+  }
 }

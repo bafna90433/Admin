@@ -6,11 +6,22 @@ import { format } from "date-fns";
 import api from "../utils/api";
 import "../styles/AdminDashboard.css";
 import {
-  FiSearch, FiX, FiMessageSquare, FiEye, FiCheck, FiTrash2,
-  FiUser, FiClock, FiCheckCircle, FiDownload, FiAlertCircle, FiPhone, FiKey
+  FiSearch,
+  FiX,
+  FiMessageSquare,
+  FiEye,
+  FiCheck,
+  FiTrash2,
+  FiUser,
+  FiClock,
+  FiCheckCircle,
+  FiDownload,
+  FiAlertCircle,
+  FiPhone,
+  FiKey,
 } from "react-icons/fi";
 
-// Customer Type
+// 🧾 Customer Type
 type Customer = {
   _id: string;
   shopName: string;
@@ -21,7 +32,7 @@ type Customer = {
   createdAt: string;
 };
 
-// Main Component
+// 🧩 Main Component
 const AdminDashboard: React.FC = () => {
   const [rows, setRows] = useState<Customer[]>([]);
   const [filteredRows, setFilteredRows] = useState<Customer[]>([]);
@@ -29,25 +40,39 @@ const AdminDashboard: React.FC = () => {
   const [err, setErr] = useState<string | null>(null);
   const [acting, setActing] = useState<string | null>(null);
   const [searchTerm, setSearchTerm] = useState("");
-  const [statusFilter, setStatusFilter] = useState<"all" | "pending" | "approved">("all");
+  const [statusFilter, setStatusFilter] = useState<
+    "all" | "pending" | "approved"
+  >("all");
   const [previewUrl, setPreviewUrl] = useState<string | null>(null);
   const [isSearchFocused, setIsSearchFocused] = useState(false);
-  
-  // New state for the delete confirmation modal
-  const [deleteCandidateId, setDeleteCandidateId] = useState<string | null>(null);
+
+  // Delete confirmation modal
+  const [deleteCandidateId, setDeleteCandidateId] = useState<string | null>(
+    null
+  );
   const [deletePassword, setDeletePassword] = useState("");
 
-  const stats = useMemo(() => ({
-    total: rows.length,
-    pending: rows.filter((r) => r.isApproved !== true).length,
-    approved: rows.filter((r) => r.isApproved === true).length,
-  }), [rows]);
+  // ✅ Stats cards
+  const stats = useMemo(
+    () => ({
+      total: rows.length,
+      pending: rows.filter((r) => r.isApproved !== true).length,
+      approved: rows.filter((r) => r.isApproved === true).length,
+    }),
+    [rows]
+  );
 
   const mediaBase = useMemo(() => {
     const apiBase = (import.meta as any).env?.VITE_API_URL || "";
     const fromApi = apiBase ? apiBase.replace(/\/api\/?$/, "") : "";
-    return ((import.meta as any).env?.VITE_MEDIA_URL || fromApi || "").replace(/\/+$/, "");
+    return (
+      ((import.meta as any).env?.VITE_MEDIA_URL || fromApi || "").replace(
+        /\/+$/,
+        ""
+      )
+    );
   }, []);
+
   const resolveUrl = (u?: string) => {
     if (!u) return undefined;
     if (/^https?:\/\//i.test(u)) return u;
@@ -58,7 +83,15 @@ const AdminDashboard: React.FC = () => {
     try {
       setLoading(true);
       const { data } = await api.get<Customer[]>("/admin/customers");
-      setRows(Array.isArray(data) ? data.sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime()) : []);
+      setRows(
+        Array.isArray(data)
+          ? data.sort(
+              (a, b) =>
+                new Date(b.createdAt).getTime() -
+                new Date(a.createdAt).getTime()
+            )
+          : []
+      );
       setErr(null);
     } catch (e: any) {
       console.error(e);
@@ -94,7 +127,11 @@ const AdminDashboard: React.FC = () => {
     setFilteredRows(result);
   }, [rows, searchTerm, statusFilter]);
 
-  const handleApiAction = async (action: Promise<any>, successStateUpdate: () => void, successMessage: string) => {
+  const handleApiAction = async (
+    action: Promise<any>,
+    successStateUpdate: () => void,
+    successMessage: string
+  ) => {
     try {
       await action;
       successStateUpdate();
@@ -111,62 +148,101 @@ const AdminDashboard: React.FC = () => {
     setActing(id);
     handleApiAction(
       api.patch(`/admin/approve/${id}`),
-      () => setRows((p) => p.map((r) => (r._id === id ? { ...r, isApproved: true } : r))),
+      () =>
+        setRows((p) =>
+          p.map((r) => (r._id === id ? { ...r, isApproved: true } : r))
+        ),
       "Customer approved successfully!"
     );
   };
 
-  // Modified: This now opens the password modal
+  // 🗑️ Delete User (password confirm modal)
   const deleteUser = (id: string) => {
     setDeleteCandidateId(id);
   };
-  
-  // New: Handles the password check and deletion
+
   const handleConfirmDelete = () => {
     if (deletePassword !== "bafnatoys") {
-        toast.error("Incorrect password. Deletion cancelled.");
-        return;
+      toast.error("Incorrect password. Deletion cancelled.");
+      return;
     }
 
     if (deleteCandidateId) {
-        setActing(deleteCandidateId);
-        handleApiAction(
-            api.delete(`/admin/customer/${deleteCandidateId}`),
-            () => setRows((p) => p.filter((r) => r._id !== deleteCandidateId)),
-            "Customer deleted successfully."
-        );
+      setActing(deleteCandidateId);
+      handleApiAction(
+        api.delete(`/admin/customer/${deleteCandidateId}`),
+        () =>
+          setRows((p) =>
+            p.filter((r) => r._id !== deleteCandidateId)
+          ),
+        "Customer deleted successfully."
+      );
     }
-    // Close and reset the modal state
+
     setDeleteCandidateId(null);
     setDeletePassword("");
   };
 
+  // ✅ Export
   const handleExport = () => {
-    const dataToExport = filteredRows.map(c => ({
-      "Shop Name": c.shopName, "Mobile": c.otpMobile, "WhatsApp": c.whatsapp,
-      "Status": c.isApproved === true ? "Approved" : "Pending",
+    const dataToExport = filteredRows.map((c) => ({
+      "Shop Name": c.shopName,
+      Mobile: c.otpMobile,
+      WhatsApp: c.whatsapp,
+      Status: c.isApproved === true ? "Approved" : "Pending",
       "Registered On": format(new Date(c.createdAt), "dd MMM yyyy, hh:mm a"),
     }));
-    if(dataToExport.length === 0) {
-      toast.error("No data to export."); return;
+
+    if (dataToExport.length === 0) {
+      toast.error("No data to export.");
+      return;
     }
+
     const worksheet = utils.json_to_sheet(dataToExport);
     const workbook = utils.book_new();
     utils.book_append_sheet(workbook, worksheet, "Customers");
-    const cols = Object.keys(dataToExport[0]).map(key => ({
-      wch: Math.max(key.length, ...dataToExport.map(row => String(row[key as keyof typeof row]).length)) + 2
+
+    const cols = Object.keys(dataToExport[0]).map((key) => ({
+      wch:
+        Math.max(
+          key.length,
+          ...dataToExport.map((row) =>
+            String(row[key as keyof typeof row]).length
+          )
+        ) + 2,
     }));
+
     worksheet["!cols"] = cols;
-    writeFile(workbook, `BafnaToys_Customers_${format(new Date(), "yyyy-MM-dd")}.xlsx`);
+    writeFile(
+      workbook,
+      `BafnaToys_Customers_${format(new Date(), "yyyy-MM-dd")}.xlsx`
+    );
     toast.success("Data exported successfully!");
   };
 
+  // ✅ Fixed WhatsApp link (no HTTP 429)
   const openWhatsApp = (phone: string) => {
+    if (!phone) {
+      toast.error("WhatsApp number missing!");
+      return;
+    }
+
+    // Ensure correct phone format
     const clean = phone.startsWith("+") ? phone : `+91${phone}`;
-    const message = encodeURIComponent("Welcome to BafnaToys! ✅ Your account is approved. Prices are now visible.\nLogin here: https://bafnatoys.com/login");
-    window.open(`https://wa.me/${clean}?text=${message}`, "_blank");
+
+    // Properly encoded, short message
+    const message = encodeURIComponent(
+      "Welcome to BafnaToys! ✅\nYour account is approved.\nPrices are now visible.\nLogin here: https://bafnatoys.com/login"
+    );
+
+    // Use api.whatsapp.com instead of wa.me
+    const waLink = `https://api.whatsapp.com/send?phone=${clean}&text=${message}`;
+
+    // Open new tab safely
+    window.open(waLink, "_blank", "noopener,noreferrer");
   };
 
+  // 🧠 JSX UI
   return (
     <div className="admin-dashboard-container">
       <Toaster position="top-center" reverseOrder={false} />
@@ -174,7 +250,9 @@ const AdminDashboard: React.FC = () => {
       <div className="dashboard-header">
         <div>
           <h1 className="heading">Customer Management</h1>
-          <p className="subheading">View, manage, and export all customer registrations.</p>
+          <p className="subheading">
+            View, manage, and export all customer registrations.
+          </p>
         </div>
         <button className="action-btn export-btn" onClick={handleExport}>
           <FiDownload size={16} /> Export to Excel
@@ -182,38 +260,95 @@ const AdminDashboard: React.FC = () => {
       </div>
 
       <div className="stats-cards-container">
-        <div className="stats-card total"><div className="stats-icon"><FiUser/></div><div><div className="stats-number">{stats.total}</div><div className="stats-label">Total Registrations</div></div></div>
-        <div className="stats-card pending"><div className="stats-icon"><FiClock/></div><div><div className="stats-number">{stats.pending}</div><div className="stats-label">Pending Approval</div></div></div>
-        <div className="stats-card approved"><div className="stats-icon"><FiCheckCircle/></div><div><div className="stats-number">{stats.approved}</div><div className="stats-label">Approved Customers</div></div></div>
+        <div className="stats-card total">
+          <div className="stats-icon">
+            <FiUser />
+          </div>
+          <div>
+            <div className="stats-number">{stats.total}</div>
+            <div className="stats-label">Total Registrations</div>
+          </div>
+        </div>
+        <div className="stats-card pending">
+          <div className="stats-icon">
+            <FiClock />
+          </div>
+          <div>
+            <div className="stats-number">{stats.pending}</div>
+            <div className="stats-label">Pending Approval</div>
+          </div>
+        </div>
+        <div className="stats-card approved">
+          <div className="stats-icon">
+            <FiCheckCircle />
+          </div>
+          <div>
+            <div className="stats-number">{stats.approved}</div>
+            <div className="stats-label">Approved Customers</div>
+          </div>
+        </div>
       </div>
 
+      {/* 🔍 Search + Filter */}
       <div className="table-toolbar">
         <div className="search-box-wrapper">
           <div className={`search-box ${isSearchFocused ? "focused" : ""}`}>
             <FiSearch className="search-icon" />
-            <input type="text" placeholder="Search by shop name or phone..." value={searchTerm} onChange={(e) => setSearchTerm(e.target.value)} onFocus={() => setIsSearchFocused(true)} onBlur={() => setIsSearchFocused(false)} />
-            {searchTerm && <button className="clear-search" onClick={() => setSearchTerm("")}><FiX size={16} /></button>}
+            <input
+              type="text"
+              placeholder="Search by shop name or phone..."
+              value={searchTerm}
+              onChange={(e) => setSearchTerm(e.target.value)}
+              onFocus={() => setIsSearchFocused(true)}
+              onBlur={() => setIsSearchFocused(false)}
+            />
+            {searchTerm && (
+              <button
+                className="clear-search"
+                onClick={() => setSearchTerm("")}
+              >
+                <FiX size={16} />
+              </button>
+            )}
           </div>
         </div>
         <div className="filter-tabs">
           {["all", "pending", "approved"].map((status) => (
-            <button key={status} className={`filter-tab ${statusFilter === status ? "active" : ""}`} onClick={() => setStatusFilter(status as any)}>
+            <button
+              key={status}
+              className={`filter-tab ${
+                statusFilter === status ? "active" : ""
+              }`}
+              onClick={() => setStatusFilter(status as any)}
+            >
               {status.charAt(0).toUpperCase() + status.slice(1)}
             </button>
           ))}
         </div>
       </div>
 
+      {/* 🧾 Customers Table */}
       <div className="table-container">
-        {loading && <div className="loader-container"><div className="loader"></div></div>}
-        {err && <div className="error-message"><FiAlertCircle/> {err}</div>}
+        {loading && (
+          <div className="loader-container">
+            <div className="loader"></div>
+          </div>
+        )}
+        {err && (
+          <div className="error-message">
+            <FiAlertCircle /> {err}
+          </div>
+        )}
         {!loading && !err && (
           <div className="customers-table-wrapper">
             <table className="customers-table">
               <thead>
                 <tr>
-                  <th>Shop Name</th> <th>Contact Details</th> <th>Registered On</th> <th>Status</th>
-                  <th style={{ textAlign: 'center' }}>Actions</th>
+                  <th>Shop Name</th>
+                  <th>Contact Details</th>
+                  <th>Registered On</th>
+                  <th>Status</th>
+                  <th style={{ textAlign: "center" }}>Actions</th>
                 </tr>
               </thead>
               <tbody>
@@ -222,35 +357,90 @@ const AdminDashboard: React.FC = () => {
                     const fullUrl = resolveUrl(customer.visitingCardUrl);
                     return (
                       <tr key={customer._id}>
-                        <td data-label="Shop Name"><div className="cell-content shop-name-cell">{customer.shopName}</div></td>
-                        <td data-label="Contact">
-                          <div className="cell-content contact-cell">
-                            <div className="contact-info"><FiPhone size={14} /> {customer.otpMobile}</div>
-                            {customer.whatsapp && <div className="contact-info"><FiMessageSquare size={14} /> {customer.whatsapp}</div>}
+                        <td data-label="Shop Name">
+                          <div className="cell-content shop-name-cell">
+                            {customer.shopName}
                           </div>
                         </td>
-                        <td data-label="Registered"><div className="cell-content date-cell">{format(new Date(customer.createdAt), "dd MMM, yyyy")}</div></td>
+                        <td data-label="Contact">
+                          <div className="cell-content contact-cell">
+                            <div className="contact-info">
+                              <FiPhone size={14} /> {customer.otpMobile}
+                            </div>
+                            {customer.whatsapp && (
+                              <div className="contact-info">
+                                <FiMessageSquare size={14} />{" "}
+                                {customer.whatsapp}
+                              </div>
+                            )}
+                          </div>
+                        </td>
+                        <td data-label="Registered">
+                          <div className="cell-content date-cell">
+                            {format(new Date(customer.createdAt), "dd MMM, yyyy")}
+                          </div>
+                        </td>
                         <td data-label="Status">
                           <div className="cell-content">
-                            {customer.isApproved === true ? (<span className="status-badge approved">Approved</span>) : (<span className="status-badge pending">Pending</span>)}
+                            {customer.isApproved === true ? (
+                              <span className="status-badge approved">
+                                Approved
+                              </span>
+                            ) : (
+                              <span className="status-badge pending">
+                                Pending
+                              </span>
+                            )}
                           </div>
                         </td>
                         <td data-label="Actions">
                           <div className="actions-cell">
-                             {fullUrl && (<button className="action-btn-icon" title="View Visiting Card" onClick={() => setPreviewUrl(fullUrl)}><FiEye size={16} /></button>)}
-                            {customer.isApproved !== true ? (
-                              <button className="action-btn-sm approve-btn" disabled={acting === customer._id} onClick={() => approveUser(customer._id)}><FiCheck size={14} /> Approve</button>
-                            ) : (
-                              customer.whatsapp && (<button className="action-btn-sm whatsapp-btn" onClick={() => openWhatsApp(customer.whatsapp)}><FiMessageSquare size={14} /> Notify</button>)
+                            {fullUrl && (
+                              <button
+                                className="action-btn-icon"
+                                title="View Visiting Card"
+                                onClick={() => setPreviewUrl(fullUrl)}
+                              >
+                                <FiEye size={16} />
+                              </button>
                             )}
-                            <button className="action-btn-icon delete-btn" title="Delete Customer" disabled={acting === customer._id} onClick={() => deleteUser(customer._id)}><FiTrash2 size={16} /></button>
+                            {customer.isApproved !== true ? (
+                              <button
+                                className="action-btn-sm approve-btn"
+                                disabled={acting === customer._id}
+                                onClick={() => approveUser(customer._id)}
+                              >
+                                <FiCheck size={14} /> Approve
+                              </button>
+                            ) : (
+                              customer.whatsapp && (
+                                <button
+                                  className="action-btn-sm whatsapp-btn"
+                                  onClick={() => openWhatsApp(customer.whatsapp)}
+                                >
+                                  <FiMessageSquare size={14} /> Notify
+                                </button>
+                              )
+                            )}
+                            <button
+                              className="action-btn-icon delete-btn"
+                              title="Delete Customer"
+                              disabled={acting === customer._id}
+                              onClick={() => deleteUser(customer._id)}
+                            >
+                              <FiTrash2 size={16} />
+                            </button>
                           </div>
                         </td>
                       </tr>
                     );
                   })
                 ) : (
-                  <tr><td colSpan={5} className="no-results">No customers match your criteria.</td></tr>
+                  <tr>
+                    <td colSpan={5} className="no-results">
+                      No customers match your criteria.
+                    </td>
+                  </tr>
                 )}
               </tbody>
             </table>
@@ -258,49 +448,74 @@ const AdminDashboard: React.FC = () => {
         )}
       </div>
 
+      {/* 🪪 Visiting Card Preview */}
       {previewUrl && (
         <div className="preview-modal" onClick={() => setPreviewUrl(null)}>
-          <div className="preview-content" onClick={(e) => e.stopPropagation()}>
-            <button className="modal-close" onClick={() => setPreviewUrl(null)}><FiX size={24} /></button>
-            <img className="preview-image" src={previewUrl} alt="Visiting card" />
-            <div className="preview-actions"><a href={previewUrl} target="_blank" rel="noreferrer" className="preview-link">Open in new tab</a></div>
+          <div
+            className="preview-content"
+            onClick={(e) => e.stopPropagation()}
+          >
+            <button
+              className="modal-close"
+              onClick={() => setPreviewUrl(null)}
+            >
+              <FiX size={24} />
+            </button>
+            <img
+              className="preview-image"
+              src={previewUrl}
+              alt="Visiting card"
+            />
+            <div className="preview-actions">
+              <a
+                href={previewUrl}
+                target="_blank"
+                rel="noreferrer"
+                className="preview-link"
+              >
+                Open in new tab
+              </a>
+            </div>
           </div>
         </div>
       )}
 
-      {/* ✅ New Delete Confirmation Modal ✅ */}
+      {/* 🧨 Delete Confirmation Modal */}
       {deleteCandidateId && (
         <div className="delete-modal-overlay">
           <div className="delete-modal-content">
             <h3 className="delete-modal-title">Confirm Deletion</h3>
-            <p className="delete-modal-text">This action is permanent and cannot be undone. Please enter the password to confirm.</p>
+            <p className="delete-modal-text">
+              This action is permanent and cannot be undone. Please enter the
+              password to confirm.
+            </p>
             <div className="delete-modal-input-wrapper">
-                <FiKey className="delete-modal-input-icon" />
-                <input 
-                    type="password"
-                    placeholder="Enter password..."
-                    className="delete-modal-input"
-                    value={deletePassword}
-                    onChange={(e) => setDeletePassword(e.target.value)}
-                    autoFocus
-                />
+              <FiKey className="delete-modal-input-icon" />
+              <input
+                type="password"
+                placeholder="Enter password..."
+                className="delete-modal-input"
+                value={deletePassword}
+                onChange={(e) => setDeletePassword(e.target.value)}
+                autoFocus
+              />
             </div>
             <div className="delete-modal-actions">
-                <button 
-                    className="action-btn-sm modal-cancel-btn"
-                    onClick={() => {
-                        setDeleteCandidateId(null);
-                        setDeletePassword("");
-                    }}
-                >
-                    Cancel
-                </button>
-                <button 
-                    className="action-btn-sm modal-confirm-btn"
-                    onClick={handleConfirmDelete}
-                >
-                    Delete Customer
-                </button>
+              <button
+                className="action-btn-sm modal-cancel-btn"
+                onClick={() => {
+                  setDeleteCandidateId(null);
+                  setDeletePassword("");
+                }}
+              >
+                Cancel
+              </button>
+              <button
+                className="action-btn-sm modal-confirm-btn"
+                onClick={handleConfirmDelete}
+              >
+                Delete Customer
+              </button>
             </div>
           </div>
         </div>

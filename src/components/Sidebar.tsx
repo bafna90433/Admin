@@ -1,25 +1,20 @@
 import React from "react";
 import { Link, useLocation, useNavigate } from "react-router-dom";
-import { IconType } from "react-icons";
 import {
   FiLayout,
-  FiGrid,
+  FiShoppingBag,
+  FiTag,
   FiBox,
-  FiUser,
-  FiPlusSquare,
-  FiImage,
+  FiPlusCircle,
+  FiUsers,
+  FiMessageCircle,
   FiLogOut,
-  FiShoppingCart,
-  FiMessageSquare,
+  FiX,
+  FiImage,
+  FiPlusSquare,
+  FiDollarSign, // ✅ COD icon
 } from "react-icons/fi";
 import "../styles/Sidebar.css";
-
-interface SidebarItem {
-  path: string;
-  name: string;
-  icon: IconType;
-  exact?: boolean;
-}
 
 interface SidebarProps {
   sidebarOpen: boolean;
@@ -30,58 +25,170 @@ const Sidebar: React.FC<SidebarProps> = ({ sidebarOpen, closeSidebar }) => {
   const { pathname } = useLocation();
   const navigate = useNavigate();
 
-  const sidebarItems: SidebarItem[] = [
-    { path: "/admin/dashboard", name: "Dashboard", icon: FiLayout, exact: true },
-    { path: "/admin/categories", name: "Categories", icon: FiGrid },
-    { path: "/admin/products", name: "Products", icon: FiBox },
-    { path: "/admin/products/new", name: "Add Product", icon: FiPlusSquare },
-    { path: "/admin/banners", name: "Banner List", icon: FiImage },
-    { path: "/admin/banners/upload", name: "Add Banner", icon: FiImage },
-    { path: "/admin/orders", name: "Orders", icon: FiShoppingCart },
-    { path: "/admin/registrations", name: "User Registrations", icon: FiUser },
-    { path: "/admin/whatsapp", name: "WhatsApp", icon: FiMessageSquare },
-  ];
-
-  const isActive = (path: string, exact = false) =>
-    exact ? pathname === path : pathname.startsWith(path);
+  const isActive = (path: string) =>
+    pathname === path || pathname.startsWith(path);
 
   const handleLogout = () => {
     if (window.confirm("Are you sure you want to log out?")) {
       localStorage.removeItem("adminToken");
       navigate("/admin/login");
     }
-    closeSidebar(); // auto-close on logout too
   };
 
   return (
-    <aside className={`sidebar ${sidebarOpen ? "open" : ""}`}>
-      <div className="sidebar-header">
-        {/* ✅ Cloudinary Logo */}
-        <img
-          src="https://res.cloudinary.com/dpdecxqb9/image/upload/v1758783697/bafnatoys/lwccljc9kkosfv9wnnrq.png"
-          alt="Bafna Toys Logo"
-          className="sidebar-logo"
-        />
+    <aside className={`sidebar-glass ${sidebarOpen ? "open" : ""}`}>
+      {/* ================= BRAND ================= */}
+      <div className="brand-wrapper">
+        <div className="brand-icon-box">
+          <img
+            src="https://res.cloudinary.com/dpdecxqb9/image/upload/v1758783697/bafnatoys/lwccljc9kkosfv9wnnrq.png"
+            alt="Bafna Toys Logo"
+          />
+        </div>
+
+        <div className="brand-info">
+          <span className="brand-name">Bafna Admin</span>
+          <span className="brand-status">
+            <span className="dot"></span> Online
+          </span>
+        </div>
+
+        <button className="sidebar-close-btn" onClick={closeSidebar}>
+          <FiX />
+        </button>
       </div>
 
-      <nav className="sidebar-nav">
-        {sidebarItems.map((item) => (
-          <Link
-            key={item.path}
-            to={item.path}
-            className={`sidebar-link ${isActive(item.path, item.exact) ? "active" : ""}`}
-            onClick={closeSidebar}   // ✅ auto-close on link click
-          >
-            <item.icon className="sidebar-icon" />
-            <span>{item.name}</span>
-          </Link>
-        ))}
-      </nav>
+      {/* ================= NAVIGATION ================= */}
+      <div className="nav-container">
+        {/* -------- General -------- */}
+        <div className="nav-group-label">General</div>
 
-      <div className="sidebar-footer">
-        <button className="logout-button" onClick={handleLogout}>
-          <FiLogOut className="logout-icon" />
-          <span>Logout</span>
+        <Link
+          to="/admin/dashboard"
+          className={`glass-link ${
+            isActive("/admin/dashboard") ? "active" : ""
+          }`}
+          onClick={closeSidebar}
+        >
+          <FiLayout className="link-icon" />
+          <span>Dashboard</span>
+        </Link>
+
+        <Link
+          to="/admin/orders"
+          className={`glass-link ${
+            isActive("/admin/orders") ? "active" : ""
+          }`}
+          onClick={closeSidebar}
+        >
+          <FiShoppingBag className="link-icon" />
+          <span>Orders</span>
+        </Link>
+
+        {/* -------- Catalog -------- */}
+        <div className="nav-group-label">Catalog</div>
+
+        <Link
+          to="/admin/categories"
+          className={`glass-link ${
+            isActive("/admin/categories") ? "active" : ""
+          }`}
+          onClick={closeSidebar}
+        >
+          <FiTag className="link-icon" />
+          <span>Categories</span>
+        </Link>
+
+        <Link
+          to="/admin/products"
+          className={`glass-link ${
+            isActive("/admin/products") ? "active" : ""
+          }`}
+          onClick={closeSidebar}
+        >
+          <FiBox className="link-icon" />
+          <span>Products</span>
+        </Link>
+
+        <Link
+          to="/admin/products/new"
+          className={`glass-link ${
+            isActive("/admin/products/new") ? "active" : ""
+          }`}
+          onClick={closeSidebar}
+        >
+          <FiPlusCircle className="link-icon" />
+          <span>Add New Toy</span>
+        </Link>
+
+        {/* -------- Marketing -------- */}
+        <div className="nav-group-label">Marketing</div>
+
+        <Link
+          to="/admin/banners"
+          className={`glass-link ${
+            isActive("/admin/banners") ? "active" : ""
+          }`}
+          onClick={closeSidebar}
+        >
+          <FiImage className="link-icon" />
+          <span>Banner List</span>
+        </Link>
+
+        <Link
+          to="/admin/banners/upload"
+          className={`glass-link ${
+            isActive("/admin/banners/upload") ? "active" : ""
+          }`}
+          onClick={closeSidebar}
+        >
+          <FiPlusSquare className="link-icon" />
+          <span>Add Banner</span>
+        </Link>
+
+        {/* -------- System -------- */}
+        <div className="nav-group-label">System</div>
+
+        <Link
+          to="/admin/registrations"
+          className={`glass-link ${
+            isActive("/admin/registrations") ? "active" : ""
+          }`}
+          onClick={closeSidebar}
+        >
+          <FiUsers className="link-icon" />
+          <span>Customers</span>
+        </Link>
+
+        <Link
+          to="/admin/whatsapp"
+          className={`glass-link ${
+            isActive("/admin/whatsapp") ? "active" : ""
+          }`}
+          onClick={closeSidebar}
+        >
+          <FiMessageCircle className="link-icon" />
+          <span>WhatsApp</span>
+        </Link>
+
+        {/* ✅ COD SETTINGS */}
+        <Link
+          to="/admin/cod-settings"
+          className={`glass-link ${
+            isActive("/admin/cod-settings") ? "active" : ""
+          }`}
+          onClick={closeSidebar}
+        >
+          <FiDollarSign className="link-icon" />
+          <span>COD Settings</span>
+        </Link>
+      </div>
+
+      {/* ================= LOGOUT ================= */}
+      <div className="sidebar-bottom">
+        <button className="logout-glass" onClick={handleLogout}>
+          <FiLogOut />
+          <span>Sign Out</span>
         </button>
       </div>
     </aside>

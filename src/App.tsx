@@ -1,5 +1,10 @@
 import React from "react";
-import { BrowserRouter as Router, Routes, Route, Navigate } from "react-router-dom";
+import {
+  BrowserRouter as Router,
+  Routes,
+  Route,
+  Navigate,
+} from "react-router-dom";
 
 import AdminLayout from "./components/AdminLayout";
 import Dashboard from "./components/Dashboard";
@@ -12,11 +17,12 @@ import AddBanner from "./components/AddBanner";
 import AdminDashboard from "./components/AdminDashboard";
 import AdminOrders from "./components/AdminOrders";
 import WhatsAppSettings from "./components/WhatsAppSettings";
+import CODSettings from "./components/CODSettings"; // ✅ ADD
 
-// 🔐 Admin Login page (components se import)
+// 🔐 Admin Login
 import AdminLogin from "./components/AdminLogin";
 
-// 🔒 Simple guard for admin routes
+// 🔒 Admin Route Guard
 const AdminGuard: React.FC<{ children: React.ReactNode }> = ({ children }) => {
   const token = localStorage.getItem("adminToken");
   if (!token) return <Navigate to="/admin/login" replace />;
@@ -33,7 +39,7 @@ const App: React.FC = () => {
         {/* Admin login (public) */}
         <Route path="/admin/login" element={<AdminLogin />} />
 
-        {/* Admin area (protected) */}
+        {/* ================= ADMIN (PROTECTED) ================= */}
         <Route
           path="/admin"
           element={
@@ -42,10 +48,8 @@ const App: React.FC = () => {
             </AdminGuard>
           }
         >
-          {/* Default -> dashboard */}
+          {/* Default dashboard */}
           <Route index element={<Dashboard />} />
-
-          {/* Dashboard (explicit path) */}
           <Route path="dashboard" element={<Dashboard />} />
 
           {/* Products */}
@@ -62,7 +66,7 @@ const App: React.FC = () => {
           <Route path="banners" element={<BannerList />} />
           <Route path="banners/upload" element={<AddBanner />} />
 
-          {/* Users (Registrations) */}
+          {/* Customers */}
           <Route path="registrations" element={<AdminDashboard />} />
 
           {/* Orders */}
@@ -70,6 +74,9 @@ const App: React.FC = () => {
 
           {/* WhatsApp Settings */}
           <Route path="whatsapp" element={<WhatsAppSettings />} />
+
+          {/* ✅ COD SETTINGS */}
+          <Route path="cod-settings" element={<CODSettings />} />
         </Route>
 
         {/* 404 fallback */}

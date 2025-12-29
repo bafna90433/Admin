@@ -1,0 +1,127 @@
+/* Container Card Style */
+.cod-settings {
+  background-color: #ffffff;
+  padding: 2rem;
+  border-radius: 12px;
+  box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -1px rgba(0, 0, 0, 0.06);
+  max-width: 450px;
+  margin: 0 auto;
+  font-family: 'Segoe UI', 'Roboto', sans-serif;
+  border: 1px solid #e2e8f0;
+}
+
+/* Header */
+.cod-settings h2 {
+  font-size: 1.5rem;
+  font-weight: 700;
+  color: #1e293b;
+  margin-bottom: 1.5rem;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding-bottom: 1rem;
+  border-bottom: 2px dashed #e2e8f0;
+}
+
+/* Loading State */
+.cod-settings p {
+  color: #64748b;
+  font-size: 0.95rem;
+}
+
+/* Label Styling */
+.cod-settings label {
+  display: block;
+  font-size: 0.9rem;
+  font-weight: 600;
+  color: #475569;
+  margin-bottom: 0.5rem;
+  letter-spacing: 0.025em;
+}
+
+/* Input Field Styling */
+.cod-settings input[type="number"] {
+  width: 100%;
+  padding: 0.75rem 1rem;
+  font-size: 1rem;
+  color: #0f172a;
+  background-color: #f8fafc;
+  border: 1px solid #cbd5e1;
+  border-radius: 8px;
+  transition: all 0.2s ease-in-out;
+  box-sizing: border-box; /* Ensures padding doesn't break width */
+}
+
+.cod-settings input[type="number"]:focus {
+  outline: none;
+  border-color: #2c5aa0;
+  background-color: #fff;
+  box-shadow: 0 0 0 3px rgba(44, 90, 160, 0.15);
+}
+
+/* Remove default spin buttons from number input (Cleaner look) */
+.cod-settings input[type="number"]::-webkit-inner-spin-button,
+.cod-settings input[type="number"]::-webkit-outer-spin-button {
+  -webkit-appearance: none;
+  margin: 0;
+}
+
+/* Button Styling */
+.cod-settings button {
+  display: block;
+  width: 100%;
+  margin-top: 1.5rem;
+  padding: 0.875rem;
+  font-size: 1rem;
+  font-weight: 600;
+  color: #ffffff;
+  background-color: #2c5aa0; /* Bafna Brand Color */
+  border: none;
+  border-radius: 8px;
+  cursor: pointer;
+  transition: background-color 0.2s ease, transform 0.1s ease;
+  box-shadow: 0 2px 4px rgba(44, 90, 160, 0.2);
+}
+
+.cod-settings button:hover {
+  background-color: #1e40af;
+}
+
+.cod-settings button:active {
+  transform: translateY(1px);
+}
+
+.cod-settings button:disabled {
+  background-color: #94a3b8;
+  cursor: not-allowed;
+  box-shadow: none;
+}
+
+/* Status Messages */
+.status {
+  margin-top: 1.25rem;
+  padding: 0.75rem;
+  border-radius: 6px;
+  font-size: 0.9rem;
+  font-weight: 500;
+  text-align: center;
+  animation: fadeIn 0.3s ease-in-out;
+}
+
+.status.success {
+  background-color: #dcfce7;
+  color: #166534;
+  border: 1px solid #bbf7d0;
+}
+
+.status.error {
+  background-color: #fee2e2;
+  color: #991b1b;
+  border: 1px solid #fecaca;
+}
+
+/* Simple Fade In Animation */
+@keyframes fadeIn {
+  from { opacity: 0; transform: translateY(-5px); }
+  to { opacity: 1; transform: translateY(0); }
+}

@@ -25,11 +25,17 @@ type CustomerLite = {
   visitingCardUrl?: string;
 };
 
-type ShippingInfo = {
-  address?: string;
-  phone?: string;
-  email?: string;
-  notes?: string;
+type ShippingAddress = {
+  _id?: string;
+  fullName: string;
+  phone: string;
+  street: string;
+  area?: string;
+  city: string;
+  state: string;
+  pincode: string;
+  type: string;
+  isDefault?: boolean;
 };
 
 type OrderStatus =
@@ -48,7 +54,7 @@ type Order = {
   total: number;
   paymentMethod?: string;
   status: OrderStatus;
-  shipping?: ShippingInfo;
+  shippingAddress?: ShippingAddress;
 };
 
 // Resolve image path
@@ -91,7 +97,7 @@ const highlight = (text: string, q: string) => {
   );
 };
 
-// ✅ Inner calculation
+// Inner calculation
 const toInners = (it: OrderItem): number => {
   if (it.inners && it.inners > 0) return it.inners;
   const perInner =
@@ -116,7 +122,7 @@ const formatExcelDate = (iso?: string): string =>
       })
     : "-";
 
-// ✅ Export all orders
+// Export all orders
 const exportAllOrders = (orders: Order[]) => {
   const rows = orders.map((o) => ({
     OrderNumber: o.orderNumber || o._id.slice(-6),
@@ -127,7 +133,13 @@ const exportAllOrders = (orders: Order[]) => {
     Shop: o.customerId?.shopName || "",
     Phone: o.customerId?.otpMobile || "",
     WhatsApp: o.customerId?.whatsapp || "",
-    TotalInners: o.items.reduce((sum, it) => sum + toInners(it), 0),
+    ShippingName: o.shippingAddress?.fullName || "",
+    ShippingPhone: o.shippingAddress?.phone || "",
+    ShippingAddress: `${o.shippingAddress?.street || ""}, ${o.shippingAddress?.area || ""}`,
+    ShippingCity: o.shippingAddress?.city || "",
+    ShippingState: o.shippingAddress?.state || "",
+    ShippingPincode: o.shippingAddress?.pincode || "",
+    TotalPackets: o.items.reduce((sum, it) => sum + toInners(it), 0), // Changed header to TotalPackets if you prefer
   }));
 
   const ws = XLSX.utils.json_to_sheet(rows);
@@ -140,7 +152,7 @@ const exportAllOrders = (orders: Order[]) => {
   );
 };
 
-// ✅ Export a single order
+// Export a single order
 const exportSingleOrder = (order: Order) => {
   const createdAt = formatExcelDate(order.createdAt);
 
@@ -149,11 +161,17 @@ const exportSingleOrder = (order: Order) => {
     Shop: order.customerId?.shopName || "",
     Phone: order.customerId?.otpMobile || "",
     WhatsApp: order.customerId?.whatsapp || "",
+    ShippingName: order.shippingAddress?.fullName || "",
+    ShippingPhone: order.shippingAddress?.phone || "",
+    ShippingAddress: `${order.shippingAddress?.street || ""}, ${order.shippingAddress?.area || ""}`,
+    ShippingCity: order.shippingAddress?.city || "",
+    ShippingState: order.shippingAddress?.state || "",
+    ShippingPincode: order.shippingAddress?.pincode || "",
     Item: it.name,
     Qty: it.qty,
     Price: it.price,
     Total: it.price * it.qty,
-    Inners: toInners(it),
+    Packets: toInners(it),
     CreatedAt: createdAt,
   }));
 
@@ -167,7 +185,7 @@ const exportSingleOrder = (order: Order) => {
   );
 };
 
-/* -------------------- Invoice Generator (Final) -------------------- */
+/* -------------------- Invoice Generator -------------------- */
 const generateInvoice = (order: Order) => {
   const printWindow = window.open("", "_blank");
   if (!printWindow) return;
@@ -177,6 +195,21 @@ const generateInvoice = (order: Order) => {
     month: "long",
     day: "numeric",
   });
+
+  const shippingAddr = order.shippingAddress;
+  let shippingHtml = "No shipping address provided";
+  
+  if (shippingAddr) {
+    const lines = [
+      shippingAddr.fullName ? `<strong>${shippingAddr.fullName}</strong>` : "",
+      shippingAddr.street || "",
+      shippingAddr.area || "",
+      shippingAddr.city ? `${shippingAddr.city}, ${shippingAddr.state}` : shippingAddr.state || "",
+      shippingAddr.pincode ? `PIN: ${shippingAddr.pincode}` : "",
+      shippingAddr.phone ? `Phone: ${shippingAddr.phone}` : ""
+    ].filter(Boolean);
+    shippingHtml = lines.join("<br>");
+  }
 
   const content = `
     <!DOCTYPE html>
@@ -312,6 +345,12 @@ const generateInvoice = (order: Order) => {
             </table>
           </div>
           <div class="detail-section">
+            <h3>Ship To</h3>
+            <div style="line-height: 1.5; font-size: 14px;">
+              ${shippingHtml}
+            </div>
+          </div>
+          <div class="detail-section">
             <h3>Invoice Details</h3>
             <table class="billto-table">
               <tr><td>Invoice No</td><td>: ${order.orderNumber || order._id.slice(-6)}</td></tr>
@@ -334,7 +373,7 @@ const generateInvoice = (order: Order) => {
             ${order.items?.map(it => `
               <tr>
                 <td>${it.name}</td>
-                <td>${it.qty} pcs (${toInners(it)} ${toInners(it) === 1 ? "inner" : "inners"})</td>
+                <td>${it.qty} pcs (${toInners(it)} ${toInners(it) === 1 ? "Packet" : "Packets"})</td>
                 <td>${new Intl.NumberFormat("en-IN",{style:"currency",currency:"INR"}).format(it.price)}</td>
                 <td>${new Intl.NumberFormat("en-IN",{style:"currency",currency:"INR"}).format(it.qty * it.price)}</td>
               </tr>`).join("")}
@@ -365,8 +404,6 @@ const generateInvoice = (order: Order) => {
   printWindow.document.close();
 };
 
-
-
 const AdminOrders: React.FC = () => {
   const [orders, setOrders] = useState<Order[]>([]);
   const [loading, setLoading] = useState(true);
@@ -379,7 +416,7 @@ const AdminOrders: React.FC = () => {
   const fetchOrders = useCallback(async () => {
     try {
       setLoading(true);
-      const { data } = await api.get<Order[]>("/orders");
+      const { data } = await api.get<Order[]>("/orders?populate=shippingAddress");
       setOrders(data || []);
       setError(null);
     } catch (err: any) {
@@ -439,13 +476,23 @@ const AdminOrders: React.FC = () => {
       const inPayment = norm(o.paymentMethod).includes(q);
       const inStatus = norm(o.status).includes(q);
       const inItems = o.items?.some((it) => norm(it.name).includes(q));
+      const shipping = o.shippingAddress;
+      const inShipping = 
+        norm(shipping?.fullName).includes(q) ||
+        norm(shipping?.phone).includes(q) ||
+        norm(shipping?.street).includes(q) ||
+        norm(shipping?.city).includes(q) ||
+        norm(shipping?.state).includes(q) ||
+        norm(shipping?.pincode).includes(q);
+      
       return (
         inOrderNum ||
         inIdSuffix ||
         inCustomer ||
         inPayment ||
         inStatus ||
-        inItems
+        inItems ||
+        inShipping
       );
     });
   }, [orders, debounced]);
@@ -454,6 +501,19 @@ const AdminOrders: React.FC = () => {
     if (e.key === "Enter" && filteredOrders.length > 0) {
       setViewing(filteredOrders[0]);
     }
+  };
+
+  const formatShippingAddress = (addr?: ShippingAddress): string => {
+    if (!addr) return "No shipping address";
+    
+    const parts = [
+      addr.street,
+      addr.area,
+      `${addr.city || ''}${addr.city && addr.state ? ', ' : ''}${addr.state || ''}`,
+      addr.pincode ? `PIN: ${addr.pincode}` : ''
+    ].filter(Boolean);
+    
+    return parts.join(', ');
   };
 
   return (
@@ -465,7 +525,7 @@ const AdminOrders: React.FC = () => {
           <input
             className="ord-srch-input"
             type="text"
-            placeholder="Search orders by number, shop name, phone, WhatsApp, payment, status, or item…"
+            placeholder="Search orders by number, shop name, phone, address, city, pincode…"
             value={search}
             onChange={(e) => setSearch(e.target.value)}
             onKeyDown={onBigSearchKeyDown}
@@ -481,7 +541,6 @@ const AdminOrders: React.FC = () => {
           )}
         </div>
 
-        {/* ✅ Export All Button */}
         <button
           className="ord-btn-export"
           onClick={() => exportAllOrders(filteredOrders)}
@@ -493,7 +552,7 @@ const AdminOrders: React.FC = () => {
       <div className="ord-meta">
         Showing <b>{filteredOrders.length}</b> of <b>{orders.length}</b> orders
         {debounced && filteredOrders.length > 0 && (
-          <span className="ord-meta-chip">filtered by “{debounced}”</span>
+          <span className="ord-meta-chip">filtered by "{debounced}"</span>
         )}
       </div>
 
@@ -534,6 +593,17 @@ const AdminOrders: React.FC = () => {
                         </span>
                       </div>
                     </div>
+                    {o.shippingAddress && (
+                      <div className="ord-row">
+                        <span className="ord-label">Shipping:</span>
+                        <div className="ord-shipping">
+                          {qSmall ? highlight(o.shippingAddress.fullName, qSmall) : o.shippingAddress.fullName}
+                          <span className="ord-shipping-meta">
+                            {qSmall ? highlight(formatShippingAddress(o.shippingAddress), qSmall) : formatShippingAddress(o.shippingAddress)}
+                          </span>
+                        </div>
+                      </div>
+                    )}
                     <div className="ord-row ord-itemsum">
                       <span>
                         {o.items.length} item{o.items.length > 1 ? "s" : ""}
@@ -609,7 +679,6 @@ const AdminOrders: React.FC = () => {
             </button>
             <h3>Order #{viewing.orderNumber || viewing._id.slice(-6)}</h3>
 
-            {/* ✅ Export & Invoice Buttons */}
             <div className="ord-m-export">
               <button
                 className="ord-btn-export"
@@ -633,7 +702,7 @@ const AdminOrders: React.FC = () => {
                 <b>Total:</b> ₹ {viewing.total.toFixed(2)}
               </div>
               <div>
-                <b>Total Inners:</b>{" "}
+                <b>Total Packets:</b>{" "}
                 {viewing.items.reduce((sum, it) => sum + toInners(it), 0)}
               </div>
               <div>
@@ -645,49 +714,84 @@ const AdminOrders: React.FC = () => {
             </div>
 
             <div className="ord-m-section">
-              <b>Shop Name:</b> {viewing.customerId?.shopName}
-              <br />
+              <h4>Customer Details</h4>
+              <div className="ord-m-detail">
+                <span className="ord-detail-label">Shop Name:</span>
+                <span className="ord-detail-value">{viewing.customerId?.shopName || "-"}</span>
+              </div>
               {viewing.customerId?.otpMobile && (
-                <>
-                  📞 {viewing.customerId.otpMobile}
-                  <br />
-                </>
+                <div className="ord-m-detail">
+                  <span className="ord-detail-label">Phone:</span>
+                  <span className="ord-detail-value">📞 {viewing.customerId.otpMobile}</span>
+                </div>
               )}
               {viewing.customerId?.whatsapp && (
-                <>
-                  💬 {viewing.customerId.whatsapp}
-                  <br />
-                </>
+                <div className="ord-m-detail">
+                  <span className="ord-detail-label">WhatsApp:</span>
+                  <span className="ord-detail-value">💬 {viewing.customerId.whatsapp}</span>
+                </div>
               )}
               {viewing.customerId?.visitingCardUrl && (
-                <a
-                  href={resolveImage(viewing.customerId.visitingCardUrl)}
-                  target="_blank"
-                  rel="noreferrer"
-                  className="ord-link"
-                >
-                  Visiting Card
-                </a>
+                <div className="ord-m-detail">
+                  <span className="ord-detail-label">Visiting Card:</span>
+                  <a
+                    href={resolveImage(viewing.customerId.visitingCardUrl)}
+                    target="_blank"
+                    rel="noreferrer"
+                    className="ord-link"
+                  >
+                    View Card
+                  </a>
+                </div>
               )}
             </div>
 
             <div className="ord-m-section">
-              <b>Shipping:</b>
-              <br />
-              {viewing.shipping?.address && <>📍 {viewing.shipping.address}<br /></>}
-              {viewing.shipping?.phone && <>📞 {viewing.shipping.phone}<br /></>}
-              {viewing.shipping?.email && <>✉️ {viewing.shipping.email}<br /></>}
-              {viewing.shipping?.notes && <>📝 {viewing.shipping.notes}</>}
-              {!viewing.shipping?.address &&
-                !viewing.shipping?.phone &&
-                !viewing.shipping?.email &&
-                !viewing.shipping?.notes && (
-                  <span style={{ color: "#888" }}>No shipping info</span>
-                )}
+              <h4>Shipping Address</h4>
+              {viewing.shippingAddress ? (
+                <>
+                  <div className="ord-m-detail">
+                    <span className="ord-detail-label">Name:</span>
+                    <span className="ord-detail-value">{viewing.shippingAddress.fullName}</span>
+                  </div>
+                  <div className="ord-m-detail">
+                    <span className="ord-detail-label">Phone:</span>
+                    <span className="ord-detail-value">📞 {viewing.shippingAddress.phone}</span>
+                  </div>
+                  <div className="ord-m-detail">
+                    <span className="ord-detail-label">Address:</span>
+                    <span className="ord-detail-value">
+                      {viewing.shippingAddress.street}
+                      {viewing.shippingAddress.area && `, ${viewing.shippingAddress.area}`}
+                    </span>
+                  </div>
+                  <div className="ord-m-detail">
+                    <span className="ord-detail-label">City/State:</span>
+                    <span className="ord-detail-value">
+                      {viewing.shippingAddress.city}, {viewing.shippingAddress.state} - {viewing.shippingAddress.pincode}
+                    </span>
+                  </div>
+                  <div className="ord-m-detail">
+                    <span className="ord-detail-label">Type:</span>
+                    <span className="ord-detail-value">
+                      <span className={`addr-tag ${viewing.shippingAddress.type.toLowerCase()}`}>
+                        {viewing.shippingAddress.type}
+                      </span>
+                      {viewing.shippingAddress.isDefault && (
+                        <span className="default-tag">Default</span>
+                      )}
+                    </span>
+                  </div>
+                </>
+              ) : (
+                <div className="ord-m-detail">
+                  <span style={{ color: "#888" }}>No shipping address provided</span>
+                </div>
+              )}
             </div>
 
             <div className="ord-m-section">
-              <b>Items:</b>
+              <h4>Order Items</h4>
               {viewing.items.map((it: OrderItem, i: number) => {
                 const img = resolveImage(it.image);
                 const iTotal = toInners(it);
@@ -699,7 +803,8 @@ const AdminOrders: React.FC = () => {
                       <div className="ord-m-img ord-m-imgph" />
                     )}
                     <span className="ord-m-iname">{it.name}</span>
-                    <span className="ord-m-inner">({iTotal} inners)</span>
+                    {/* ✅ CHANGED: Display 'Packet/Packets' instead of 'inner/inners' */}
+                    <span className="ord-m-inner">({iTotal} {iTotal === 1 ? "Packet" : "Packets"})</span>
                     <span className="ord-m-qty">x{it.qty}</span>
                     <span className="ord-m-price">
                       ₹ {(it.price * it.qty).toFixed(2)}

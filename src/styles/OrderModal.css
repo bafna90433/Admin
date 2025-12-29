@@ -1,108 +1,291 @@
 /* src/styles/OrderModal.css */
 
+/* --- Backdrop / Overlay --- */
 .modal-overlay {
   position: fixed;
   inset: 0;
-  background: rgba(0, 0, 0, 0.6);
+  background: rgba(15, 23, 42, 0.7); /* Modern Dark Slate */
+  backdrop-filter: blur(4px);
   display: flex;
   justify-content: center;
   align-items: center;
   z-index: 9999;
+  padding: 20px;
 }
 
-.modal {
-  background: #fff;
-  border-radius: 10px;
-  padding: 1.5rem;
-  max-width: 600px;
-  width: 90%;
-  position: relative;
-  box-shadow: 0 8px 30px rgba(0, 0, 0, 0.2);
-
-  /* ✅ Scroll fix */
+/* --- Main Modal Container --- */
+.modal-content {
+  background: #ffffff;
+  border-radius: 20px;
+  width: 100%;
+  max-width: 800px; /* Increased for grid layout */
   max-height: 90vh;
-  overflow-y: auto;
+  position: relative;
+  box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.25);
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+  animation: modalSlideUp 0.3s ease-out;
 }
 
-.modal::-webkit-scrollbar {
-  width: 6px;
+@keyframes modalSlideUp {
+  from { transform: translateY(20px); opacity: 0; }
+  to { transform: translateY(0); opacity: 1; }
 }
-.modal::-webkit-scrollbar-thumb {
-  background: #cbd5e1;
-  border-radius: 4px;
+
+/* --- Header Section --- */
+.modal-header {
+  padding: 20px 24px;
+  border-bottom: 1px solid #f1f5f9;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  background: #ffffff;
+}
+
+.header-title {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+.header-icon {
+  color: #2c5aa0;
+}
+
+.modal-header h2 {
+  margin: 0;
+  font-size: 1.25rem;
+  font-weight: 700;
+  color: #1e293b;
 }
 
 .modal-close {
-  position: absolute;
-  top: 12px;
-  right: 12px;
-  background: transparent;
+  background: #f1f5f9;
   border: none;
-  font-size: 1.5rem;
+  border-radius: 50%;
+  width: 36px;
+  height: 36px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
   cursor: pointer;
+  color: #64748b;
+  transition: all 0.2s;
 }
 
-.ord-m-export {
-  margin: 0.5rem 0 1rem;
-  text-align: right;
+.modal-close:hover {
+  background: #fee2e2;
+  color: #ef4444;
+}
+
+/* --- Body Section --- */
+.modal-body {
+  padding: 24px;
+  overflow-y: auto;
+  flex: 1;
+}
+
+.modal-body::-webkit-scrollbar { width: 6px; }
+.modal-body::-webkit-scrollbar-thumb { background: #cbd5e1; border-radius: 10px; }
+
+/* --- Export Actions --- */
+.ord-m-actions {
+  display: flex;
+  justify-content: flex-end;
+  margin-bottom: 20px;
 }
 
 .ord-btn-export {
-  background: #2563eb;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  background: #1f8a70;
   color: white;
   border: none;
-  padding: 0.5rem 1rem;
+  padding: 10px 16px;
   font-size: 0.875rem;
-  border-radius: 6px;
+  font-weight: 600;
+  border-radius: 10px;
   cursor: pointer;
+  transition: background 0.2s;
 }
+
 .ord-btn-export:hover {
-  background: #1d4ed8;
+  background: #166652;
+}
+
+/* --- Grid Layout (Info Sections) --- */
+.ord-m-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 20px;
+  margin-bottom: 30px;
 }
 
 .ord-m-section {
-  margin-bottom: 1rem;
-  font-size: 0.9rem;
-  color: #374151;
+  background: #ffffff;
 }
-.ord-m-section b {
-  color: #111827;
+
+.section-title {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 0.95rem;
+  font-weight: 700;
+  color: #475569;
+  margin: 0 0 15px 0;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+}
+
+/* --- Address Display Box --- */
+.shipping-highlight .address-display-box {
+  background: #f8fafc;
+  border: 1px solid #e2e8f0;
+  padding: 16px;
+  border-radius: 12px;
+  position: relative;
+}
+
+.address-display-box p {
+  margin: 0 0 5px 0;
+  font-size: 0.9rem;
+  color: #334155;
+}
+
+.pre-wrap { white-space: pre-wrap; line-height: 1.5; }
+
+.addr-type-tag {
+  display: inline-block;
+  margin-top: 10px;
+  font-size: 0.7rem;
+  font-weight: 800;
+  padding: 2px 8px;
+  background: #e2e8f0;
+  color: #475569;
+  border-radius: 99px;
+  text-transform: uppercase;
+}
+
+.mt-2 { margin-top: 10px; }
+
+/* --- Status Tags --- */
+.status-tag {
+  padding: 4px 10px;
+  border-radius: 6px;
+  font-size: 0.75rem;
+  font-weight: 700;
+}
+.status-tag.pending { background: #fef3c7; color: #92400e; }
+.status-tag.processing { background: #dbeafe; color: #1e40af; }
+.status-tag.delivered { background: #dcfce7; color: #166534; }
+.status-tag.cancelled { background: #fee2e2; color: #991b1b; }
+
+/* --- Customer Info Links --- */
+.view-card-link {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  margin-top: 10px;
+  font-size: 0.85rem;
+  font-weight: 600;
+  color: #2563eb;
+  text-decoration: none;
+}
+.view-card-link:hover { text-decoration: underline; }
+
+/* --- Items List Section --- */
+.modal-items-container {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  margin-top: 15px;
 }
 
 .ord-m-item {
   display: flex;
   align-items: center;
-  gap: 0.75rem;
-  padding: 0.75rem 0;
-  border-bottom: 1px solid #f3f4f6;
-}
-.ord-m-item:last-child {
-  border-bottom: none;
+  gap: 15px;
+  padding: 12px;
+  border-radius: 12px;
+  border: 1px solid #f1f5f9;
+  background: #ffffff;
 }
 
-.ord-m-img {
+.ord-m-img-box {
   width: 50px;
   height: 50px;
-  object-fit: contain;
-  border: 1px solid #e5e7eb;
-  border-radius: 6px;
-  background: #f9fafb;
+  flex-shrink: 0;
+  background: #f8fafc;
+  border-radius: 8px;
+  overflow: hidden;
 }
 
-.ord-m-iname {
-  font-weight: 500;
-  color: #1f2937;
+.ord-m-img-box img {
+  width: 100%;
+  height: 100%;
+  object-fit: contain;
+}
+
+.ord-m-item-info {
   flex: 1;
+  display: flex;
+  flex-direction: column;
 }
-.ord-m-inner {
-  color: #6b7280;
-  font-size: 0.85rem;
-}
-.ord-m-qty {
-  color: #374151;
-  font-size: 0.9rem;
-}
-.ord-m-price {
+
+.item-name-text {
   font-weight: 600;
-  color: #111827;
+  color: #1e293b;
+  font-size: 0.95rem;
+}
+
+.item-qty-text {
+  font-size: 0.8rem;
+  color: #64748b;
+}
+
+.item-price-text {
+  font-weight: 700;
+  color: #0f172a;
+}
+
+/* --- Footer Section --- */
+.modal-footer {
+  padding: 20px 24px;
+  background: #f8fafc;
+  border-top: 1px solid #f1f5f9;
+}
+
+.grand-total-display {
+  display: flex;
+  justify-content: flex-end;
+  align-items: center;
+  gap: 15px;
+  font-size: 1.1rem;
+  color: #475569;
+}
+
+.total-amount {
+  font-size: 1.5rem;
+  font-weight: 800;
+  color: #1f8a70;
+}
+
+/* --- Mobile Responsive --- */
+@media (max-width: 640px) {
+  .ord-m-grid {
+    grid-template-columns: 1fr;
+  }
+  
+  .modal-content {
+    max-width: 100%;
+    height: 100%;
+    max-height: 100%;
+    border-radius: 0;
+  }
+
+  .grand-total-display {
+    justify-content: space-between;
+  }
 }

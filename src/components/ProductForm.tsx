@@ -1,6 +1,6 @@
 import React, { useEffect, useState, ChangeEvent, FormEvent } from "react";
 import { useNavigate, useParams } from "react-router-dom";
-import { FiPlus, FiTrash2, FiX, FiUpload, FiSave } from "react-icons/fi";
+import { FiX, FiUpload, FiSave } from "react-icons/fi";
 import api from "../utils/api";
 import "../styles/ProductForm.css";
 
@@ -14,21 +14,16 @@ interface ProductOption {
   name: string;
 }
 
-interface BulkPrice {
-  inner: string;
-  qty: string;
-  price: string;
-}
-
 interface ProductPayload {
   name: string;
   sku: string;
+  mrp: number;
   price: number;
   description: string;
   category: string;
   images: string[];
-  bulkPricing?: { inner: string; qty: number; price: number }[];
-  taxFields?: string[];
+  tagline?: string; // ✅ Tagline field added
+  packSize?: string; // ✅ Pack Size field added
   relatedProducts?: string[];
 }
 
@@ -46,14 +41,14 @@ const ProductForm: React.FC = () => {
   const [form, setForm] = useState({
     name: "",
     sku: "",
+    mrp: "",
     price: "",
     description: "",
+    tagline: "", // ✅ Added tagline
+    packSize: "", // ✅ Added pack size
     category: "",
   });
 
-  const [bulkPrices, setBulkPrices] = useState<BulkPrice[]>([
-    { inner: "", qty: "", price: "" },
-  ]);
   const [gallery, setGallery] = useState<GalleryImage[]>([]);
   const [categories, setCategories] = useState<Category[]>([]);
   const [products, setProducts] = useState<ProductOption[]>([]);
@@ -62,7 +57,6 @@ const ProductForm: React.FC = () => {
   const [error, setError] = useState<string | null>(null);
   const [success, setSuccess] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
-  const [taxFields, setTaxFields] = useState<string[]>([""]);
 
   useEffect(() => {
     const fetchData = async () => {
@@ -81,31 +75,16 @@ const ProductForm: React.FC = () => {
           setForm({
             name: data.name,
             sku: data.sku || "",
+            mrp: data.mrp?.toString() || "",
             price: data.price?.toString() || "",
             description: data.description || "",
-            category:
-              typeof data.category === "string"
-                ? data.category
-                : data.category?._id || "",
+            tagline: data.tagline || "", // ✅ Load tagline
+            packSize: data.packSize || "", // ✅ Load pack size
+            category: typeof data.category === "string" ? data.category : data.category?._id || "",
           });
 
-          setBulkPrices(
-            data.bulkPricing?.map((bp: any) => ({
-              inner: bp.inner || "",
-              qty: bp.qty?.toString() || "",
-              price: bp.price?.toString() || "",
-            })) || [{ inner: "", qty: "", price: "" }]
-          );
-
           setGallery(
-            data.images?.map((url: string) => ({
-              url,
-              isExisting: true,
-            })) || []
-          );
-
-          setTaxFields(
-            data.taxFields && data.taxFields.length ? data.taxFields : [""]
+            data.images?.map((url: string) => ({ url, isExisting: true })) || []
           );
 
           if (Array.isArray(data.relatedProducts)) {
@@ -113,21 +92,15 @@ const ProductForm: React.FC = () => {
           }
         }
       } catch (err) {
-        setError("Failed to load data. Please try again later.");
+        setError("Failed to load data.");
       }
     };
-
     fetchData();
   }, [editMode, id]);
 
-  const handleChange = (
-    e: ChangeEvent<HTMLInputElement | HTMLSelectElement | HTMLTextAreaElement>
-  ) => {
+  const handleChange = (e: ChangeEvent<HTMLInputElement | HTMLSelectElement | HTMLTextAreaElement>) => {
     const { name, value } = e.target;
-    setForm((prev) => ({
-      ...prev,
-      [name]: value,
-    }));
+    setForm((prev) => ({ ...prev, [name]: value }));
   };
 
   const handleRelatedChange = (e: ChangeEvent<HTMLSelectElement>) => {
@@ -152,47 +125,13 @@ const ProductForm: React.FC = () => {
     setGallery((g) => g.filter((_, i) => i !== idx));
   };
 
-  const handleBulkChange = (
-    idx: number,
-    field: keyof BulkPrice,
-    value: string
-  ) => {
-    setBulkPrices((prices) =>
-      prices.map((row, i) => (i === idx ? { ...row, [field]: value } : row))
-    );
-  };
-
-  const addBulkRow = () =>
-    setBulkPrices((bp) => [...bp, { inner: "", qty: "", price: "" }]);
-
-  const removeBulkRow = (idx: number) => {
-    if (bulkPrices.length > 1)
-      setBulkPrices((bp) => bp.filter((_, i) => i !== idx));
-  };
-
-  const handleTaxFieldChange = (idx: number, value: string) => {
-    setTaxFields((fields) =>
-      fields.map((v, i) => (i === idx ? value : v))
-    );
-  };
-  const addTaxField = () => setTaxFields((fields) => [...fields, ""]);
-  const removeTaxField = (idx: number) => {
-    if (taxFields.length > 1)
-      setTaxFields((fields) => fields.filter((_, i) => i !== idx));
-  };
-
   const handleSubmit = async (e: FormEvent) => {
     e.preventDefault();
     setLoading(true);
     setError(null);
-    setSuccess(null);
-
     try {
-      if (!form.name.trim()) throw new Error("Product name is required");
-      if (!form.sku.trim()) throw new Error("SKU is required");
-      if (!form.category) throw new Error("Category is required");
-      if (!form.price || Number(form.price) <= 0)
-        throw new Error("Price must be > 0");
+      if (!form.name.trim() || !form.sku.trim() || !form.category || !form.price) 
+        throw new Error("Required fields are missing");
       if (!gallery.length) throw new Error("At least one image is required");
 
       const newImages = gallery.filter((g) => !g.isExisting && g.file);
@@ -207,20 +146,15 @@ const ProductForm: React.FC = () => {
       }
 
       const payload: ProductPayload = {
-        ...form,
+        name: form.name,
+        sku: form.sku,
+        mrp: Number(form.mrp) || 0,
         price: Number(form.price),
-        images: [
-          ...gallery.filter((g) => g.isExisting).map((g) => g.url),
-          ...uploadedUrls,
-        ],
-        bulkPricing: bulkPrices
-          .filter((bp) => Number(bp.qty) > 0 && Number(bp.price) > 0)
-          .map((bp) => ({
-            inner: bp.inner,
-            qty: Number(bp.qty),
-            price: Number(bp.price),
-          })),
-        taxFields,
+        description: form.description,
+        tagline: form.tagline.trim() || undefined, // ✅ Include tagline
+        packSize: form.packSize.trim() || undefined, // ✅ Include pack size
+        category: form.category,
+        images: [...gallery.filter((g) => g.isExisting).map((g) => g.url), ...uploadedUrls],
         relatedProducts,
       };
 
@@ -233,7 +167,7 @@ const ProductForm: React.FC = () => {
         setTimeout(() => navigate("/admin/products"), 1500);
       }
     } catch (err: any) {
-      setError(err.message || "Unexpected error, try again.");
+      setError(err.message || "Error saving product.");
     } finally {
       setLoading(false);
     }
@@ -244,245 +178,94 @@ const ProductForm: React.FC = () => {
       {error && <div className="alert alert-error">{error}</div>}
       {success && <div className="alert alert-success">{success}</div>}
 
-      <form onSubmit={handleSubmit} className="product-form" id="product-form">
+      <form onSubmit={handleSubmit} className="product-form">
         <div className="form-grid">
-          {/* === Product Info === */}
           <div className="form-card primary">
             <h2 className="section-title">Product Information</h2>
-
+            
             <div className="form-group">
               <label>Product Name *</label>
-              <input
-                type="text"
-                name="name"
-                value={form.name}
-                onChange={handleChange}
-                required
-              />
+              <input type="text" name="name" value={form.name} onChange={handleChange} required />
             </div>
-
+            
             <div className="form-group">
               <label>SKU *</label>
-              <input
-                type="text"
-                name="sku"
-                value={form.sku}
-                onChange={handleChange}
-                required
-              />
+              <input type="text" name="sku" value={form.sku} onChange={handleChange} required />
             </div>
-
+            
             <div className="form-group">
               <label>Category *</label>
-              <select
-                name="category"
-                value={form.category}
-                onChange={handleChange}
-                required
-              >
+              <select name="category" value={form.category} onChange={handleChange} required>
                 <option value="">Select Category</option>
-                {categories.map((cat) => (
-                  <option key={cat._id} value={cat._id}>
-                    {cat.name}
-                  </option>
-                ))}
+                {categories.map((cat) => <option key={cat._id} value={cat._id}>{cat.name}</option>)}
               </select>
             </div>
 
-            {/* ✅ Related Products */}
+            {/* ✅ Tagline Field */}
             <div className="form-group">
-              <label>Related Products</label>
-              <select
-                multiple
-                value={relatedProducts}
-                onChange={handleRelatedChange}
-              >
-                {products
-                  .filter((p) => p._id !== id)
-                  .map((p) => (
-                    <option key={p._id} value={p._id}>
-                      {p.name}
-                    </option>
-                  ))}
-              </select>
-              <p className="hint">
-                Hold <strong>Ctrl</strong> (Windows) or <strong>Cmd</strong> (Mac)
-                to select multiple.
-              </p>
-            </div>
-
-            {/* Tax Fields */}
-            <div className="form-group">
-              <label>Tax Fields</label>
-              {taxFields.map((value, idx) => (
-                <div key={idx} className="tax-field-row">
-                  <input
-                    type="text"
-                    value={value}
-                    onChange={(e) =>
-                      handleTaxFieldChange(idx, e.target.value)
-                    }
-                    placeholder="Enter any tax value"
-                  />
-                  <button
-                    type="button"
-                    onClick={() => removeTaxField(idx)}
-                    disabled={taxFields.length === 1}
-                    className="remove-tax-button"
-                  >
-                    <FiTrash2 />
-                  </button>
-                </div>
-              ))}
-              <button
-                type="button"
-                onClick={addTaxField}
-                className="add-tax-button"
-              >
-                <FiPlus /> Add Tax Field
-              </button>
-            </div>
-
-            <div className="form-group">
-              <label>Base Price (₹) *</label>
-              <input
-                type="number"
-                name="price"
-                value={form.price}
-                onChange={handleChange}
-                min="0"
-                step="0.01"
-                required
+              <label>Tagline / Short Note (Optional)</label>
+              <input 
+                type="text" 
+                name="tagline" 
+                value={form.tagline} 
+                onChange={handleChange} 
+                placeholder="e.g., Premium Quality, Best Seller, etc."
               />
+            </div>
+
+            {/* ✅ Pack Size Field */}
+            <div className="form-group">
+              <label>Pack Size / Unit Info (Optional)</label>
+              <input 
+                type="text" 
+                name="packSize" 
+                value={form.packSize} 
+                onChange={handleChange} 
+                placeholder="e.g., Per Packet: 3 Pcs, 100ml, 500g, etc."
+              />
+            </div>
+
+            {/* ✅ Pricing Row */}
+            <div className="pricing-row">
+              <div className="form-group">
+                <label>MRP (₹)</label>
+                <input type="number" name="mrp" value={form.mrp} onChange={handleChange} placeholder="Original Price" />
+              </div>
+              <div className="form-group">
+                <label>Selling Price (₹) *</label>
+                <input type="number" name="price" value={form.price} onChange={handleChange} required />
+              </div>
             </div>
 
             <div className="form-group">
               <label>Description *</label>
-              <textarea
-                name="description"
-                value={form.description}
-                onChange={handleChange}
-                rows={4}
-                required
-              />
+              <textarea name="description" value={form.description} onChange={handleChange} rows={4} required />
             </div>
           </div>
 
-          {/* === Images === */}
           <div className="form-card secondary">
-            <h2 className="section-title">Product Images</h2>
-            <label>Upload Images (Max 10)</label>
+            <h2 className="section-title">Images</h2>
             <div className="file-upload">
               <label>
-                <FiUpload className="upload-icon" />
-                <span>Click to upload</span>
-                <input
-                  type="file"
-                  multiple
-                  accept="image/*"
-                  onChange={handleGalleryFiles}
-                  style={{ display: "none" }}
-                />
+                <FiUpload /> Click to upload
+                <input type="file" multiple accept="image/*" onChange={handleGalleryFiles} style={{ display: "none" }} />
               </label>
             </div>
-
             <div className="image-preview-grid">
               {gallery.map((img, idx) => (
                 <div key={idx} className="image-preview">
-                  <img src={img.url} alt={`Preview ${idx}`} />
-                  <button
-                    type="button"
-                    onClick={() => removeImage(idx)}
-                    className="remove-btn"
-                  >
-                    <FiX />
-                  </button>
+                  <img src={img.url} alt="Preview" />
+                  <button type="button" onClick={() => removeImage(idx)} className="remove-btn"><FiX /></button>
                 </div>
               ))}
             </div>
-          </div>
-
-          {/* === Bulk Pricing === */}
-          <div className="form-card tertiary">
-            <h2 className="section-title">Bulk Pricing</h2>
-            <div className="bulk-pricing-table">
-              <div className="table-header">
-                <div>Min Qty (Inner)</div>
-                <div>Total Qty</div>
-                <div>Unit Price (₹)</div>
-                <div>Actions</div>
-              </div>
-
-              {bulkPrices.map((bp, idx) => (
-                <div key={idx} className="table-row">
-                  <input
-                    type="number"
-                    value={bp.inner}
-                    onChange={(e) =>
-                      handleBulkChange(idx, "inner", e.target.value)
-                    }
-                    min="1"
-                    placeholder="5"
-                  />
-                  <input
-                    type="number"
-                    value={bp.qty}
-                    onChange={(e) =>
-                      handleBulkChange(idx, "qty", e.target.value)
-                    }
-                    min="1"
-                    placeholder="50"
-                  />
-                  <input
-                    type="number"
-                    value={bp.price}
-                    onChange={(e) =>
-                      handleBulkChange(idx, "price", e.target.value)
-                    }
-                    min="0"
-                    step="0.01"
-                    placeholder="0.00"
-                  />
-                  <button
-                    type="button"
-                    onClick={() => removeBulkRow(idx)}
-                    disabled={bulkPrices.length === 1}
-                    className="table-action-btn danger"
-                  >
-                    <FiTrash2 />
-                  </button>
-                </div>
-              ))}
-            </div>
-
-            <button
-              type="button"
-              onClick={addBulkRow}
-              className="add-bulk-row-btn"
-            >
-              <FiPlus /> Add Bulk Pricing Tier
-            </button>
           </div>
         </div>
-
+        
         <div className="form-actions">
-          <button
-            type="button"
-            onClick={() => navigate(-1)}
-            className="cancel-btn"
-          >
-            Cancel
-          </button>
+          <button type="button" onClick={() => navigate(-1)} className="cancel-btn">Cancel</button>
           <button type="submit" className="save-btn" disabled={loading}>
-            {loading ? (
-              <>
-                <span className="spinner"></span> Saving...
-              </>
-            ) : (
-              <>
-                <FiSave /> {editMode ? "Update Product" : "Create Product"}
-              </>
-            )}
+            <FiSave /> {loading ? "Saving..." : (editMode ? "Update" : "Create")}
           </button>
         </div>
       </form>

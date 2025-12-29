@@ -143,9 +143,16 @@
 .customers-table th, .customers-table td {
   padding: 1rem 1.25rem;
   text-align: left;
-  vertical-align: middle;
+  vertical-align: top; /* Align to top for address */
   white-space: nowrap;
 }
+
+/* ✅ UPDATE: Specific style for Address Column to allow wrapping */
+.customers-table td[data-label="Address"] {
+  white-space: normal;
+  min-width: 280px; /* Ensures address column is wide enough */
+}
+
 .customers-table thead {
   background-color: #f9fafb;
   border-bottom: 1px solid var(--border-color);
@@ -276,7 +283,6 @@
 .preview-link { color: var(--primary-color); text-decoration: none; font-weight: 600; }
 
 /* --- Toast Notification Buttons --- */
-/* (This section is no longer used for delete, but kept for other potential uses) */
 .toast-confirmation { display: flex; align-items: center; gap: 1rem; width: 100%;}
 .toast-icon { font-size: 1.5rem; color: var(--danger-color); flex-shrink: 0; }
 .toast-content { flex-grow: 1; }
@@ -390,7 +396,7 @@
     align-items: center;
     padding: 0.75rem;
     border-bottom: 1px solid #f1f5f9;
-    white-space: normal;
+    white-space: normal; /* Allows wrapping on mobile */
   }
   .customers-table tr td:last-child { border-bottom: none; }
   .customers-table td::before {
@@ -408,4 +414,13 @@
   .customers-table td:first-of-type::before { display: none; }
   .customers-table td:first-of-type .shop-name-cell { font-size: 1.1rem; }
   .customers-table td[data-label="Actions"] { justify-content: flex-end; }
+  
+  /* Mobile Address Specific */
+  .customers-table td[data-label="Address"] {
+      flex-direction: column;
+      align-items: flex-start;
+  }
+  .customers-table td[data-label="Address"]::before {
+      margin-bottom: 0.5rem;
+  }
 }

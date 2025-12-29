@@ -25,6 +25,7 @@ import {
 type Customer = {
   _id: string;
   shopName: string;
+  address: string; // ✅ Address field
   otpMobile: string;
   whatsapp: string;
   visitingCardUrl?: string;
@@ -121,7 +122,8 @@ const AdminDashboard: React.FC = () => {
         (c) =>
           c.shopName.toLowerCase().includes(term) ||
           c.otpMobile.includes(term) ||
-          c.whatsapp.includes(term)
+          c.whatsapp.includes(term) ||
+          (c.address && c.address.toLowerCase().includes(term))
       );
     }
     setFilteredRows(result);
@@ -156,7 +158,6 @@ const AdminDashboard: React.FC = () => {
     );
   };
 
-  // 🗑️ Delete User (password confirm modal)
   const deleteUser = (id: string) => {
     setDeleteCandidateId(id);
   };
@@ -183,10 +184,10 @@ const AdminDashboard: React.FC = () => {
     setDeletePassword("");
   };
 
-  // ✅ Export
   const handleExport = () => {
     const dataToExport = filteredRows.map((c) => ({
       "Shop Name": c.shopName,
+      "Address": c.address || "N/A", 
       Mobile: c.otpMobile,
       WhatsApp: c.whatsapp,
       Status: c.isApproved === true ? "Approved" : "Pending",
@@ -220,29 +221,19 @@ const AdminDashboard: React.FC = () => {
     toast.success("Data exported successfully!");
   };
 
-  // ✅ Fixed WhatsApp link (no HTTP 429)
   const openWhatsApp = (phone: string) => {
     if (!phone) {
       toast.error("WhatsApp number missing!");
       return;
     }
-
-    // Ensure correct phone format
     const clean = phone.startsWith("+") ? phone : `+91${phone}`;
-
-    // Properly encoded, short message
     const message = encodeURIComponent(
       "Welcome to BafnaToys! ✅\nYour account is approved.\nPrices are now visible.\nLogin here: https://bafnatoys.com/login"
     );
-
-    // Use api.whatsapp.com instead of wa.me
     const waLink = `https://api.whatsapp.com/send?phone=${clean}&text=${message}`;
-
-    // Open new tab safely
     window.open(waLink, "_blank", "noopener,noreferrer");
   };
 
-  // 🧠 JSX UI
   return (
     <div className="admin-dashboard-container">
       <Toaster position="top-center" reverseOrder={false} />
@@ -296,7 +287,7 @@ const AdminDashboard: React.FC = () => {
             <FiSearch className="search-icon" />
             <input
               type="text"
-              placeholder="Search by shop name or phone..."
+              placeholder="Search by shop name, phone or address..."
               value={searchTerm}
               onChange={(e) => setSearchTerm(e.target.value)}
               onFocus={() => setIsSearchFocused(true)}
@@ -345,6 +336,7 @@ const AdminDashboard: React.FC = () => {
               <thead>
                 <tr>
                   <th>Shop Name</th>
+                  <th>Address</th> {/* ✅ Address Column */}
                   <th>Contact Details</th>
                   <th>Registered On</th>
                   <th>Status</th>
@@ -362,6 +354,34 @@ const AdminDashboard: React.FC = () => {
                             {customer.shopName}
                           </div>
                         </td>
+
+                        {/* ✅ Styled Address Column */}
+                        <td data-label="Address">
+                          <div className="cell-content" style={{ textAlign: "left", fontSize: "13px", maxWidth: "300px" }}>
+                            {customer.address ? (
+                                // Splitting by new line and parsing for Bold Headers
+                                customer.address.split('\n').map((line, idx) => {
+                                    const parts = line.split(':');
+                                    // Agar line mein ":" hai (e.g., "State: Maharashtra")
+                                    if(parts.length > 1) {
+                                        const label = parts[0]; 
+                                        const value = parts.slice(1).join(':'); 
+                                        return (
+                                            <div key={idx} style={{ marginBottom: "2px", lineHeight: "1.4" }}>
+                                                <strong style={{ color: "#333", fontWeight: 700 }}>{label}:</strong>
+                                                <span style={{ color: "#555", marginLeft: "4px" }}>{value}</span>
+                                            </div>
+                                        );
+                                    }
+                                    // Normal line (agar koi hai)
+                                    return <div key={idx} style={{ marginBottom: "2px" }}>{line}</div>;
+                                })
+                            ) : (
+                                <span style={{ color: "#999", fontStyle: "italic" }}>N/A</span>
+                            )}
+                          </div>
+                        </td>
+
                         <td data-label="Contact">
                           <div className="cell-content contact-cell">
                             <div className="contact-info">
@@ -423,13 +443,13 @@ const AdminDashboard: React.FC = () => {
                               )
                             )}
                             <button
-                              className="action-btn-icon delete-btn"
-                              title="Delete Customer"
-                              disabled={acting === customer._id}
-                              onClick={() => deleteUser(customer._id)}
-                            >
-                              <FiTrash2 size={16} />
-                            </button>
+                                className="action-btn-icon delete-btn"
+                                title="Delete Customer"
+                                disabled={acting === customer._id}
+                                onClick={() => deleteUser(customer._id)}
+                              >
+                                <FiTrash2 size={16} />
+                              </button>
                           </div>
                         </td>
                       </tr>
@@ -437,7 +457,7 @@ const AdminDashboard: React.FC = () => {
                   })
                 ) : (
                   <tr>
-                    <td colSpan={5} className="no-results">
+                    <td colSpan={6} className="no-results">
                       No customers match your criteria.
                     </td>
                   </tr>

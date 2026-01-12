@@ -22,8 +22,8 @@ interface ProductPayload {
   description: string;
   category: string;
   images: string[];
-  tagline?: string; // ✅ Tagline field added
-  packSize?: string; // ✅ Pack Size field added
+  tagline?: string;
+  packSize?: string;
   relatedProducts?: string[];
 }
 
@@ -44,8 +44,8 @@ const ProductForm: React.FC = () => {
     mrp: "",
     price: "",
     description: "",
-    tagline: "", // ✅ Added tagline
-    packSize: "", // ✅ Added pack size
+    tagline: "",
+    packSize: "",
     category: "",
   });
 
@@ -78,8 +78,8 @@ const ProductForm: React.FC = () => {
             mrp: data.mrp?.toString() || "",
             price: data.price?.toString() || "",
             description: data.description || "",
-            tagline: data.tagline || "", // ✅ Load tagline
-            packSize: data.packSize || "", // ✅ Load pack size
+            tagline: data.tagline || "",
+            packSize: data.packSize || "",
             category: typeof data.category === "string" ? data.category : data.category?._id || "",
           });
 
@@ -151,8 +151,11 @@ const ProductForm: React.FC = () => {
         mrp: Number(form.mrp) || 0,
         price: Number(form.price),
         description: form.description,
-        tagline: form.tagline.trim() || undefined, // ✅ Include tagline
-        packSize: form.packSize.trim() || undefined, // ✅ Include pack size
+        
+        // ✅ FIX: Allow sending empty strings to clear the database fields
+        tagline: form.tagline.trim(), 
+        packSize: form.packSize.trim(), 
+        
         category: form.category,
         images: [...gallery.filter((g) => g.isExisting).map((g) => g.url), ...uploadedUrls],
         relatedProducts,
@@ -201,7 +204,7 @@ const ProductForm: React.FC = () => {
               </select>
             </div>
 
-            {/* ✅ Tagline Field */}
+            {/* Tagline Field */}
             <div className="form-group">
               <label>Tagline / Short Note (Optional)</label>
               <input 
@@ -213,7 +216,7 @@ const ProductForm: React.FC = () => {
               />
             </div>
 
-            {/* ✅ Pack Size Field */}
+            {/* Pack Size Field */}
             <div className="form-group">
               <label>Pack Size / Unit Info (Optional)</label>
               <input 
@@ -225,7 +228,6 @@ const ProductForm: React.FC = () => {
               />
             </div>
 
-            {/* ✅ Pricing Row */}
             <div className="pricing-row">
               <div className="form-group">
                 <label>MRP (₹)</label>

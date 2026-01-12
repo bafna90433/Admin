@@ -12,7 +12,8 @@ import {
   FiX,
   FiImage,
   FiPlusSquare,
-  FiDollarSign, // ✅ COD icon
+  FiDollarSign,
+  FiTruck, // ✅ Added Truck Icon for Shipping
 } from "react-icons/fi";
 import "../styles/Sidebar.css";
 
@@ -181,6 +182,18 @@ const Sidebar: React.FC<SidebarProps> = ({ sidebarOpen, closeSidebar }) => {
         >
           <FiDollarSign className="link-icon" />
           <span>COD Settings</span>
+        </Link>
+
+        {/* ✅ SHIPPING SETTINGS (New) */}
+        <Link
+          to="/admin/shipping-settings"
+          className={`glass-link ${
+            isActive("/admin/shipping-settings") ? "active" : ""
+          }`}
+          onClick={closeSidebar}
+        >
+          <FiTruck className="link-icon" />
+          <span>Shipping Rules</span>
         </Link>
       </div>
 

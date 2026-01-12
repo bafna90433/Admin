@@ -9,27 +9,21 @@ import {
   FiSearch,
   FiX,
   FiMessageSquare,
-  FiEye,
-  FiCheck,
   FiTrash2,
   FiUser,
-  FiClock,
-  FiCheckCircle,
   FiDownload,
   FiAlertCircle,
   FiPhone,
   FiKey,
 } from "react-icons/fi";
 
-// 🧾 Customer Type
+// 🧾 Customer Type (Removed visitingCardUrl & isApproved)
 type Customer = {
   _id: string;
   shopName: string;
-  address: string; // ✅ Address field
+  address: string;
   otpMobile: string;
   whatsapp: string;
-  visitingCardUrl?: string;
-  isApproved: boolean | null;
   createdAt: string;
 };
 
@@ -41,44 +35,16 @@ const AdminDashboard: React.FC = () => {
   const [err, setErr] = useState<string | null>(null);
   const [acting, setActing] = useState<string | null>(null);
   const [searchTerm, setSearchTerm] = useState("");
-  const [statusFilter, setStatusFilter] = useState<
-    "all" | "pending" | "approved"
-  >("all");
-  const [previewUrl, setPreviewUrl] = useState<string | null>(null);
   const [isSearchFocused, setIsSearchFocused] = useState(false);
 
   // Delete confirmation modal
-  const [deleteCandidateId, setDeleteCandidateId] = useState<string | null>(
-    null
-  );
+  const [deleteCandidateId, setDeleteCandidateId] = useState<string | null>(null);
   const [deletePassword, setDeletePassword] = useState("");
 
-  // ✅ Stats cards
-  const stats = useMemo(
-    () => ({
+  // ✅ Stats (Only Total Count now)
+  const stats = useMemo(() => ({
       total: rows.length,
-      pending: rows.filter((r) => r.isApproved !== true).length,
-      approved: rows.filter((r) => r.isApproved === true).length,
-    }),
-    [rows]
-  );
-
-  const mediaBase = useMemo(() => {
-    const apiBase = (import.meta as any).env?.VITE_API_URL || "";
-    const fromApi = apiBase ? apiBase.replace(/\/api\/?$/, "") : "";
-    return (
-      ((import.meta as any).env?.VITE_MEDIA_URL || fromApi || "").replace(
-        /\/+$/,
-        ""
-      )
-    );
-  }, []);
-
-  const resolveUrl = (u?: string) => {
-    if (!u) return undefined;
-    if (/^https?:\/\//i.test(u)) return u;
-    return `${mediaBase}/${u.replace(/^\//, "")}`;
-  };
+    }), [rows]);
 
   const fetchCustomers = async () => {
     try {
@@ -107,27 +73,21 @@ const AdminDashboard: React.FC = () => {
     fetchCustomers();
   }, []);
 
+  // Search Logic
   useEffect(() => {
     let result = rows;
-    if (statusFilter !== "all") {
-      result = result.filter((c) => {
-        if (statusFilter === "pending") return c.isApproved !== true;
-        if (statusFilter === "approved") return c.isApproved === true;
-        return true;
-      });
-    }
     if (searchTerm) {
       const term = searchTerm.toLowerCase();
       result = result.filter(
         (c) =>
           c.shopName.toLowerCase().includes(term) ||
           c.otpMobile.includes(term) ||
-          c.whatsapp.includes(term) ||
+          (c.whatsapp && c.whatsapp.includes(term)) ||
           (c.address && c.address.toLowerCase().includes(term))
       );
     }
     setFilteredRows(result);
-  }, [rows, searchTerm, statusFilter]);
+  }, [rows, searchTerm]);
 
   const handleApiAction = async (
     action: Promise<any>,
@@ -144,18 +104,6 @@ const AdminDashboard: React.FC = () => {
     } finally {
       setActing(null);
     }
-  };
-
-  const approveUser = (id: string) => {
-    setActing(id);
-    handleApiAction(
-      api.patch(`/admin/approve/${id}`),
-      () =>
-        setRows((p) =>
-          p.map((r) => (r._id === id ? { ...r, isApproved: true } : r))
-        ),
-      "Customer approved successfully!"
-    );
   };
 
   const deleteUser = (id: string) => {
@@ -190,7 +138,6 @@ const AdminDashboard: React.FC = () => {
       "Address": c.address || "N/A", 
       Mobile: c.otpMobile,
       WhatsApp: c.whatsapp,
-      Status: c.isApproved === true ? "Approved" : "Pending",
       "Registered On": format(new Date(c.createdAt), "dd MMM yyyy, hh:mm a"),
     }));
 
@@ -228,7 +175,7 @@ const AdminDashboard: React.FC = () => {
     }
     const clean = phone.startsWith("+") ? phone : `+91${phone}`;
     const message = encodeURIComponent(
-      "Welcome to BafnaToys! ✅\nYour account is approved.\nPrices are now visible.\nLogin here: https://bafnatoys.com/login"
+      "Hello from BafnaToys! 🧸\nHow can we help you today?"
     );
     const waLink = `https://api.whatsapp.com/send?phone=${clean}&text=${message}`;
     window.open(waLink, "_blank", "noopener,noreferrer");
@@ -250,39 +197,22 @@ const AdminDashboard: React.FC = () => {
         </button>
       </div>
 
+      {/* ✅ Simplified Stats - Only Total */}
       <div className="stats-cards-container">
-        <div className="stats-card total">
+        <div className="stats-card total" style={{maxWidth: '300px'}}>
           <div className="stats-icon">
             <FiUser />
           </div>
           <div>
             <div className="stats-number">{stats.total}</div>
-            <div className="stats-label">Total Registrations</div>
-          </div>
-        </div>
-        <div className="stats-card pending">
-          <div className="stats-icon">
-            <FiClock />
-          </div>
-          <div>
-            <div className="stats-number">{stats.pending}</div>
-            <div className="stats-label">Pending Approval</div>
-          </div>
-        </div>
-        <div className="stats-card approved">
-          <div className="stats-icon">
-            <FiCheckCircle />
-          </div>
-          <div>
-            <div className="stats-number">{stats.approved}</div>
-            <div className="stats-label">Approved Customers</div>
+            <div className="stats-label">Total Registered Users</div>
           </div>
         </div>
       </div>
 
-      {/* 🔍 Search + Filter */}
+      {/* 🔍 Search Only (Filter Removed) */}
       <div className="table-toolbar">
-        <div className="search-box-wrapper">
+        <div className="search-box-wrapper" style={{maxWidth: '100%'}}>
           <div className={`search-box ${isSearchFocused ? "focused" : ""}`}>
             <FiSearch className="search-icon" />
             <input
@@ -302,19 +232,6 @@ const AdminDashboard: React.FC = () => {
               </button>
             )}
           </div>
-        </div>
-        <div className="filter-tabs">
-          {["all", "pending", "approved"].map((status) => (
-            <button
-              key={status}
-              className={`filter-tab ${
-                statusFilter === status ? "active" : ""
-              }`}
-              onClick={() => setStatusFilter(status as any)}
-            >
-              {status.charAt(0).toUpperCase() + status.slice(1)}
-            </button>
-          ))}
         </div>
       </div>
 
@@ -336,17 +253,15 @@ const AdminDashboard: React.FC = () => {
               <thead>
                 <tr>
                   <th>Shop Name</th>
-                  <th>Address</th> {/* ✅ Address Column */}
+                  <th>Address</th>
                   <th>Contact Details</th>
                   <th>Registered On</th>
-                  <th>Status</th>
                   <th style={{ textAlign: "center" }}>Actions</th>
                 </tr>
               </thead>
               <tbody>
                 {filteredRows.length > 0 ? (
                   filteredRows.map((customer) => {
-                    const fullUrl = resolveUrl(customer.visitingCardUrl);
                     return (
                       <tr key={customer._id}>
                         <td data-label="Shop Name">
@@ -355,14 +270,12 @@ const AdminDashboard: React.FC = () => {
                           </div>
                         </td>
 
-                        {/* ✅ Styled Address Column */}
+                        {/* Address Column */}
                         <td data-label="Address">
                           <div className="cell-content" style={{ textAlign: "left", fontSize: "13px", maxWidth: "300px" }}>
                             {customer.address ? (
-                                // Splitting by new line and parsing for Bold Headers
                                 customer.address.split('\n').map((line, idx) => {
                                     const parts = line.split(':');
-                                    // Agar line mein ":" hai (e.g., "State: Maharashtra")
                                     if(parts.length > 1) {
                                         const label = parts[0]; 
                                         const value = parts.slice(1).join(':'); 
@@ -373,7 +286,6 @@ const AdminDashboard: React.FC = () => {
                                             </div>
                                         );
                                     }
-                                    // Normal line (agar koi hai)
                                     return <div key={idx} style={{ marginBottom: "2px" }}>{line}</div>;
                                 })
                             ) : (
@@ -400,48 +312,20 @@ const AdminDashboard: React.FC = () => {
                             {format(new Date(customer.createdAt), "dd MMM, yyyy")}
                           </div>
                         </td>
-                        <td data-label="Status">
-                          <div className="cell-content">
-                            {customer.isApproved === true ? (
-                              <span className="status-badge approved">
-                                Approved
-                              </span>
-                            ) : (
-                              <span className="status-badge pending">
-                                Pending
-                              </span>
-                            )}
-                          </div>
-                        </td>
+                        
+                        {/* ✅ Simplified Actions (Notify & Delete Only) */}
                         <td data-label="Actions">
                           <div className="actions-cell">
-                            {fullUrl && (
-                              <button
-                                className="action-btn-icon"
-                                title="View Visiting Card"
-                                onClick={() => setPreviewUrl(fullUrl)}
-                              >
-                                <FiEye size={16} />
-                              </button>
-                            )}
-                            {customer.isApproved !== true ? (
-                              <button
-                                className="action-btn-sm approve-btn"
-                                disabled={acting === customer._id}
-                                onClick={() => approveUser(customer._id)}
-                              >
-                                <FiCheck size={14} /> Approve
-                              </button>
-                            ) : (
-                              customer.whatsapp && (
+                            {customer.whatsapp && (
                                 <button
                                   className="action-btn-sm whatsapp-btn"
                                   onClick={() => openWhatsApp(customer.whatsapp)}
+                                  title="Send WhatsApp Message"
                                 >
-                                  <FiMessageSquare size={14} /> Notify
+                                  <FiMessageSquare size={14} /> Chat
                                 </button>
-                              )
                             )}
+                            
                             <button
                                 className="action-btn-icon delete-btn"
                                 title="Delete Customer"
@@ -457,7 +341,7 @@ const AdminDashboard: React.FC = () => {
                   })
                 ) : (
                   <tr>
-                    <td colSpan={6} className="no-results">
+                    <td colSpan={5} className="no-results">
                       No customers match your criteria.
                     </td>
                   </tr>
@@ -467,38 +351,6 @@ const AdminDashboard: React.FC = () => {
           </div>
         )}
       </div>
-
-      {/* 🪪 Visiting Card Preview */}
-      {previewUrl && (
-        <div className="preview-modal" onClick={() => setPreviewUrl(null)}>
-          <div
-            className="preview-content"
-            onClick={(e) => e.stopPropagation()}
-          >
-            <button
-              className="modal-close"
-              onClick={() => setPreviewUrl(null)}
-            >
-              <FiX size={24} />
-            </button>
-            <img
-              className="preview-image"
-              src={previewUrl}
-              alt="Visiting card"
-            />
-            <div className="preview-actions">
-              <a
-                href={previewUrl}
-                target="_blank"
-                rel="noreferrer"
-                className="preview-link"
-              >
-                Open in new tab
-              </a>
-            </div>
-          </div>
-        </div>
-      )}
 
       {/* 🧨 Delete Confirmation Modal */}
       {deleteCandidateId && (

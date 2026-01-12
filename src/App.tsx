@@ -17,8 +17,9 @@ import AddBanner from "./components/AddBanner";
 import AdminDashboard from "./components/AdminDashboard";
 import AdminOrders from "./components/AdminOrders";
 import WhatsAppSettings from "./components/WhatsAppSettings";
-import CODSettings from "./components/CODSettings"; 
-import AdminSettings from "./components/AdminSettings"; // ✅ ADDED: Shipping Rules Component
+
+// ✅ NEW: Unified Payment & Shipping Component
+import PaymentShippingSettings from "./components/PaymentShippingSettings";
 
 // 🔐 Admin Login
 import AdminLogin from "./components/AdminLogin";
@@ -76,11 +77,9 @@ const App: React.FC = () => {
           {/* WhatsApp Settings */}
           <Route path="whatsapp" element={<WhatsAppSettings />} />
 
-          {/* COD SETTINGS */}
-          <Route path="cod-settings" element={<CODSettings />} />
-
-          {/* ✅ SHIPPING SETTINGS (Added) */}
-          <Route path="shipping-settings" element={<AdminSettings />} />
+          {/* ✅ UNIFIED: Payment & Shipping Settings */}
+          <Route path="payment-shipping" element={<PaymentShippingSettings />} />
+          
         </Route>
 
         {/* 404 fallback */}

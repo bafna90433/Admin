@@ -2,7 +2,7 @@ import React, { useEffect, useState } from "react";
 import axios from "axios";
 import Swal from "sweetalert2";
 import { FiSave, FiTruck, FiDollarSign } from "react-icons/fi";
-import "../styles/AdminDashboard.css";
+import "../styles/adminsetting.css";
 
 // ✅ API Base URL
 const API_BASE = "http://localhost:5000/api"; 

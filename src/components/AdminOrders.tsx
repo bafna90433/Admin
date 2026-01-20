@@ -55,9 +55,14 @@ type Order = {
   paymentMethod?: string;
   status: OrderStatus;
   shippingAddress?: ShippingAddress;
+  
+  // ✅ Shipping Integration Fields
+  isShipped?: boolean;
+  trackingId?: string;
+  courierName?: string;
 };
 
-// Resolve image path
+// Resolve image path helper
 const resolveImage = (img?: string): string => {
   if (!img) return "";
   if (img.startsWith("http")) return img;
@@ -97,7 +102,7 @@ const highlight = (text: string, q: string) => {
   );
 };
 
-// Inner calculation
+// Inner calculation helper
 const toInners = (it: OrderItem): number => {
   if (it.inners && it.inners > 0) return it.inners;
   const perInner =
@@ -109,7 +114,7 @@ const toInners = (it: OrderItem): number => {
   return Math.ceil((it.qty || 0) / perInner);
 };
 
-// Format date+time for Excel
+// Format date helper
 const formatExcelDate = (iso?: string): string =>
   iso
     ? new Date(iso).toLocaleString("en-IN", {
@@ -122,7 +127,7 @@ const formatExcelDate = (iso?: string): string =>
       })
     : "-";
 
-// Export all orders
+// Export all orders to Excel
 const exportAllOrders = (orders: Order[]) => {
   const rows = orders.map((o) => ({
     OrderNumber: o.orderNumber || o._id.slice(-6),
@@ -139,7 +144,9 @@ const exportAllOrders = (orders: Order[]) => {
     ShippingCity: o.shippingAddress?.city || "",
     ShippingState: o.shippingAddress?.state || "",
     ShippingPincode: o.shippingAddress?.pincode || "",
-    TotalPackets: o.items.reduce((sum, it) => sum + toInners(it), 0), // Changed header to TotalPackets if you prefer
+    TotalPackets: o.items.reduce((sum, it) => sum + toInners(it), 0),
+    TrackingID: o.trackingId || "-", 
+    Courier: o.courierName || "-",
   }));
 
   const ws = XLSX.utils.json_to_sheet(rows);
@@ -152,7 +159,7 @@ const exportAllOrders = (orders: Order[]) => {
   );
 };
 
-// Export a single order
+// Export single order to Excel
 const exportSingleOrder = (order: Order) => {
   const createdAt = formatExcelDate(order.createdAt);
 
@@ -173,6 +180,7 @@ const exportSingleOrder = (order: Order) => {
     Total: it.price * it.qty,
     Packets: toInners(it),
     CreatedAt: createdAt,
+    TrackingID: order.trackingId || "-",
   }));
 
   const ws = XLSX.utils.json_to_sheet(rows);
@@ -198,7 +206,7 @@ const generateInvoice = (order: Order) => {
 
   const shippingAddr = order.shippingAddress;
   let shippingHtml = "No shipping address provided";
-  
+    
   if (shippingAddr) {
     const lines = [
       shippingAddr.fullName ? `<strong>${shippingAddr.fullName}</strong>` : "",
@@ -217,94 +225,23 @@ const generateInvoice = (order: Order) => {
     <head>
       <title>Invoice - ${order.orderNumber || order._id.slice(-6)}</title>
       <style>
-        body {
-          font-family: 'Segoe UI', Roboto, Arial, sans-serif;
-          margin: 0; padding: 20px;
-          background: #f5f7fa; color: #333;
-        }
-        .invoice-container {
-          max-width: 850px; margin: 0 auto;
-          background: #fff; padding: 35px;
-          border-radius: 10px;
-          border: 1px solid #ddd;
-          box-shadow: 0 6px 18px rgba(0,0,0,0.08);
-        }
+        body { font-family: 'Segoe UI', Roboto, Arial, sans-serif; margin: 0; padding: 20px; background: #f5f7fa; color: #333; }
+        .invoice-container { max-width: 850px; margin: 0 auto; background: #fff; padding: 35px; border-radius: 10px; border: 1px solid #ddd; }
         .header { text-align: center; margin-bottom: 25px; }
         .header img { max-height: 70px; margin-bottom: 8px; }
-        .company-info { font-size: 13px; color: #555; line-height: 1.5; }
-
-        .invoice-title {
-          text-align: center;
-          font-size: 26px; font-weight: 700;
-          margin: 15px 0 30px; color: #2c5aa0;
-          text-transform: uppercase;
-          border-bottom: 3px solid #2c5aa0;
-          padding-bottom: 10px;
-        }
-
-        .invoice-details {
-          display: flex; justify-content: space-between;
-          flex-wrap: wrap; margin-bottom: 25px;
-        }
-        .detail-section {
-          flex: 1; min-width: 240px; margin-bottom: 15px;
-          font-size: 14px;
-        }
-        .detail-section h3 {
-          font-size: 15px; margin-bottom: 8px;
-          color: #2c5aa0; border-bottom: 1px solid #ddd;
-          padding-bottom: 4px;
-        }
-        .billto-table { width: 100%; border-collapse: collapse; font-size: 14px; }
-        .billto-table td { padding: 3px 6px; vertical-align: top; }
-        .billto-table td:first-child { width: 120px; font-weight: 600; color: #444; }
-
-        .items-table {
-          width: 100%; border-collapse: collapse; margin: 20px 0;
-          font-size: 14px;
-        }
-        .items-table th {
-          background: #2c5aa0; color: #fff;
-          padding: 10px; text-align: left;
-          font-size: 14px; font-weight: 600;
-        }
-        .items-table td {
-          padding: 10px; border-bottom: 1px solid #eee;
-        }
-        .items-table tr:nth-child(even) { background: #f9f9f9; }
-
-        thead { display: table-header-group; }
-        tfoot { display: table-footer-group; }
-        .grand-total td {
-          font-weight: 700; font-size: 15px;
-          border-top: 2px solid #2c5aa0;
-          padding-top: 10px;
-        }
-        .grand-total td:last-child {
-          color: #2c5aa0; font-size: 16px;
-        }
-
-        .footer {
-          margin-top: 40px; text-align: center;
-          font-size: 13px; color: #555;
-        }
-        .footer strong { color: #2c5aa0; }
-
-        .invoice-buttons {
-          margin-top: 25px; text-align: center;
-        }
-        .print-btn, .download-btn {
-          margin: 8px; padding: 10px 22px;
-          border-radius: 5px; font-size: 15px; font-weight: 600;
-          cursor: pointer; border: none;
-        }
-        .print-btn { background: #2c5aa0; color: white; }
-        .download-btn { background: #28a745; color: white; }
-
-        @media print {
-          .invoice-buttons { display: none; }
-          body { background: #fff; }
-        }
+        .invoice-title { text-align: center; font-size: 26px; font-weight: 700; margin: 15px 0 30px; color: #2c5aa0; border-bottom: 3px solid #2c5aa0; padding-bottom: 10px; }
+        .invoice-details { display: flex; justify-content: space-between; flex-wrap: wrap; margin-bottom: 25px; }
+        .detail-section { flex: 1; min-width: 240px; margin-bottom: 15px; font-size: 14px; }
+        .detail-section h3 { font-size: 15px; margin-bottom: 8px; color: #2c5aa0; border-bottom: 1px solid #ddd; padding-bottom: 4px; }
+        .items-table { width: 100%; border-collapse: collapse; margin: 20px 0; font-size: 14px; }
+        .items-table th { background: #2c5aa0; color: #fff; padding: 10px; text-align: left; }
+        .items-table td { padding: 10px; border-bottom: 1px solid #eee; }
+        .footer { margin-top: 40px; text-align: center; font-size: 13px; color: #555; }
+        .invoice-buttons { margin-top: 25px; text-align: center; }
+        .print-btn, .download-btn { margin: 8px; padding: 10px 22px; border-radius: 5px; cursor: pointer; border: none; font-weight: 600; color: white; }
+        .print-btn { background: #2c5aa0; }
+        .download-btn { background: #28a745; }
+        @media print { .invoice-buttons { display: none; } body { background: #fff; } }
       </style>
       <script src="https://cdnjs.cloudflare.com/ajax/libs/html2pdf.js/0.10.1/html2pdf.bundle.min.js"></script>
       <script>
@@ -313,8 +250,7 @@ const generateInvoice = (order: Order) => {
           const element = document.querySelector('.invoice-container');
           const opt = {
             margin: [10, 10, 10, 10],
-            filename: 'Invoice-${(order.customerId?.shopName || "Customer")
-              .replace(/\\s+/g, "_")}-${order.orderNumber || order._id.slice(-6)}.pdf',
+            filename: 'Invoice-${(order.customerId?.shopName || "Customer").replace(/\s+/g, "_")}-${order.orderNumber || order._id.slice(-6)}.pdf',
             image: { type: 'jpeg', quality: 0.98 },
             html2canvas: { scale: 2, useCORS: true, scrollY: 0 },
             jsPDF: { unit: 'mm', format: 'a4', orientation: 'portrait' },
@@ -328,78 +264,43 @@ const generateInvoice = (order: Order) => {
       <div class="invoice-container">
         <div class="header">
           <img src="https://res.cloudinary.com/dpdecxqb9/image/upload/v1758783697/bafnatoys/lwccljc9kkosfv9wnnrq.png" alt="BafnaToys Logo" />
-          <div class="company-info">
+          <div style="font-size:13px; color:#555">
             1-12, Sundapalayam Rd, Coimbatore, Tamil Nadu 641007 <br/>
             Phone: +91 9043347300 | Email: bafnatoysphotos@gmail.com
           </div>
         </div>
         <h1 class="invoice-title">PRO FORMA INVOICE</h1>
-
         <div class="invoice-details">
           <div class="detail-section">
             <h3>Bill To</h3>
-            <table class="billto-table">
-              <tr><td>Shop Name</td><td>: ${order.customerId?.shopName || "-"}</td></tr>
-              <tr><td>Mobile</td><td>: ${order.customerId?.otpMobile || "-"}</td></tr>
-              <tr><td>WhatsApp</td><td>: ${order.customerId?.whatsapp || order.customerId?.otpMobile || "-"}</td></tr>
-            </table>
+            <p><strong>${order.customerId?.shopName || "-"}</strong><br/>
+            Mobile: ${order.customerId?.otpMobile || "-"}</p>
           </div>
+          <div class="detail-section"><h3>Ship To</h3>${shippingHtml}</div>
           <div class="detail-section">
-            <h3>Ship To</h3>
-            <div style="line-height: 1.5; font-size: 14px;">
-              ${shippingHtml}
-            </div>
-          </div>
-          <div class="detail-section">
-            <h3>Invoice Details</h3>
-            <table class="billto-table">
-              <tr><td>Invoice No</td><td>: ${order.orderNumber || order._id.slice(-6)}</td></tr>
-              <tr><td>Date</td><td>: ${currentDate}</td></tr>
-              <tr><td>Status</td><td>: ${order.status}</td></tr>
-            </table>
+            <h3>Details</h3>
+            Invoice: ${order.orderNumber || order._id.slice(-6)}<br/>
+            Date: ${currentDate}<br/>
+            Status: ${order.status}<br/>
+            ${order.trackingId ? `Waybill: ${order.trackingId}<br/>` : ''}
           </div>
         </div>
-
         <table class="items-table">
-          <thead>
-            <tr>
-              <th>Product</th>
-              <th>Quantity</th>
-              <th>Rate (₹)</th>
-              <th>Amount (₹)</th>
-            </tr>
-          </thead>
+          <thead><tr><th>Product</th><th>Qty</th><th>Rate</th><th>Amount</th></tr></thead>
           <tbody>
-            ${order.items?.map(it => `
-              <tr>
-                <td>${it.name}</td>
-                <td>${it.qty} pcs (${toInners(it)} ${toInners(it) === 1 ? "Packet" : "Packets"})</td>
-                <td>${new Intl.NumberFormat("en-IN",{style:"currency",currency:"INR"}).format(it.price)}</td>
-                <td>${new Intl.NumberFormat("en-IN",{style:"currency",currency:"INR"}).format(it.qty * it.price)}</td>
-              </tr>`).join("")}
+            ${order.items?.map(it => `<tr><td>${it.name}</td><td>${it.qty}</td><td>₹${it.price}</td><td>₹${it.qty * it.price}</td></tr>`).join("")}
           </tbody>
-          <tfoot>
-            <tr class="grand-total">
-              <td colspan="3" style="text-align:right;">Grand Total</td>
-              <td>${new Intl.NumberFormat("en-IN",{style:"currency",currency:"INR"}).format(order.total)}</td>
-            </tr>
-          </tfoot>
+          <tfoot><tr><td colspan="3" align="right"><strong>Total</strong></td><td><strong>₹${order.total}</strong></td></tr></tfoot>
         </table>
-
-        <div class="footer">
-          <p><strong>Thank you for choosing BafnaToys!</strong><br/>
-          We appreciate your business and look forward to serving you again.<br/>
-        </div>
+        <div class="footer"><p>Thank you for choosing BafnaToys!</p></div>
       </div>
-
       <div class="invoice-buttons">
         <button class="print-btn" onclick="printInvoice()">🖨️ Print Invoice</button>
         <button class="download-btn" onclick="downloadAsPDF()">📄 Download PDF</button>
       </div>
     </body>
-    </html>
-  `;
-
+    </html>`;
+    
   printWindow.document.write(content);
   printWindow.document.close();
 };
@@ -456,6 +357,46 @@ const AdminOrders: React.FC = () => {
       setOrders((prev) => prev.filter((o) => o._id !== id));
     } catch (e: any) {
       alert(e?.response?.data?.message || "Delete failed");
+    }
+  };
+
+  // ✅ SHIP ORDER FUNCTION
+  const shipOrderHandler = async (orderId: string) => {
+    if (!window.confirm("Are you sure you want to book shipping with iThinkLogistics?")) return;
+    
+    try {
+      setActOn(orderId);
+      // Call the new backend endpoint
+      const { data } = await api.post("/shipping/create", { orderId });
+      
+      alert(`✅ Shipping Booked Successfully!\nWaybill/Tracking ID: ${data.waybill}`);
+      
+      // Update local state to reflect changes
+      setOrders((prev) =>
+        prev.map((o) => 
+          o._id === orderId 
+            ? { ...o, isShipped: true, trackingId: data.waybill, courierName: 'iThinkLogistics', status: 'shipped' } 
+            : o
+        )
+      );
+
+      // If currently viewing this order, update that too
+      if (viewing && viewing._id === orderId) {
+        setViewing(prev => prev ? { 
+          ...prev, 
+          isShipped: true, 
+          trackingId: data.waybill, 
+          courierName: 'iThinkLogistics',
+          status: 'shipped' 
+        } : null);
+      }
+
+    } catch (error: any) {
+      const msg = error.response?.data?.message || "Shipping booking failed";
+      const errDetail = error.response?.data?.error || "";
+      alert(`❌ Error: ${msg}\n${errDetail}`);
+    } finally {
+      setActOn(null);
     }
   };
 
@@ -525,7 +466,7 @@ const AdminOrders: React.FC = () => {
           <input
             className="ord-srch-input"
             type="text"
-            placeholder="Search orders by number, shop name, phone, address, city, pincode…"
+            placeholder="Search orders, shop name..."
             value={search}
             onChange={(e) => setSearch(e.target.value)}
             onKeyDown={onBigSearchKeyDown}
@@ -604,6 +545,7 @@ const AdminOrders: React.FC = () => {
                         </div>
                       </div>
                     )}
+                    
                     <div className="ord-row ord-itemsum">
                       <span>
                         {o.items.length} item{o.items.length > 1 ? "s" : ""}
@@ -626,6 +568,12 @@ const AdminOrders: React.FC = () => {
                         ? highlight(o.paymentMethod || "-", qSmall)
                         : o.paymentMethod || "-"}
                     </span>
+                    {/* Display if Shipped */}
+                    {o.isShipped && (
+                      <span style={{ fontSize: '11px', color: '#2c5aa0', fontWeight: 'bold', marginLeft: '8px' }}>
+                        📦 Shipped
+                      </span>
+                    )}
                   </div>
                   <div className="ord-actions">
                     <button
@@ -634,6 +582,23 @@ const AdminOrders: React.FC = () => {
                     >
                       View
                     </button>
+                    
+                    {/* ✅ SHIP BUTTON */}
+                    <button
+                      className="ord-btn"
+                      style={{ 
+                        backgroundColor: o.isShipped ? '#4CAF50' : '#ff9800', 
+                        color: 'white',
+                        opacity: (o.isShipped || actOn === o._id) ? 0.7 : 1,
+                        cursor: (o.isShipped || actOn === o._id) ? 'not-allowed' : 'pointer'
+                      }}
+                      disabled={!!o.isShipped || actOn === o._id}
+                      onClick={() => shipOrderHandler(o._id)}
+                      title={o.isShipped ? `Tracking: ${o.trackingId}` : "Book Shipping"}
+                    >
+                      {o.isShipped ? "Shipped ✓" : "Ship 🚀"}
+                    </button>
+
                     <select
                       className="ord-select"
                       disabled={actOn === o._id}
@@ -698,7 +663,15 @@ const AdminOrders: React.FC = () => {
               <div>
                 <b>Status:</b> {viewing.status.toUpperCase()}
               </div>
-              <div>
+              {/* ✅ Show Tracking Info in Modal */}
+              {viewing.isShipped && viewing.trackingId && (
+                <div style={{ marginTop: '5px', padding: '8px', background: '#e3f2fd', borderRadius: '4px', color: '#0d47a1' }}>
+                  <b>🚚 Tracking ID (AWB):</b> {viewing.trackingId}<br/>
+                  <small>Courier: {viewing.courierName}</small>
+                </div>
+              )}
+              
+              <div style={{marginTop: '10px'}}>
                 <b>Total:</b> ₹ {viewing.total.toFixed(2)}
               </div>
               <div>
@@ -729,19 +702,6 @@ const AdminOrders: React.FC = () => {
                 <div className="ord-m-detail">
                   <span className="ord-detail-label">WhatsApp:</span>
                   <span className="ord-detail-value">💬 {viewing.customerId.whatsapp}</span>
-                </div>
-              )}
-              {viewing.customerId?.visitingCardUrl && (
-                <div className="ord-m-detail">
-                  <span className="ord-detail-label">Visiting Card:</span>
-                  <a
-                    href={resolveImage(viewing.customerId.visitingCardUrl)}
-                    target="_blank"
-                    rel="noreferrer"
-                    className="ord-link"
-                  >
-                    View Card
-                  </a>
                 </div>
               )}
             </div>
@@ -803,7 +763,6 @@ const AdminOrders: React.FC = () => {
                       <div className="ord-m-img ord-m-imgph" />
                     )}
                     <span className="ord-m-iname">{it.name}</span>
-                    {/* ✅ CHANGED: Display 'Packet/Packets' instead of 'inner/inners' */}
                     <span className="ord-m-inner">({iTotal} {iTotal === 1 ? "Packet" : "Packets"})</span>
                     <span className="ord-m-qty">x{it.qty}</span>
                     <span className="ord-m-price">

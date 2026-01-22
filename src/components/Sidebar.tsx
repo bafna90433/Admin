@@ -1,22 +1,25 @@
 import React from "react";
 import { Link, useLocation, useNavigate } from "react-router-dom";
 import {
-  FiGrid,           // Dashboard
-  FiPackage,        // Orders
-  FiLayers,         // Categories
-  FiBox,            // Products
-  FiPlus,           // Add
-  FiUsers,          // Customers
-  FiMessageSquare,  // Whatsapp
+  FiGrid,
+  FiPackage,
+  FiBox,
+  FiPlus,
+  FiUsers,
+  FiMessageSquare,
   FiLogOut,
   FiX,
   FiImage,
   FiUploadCloud,
-  FiCreditCard,     // Payment
-  FiSettings,
-  FiChevronRight
+  FiCreditCard,
+  FiChevronRight,
+  FiSearch
 } from "react-icons/fi";
-import "../styles/Sidebar.css";
+import {
+  MdOutlineSpaceDashboard
+} from "react-icons/md";
+import { TbCategory } from "react-icons/tb";
+import "../styles/SidebarFinal.css";
 
 interface SidebarProps {
   sidebarOpen: boolean;
@@ -30,93 +33,184 @@ const Sidebar: React.FC<SidebarProps> = ({ sidebarOpen, closeSidebar }) => {
   const isActive = (path: string) => pathname === path || pathname.startsWith(path);
 
   const handleLogout = () => {
-    if (window.confirm("Confirm Logout?")) {
+    if (window.confirm("Are you sure you want to logout?")) {
       localStorage.removeItem("adminToken");
       navigate("/admin/login");
     }
   };
 
-  const NavItem = ({ to, icon: Icon, label }: { to: string; icon: any; label: string }) => {
+  const NavItem = ({ to, icon: Icon, label, gradient = "blue" }: { 
+    to: string; 
+    icon: any; 
+    label: string; 
+    gradient?: string;
+  }) => {
     const active = isActive(to);
     return (
       <Link
         to={to}
-        className={`nav-item ${active ? "active" : ""}`}
+        className={`nav-item-final ${active ? "active" : ""}`}
         onClick={closeSidebar}
+        data-gradient={gradient}
       >
-        <Icon className="nav-icon" />
-        <span className="nav-label">{label}</span>
-        {active && <div className="active-dot" />}
+        <div className="nav-item-wrapper">
+          <div className="nav-icon-wrapper">
+            <Icon className="nav-icon-final" />
+            {active && <div className="nav-glow" data-gradient={gradient} />}
+          </div>
+          <span className="nav-label-final">{label}</span>
+          {active && <ChevronIcon />}
+        </div>
       </Link>
     );
   };
 
+  const ChevronIcon = () => (
+    <div className="nav-chevron-final">
+      <FiChevronRight />
+    </div>
+  );
+
   return (
     <>
       <div 
-        className={`sidebar-overlay ${sidebarOpen ? "show" : ""}`} 
+        className={`sidebar-overlay-final ${sidebarOpen ? "show" : ""}`} 
         onClick={closeSidebar}
       />
 
-      <aside className={`sidebar-pro ${sidebarOpen ? "open" : ""}`}>
-        {/* === BRAND HEADER === */}
-        <div className="sidebar-header">
-          <div className="logo-container">
+      <aside className={`sidebar-final ${sidebarOpen ? "open" : ""}`}>
+        
+        {/* Header */}
+        <div className="sidebar-header-final">
+          <div className="logo-container-final">
             <img
               src="https://res.cloudinary.com/dpdecxqb9/image/upload/v1758783697/bafnatoys/lwccljc9kkosfv9wnnrq.png"
               alt="Bafna Toys"
+              className="logo-image-final"
             />
           </div>
-          <div className="brand-details">
-            <h1>Bafna Toys</h1>
-            <span className="workspace-badge">Workspace</span>
+          <div className="brand-info-final">
+            <h1 className="brand-name-final">Bafna Toys</h1>
+            <p className="brand-subtitle-final">
+              <span className="status-dot-final online" /> Admin Dashboard
+            </p>
           </div>
-          <button className="mobile-close" onClick={closeSidebar}>
+          <button className="mobile-close-final" onClick={closeSidebar}>
             <FiX />
           </button>
         </div>
 
-        {/* === NAVIGATION SCROLL === */}
-        <div className="sidebar-nav-scroll">
-          
-          <div className="nav-section">
-            <h4 className="section-header">ANALYTICS</h4>
-            <NavItem to="/admin/dashboard" icon={FiGrid} label="Dashboard" />
-            <NavItem to="/admin/orders" icon={FiPackage} label="Orders" />
-          </div>
-
-          <div className="nav-section">
-            <h4 className="section-header">INVENTORY</h4>
-            <NavItem to="/admin/products" icon={FiBox} label="All Products" />
-            <NavItem to="/admin/products/new" icon={FiPlus} label="Add Product" />
-            <NavItem to="/admin/categories" icon={FiLayers} label="Categories" />
-          </div>
-
-          <div className="nav-section">
-            <h4 className="section-header">MARKETING</h4>
-            <NavItem to="/admin/banners" icon={FiImage} label="Banners" />
-            <NavItem to="/admin/banners/upload" icon={FiUploadCloud} label="Upload Media" />
-            <NavItem to="/admin/whatsapp" icon={FiMessageSquare} label="WhatsApp" />
-          </div>
-
-          <div className="nav-section">
-            <h4 className="section-header">MANAGEMENT</h4>
-            <NavItem to="/admin/registrations" icon={FiUsers} label="Customers" />
-            <NavItem to="/admin/payment-shipping" icon={FiCreditCard} label="Finance & Ship" />
-          </div>
+        {/* Search Bar */}
+        <div className="sidebar-search-final">
+          <FiSearch className="search-icon-final" />
+          <input 
+            type="text" 
+            placeholder="Search modules..." 
+            className="search-input-final"
+          />
         </div>
 
-        {/* === PROFESSIONAL FOOTER === */}
-        <div className="sidebar-footer">
-          <div className="profile-card">
-            <div className="profile-icon">
-              <FiSettings />
+        {/* Navigation */}
+        <div className="sidebar-scroll-final">
+          
+          <div className="nav-section-final">
+            <h4 className="section-header-final">Dashboard</h4>
+            <NavItem 
+              to="/admin/dashboard" 
+              icon={MdOutlineSpaceDashboard} 
+              label="Analytics Overview"
+              gradient="purple"
+            />
+            <NavItem 
+              to="/admin/orders" 
+              icon={FiPackage} 
+              label="Order Management"
+              gradient="blue"
+            />
+          </div>
+
+          <div className="nav-section-final">
+            <h4 className="section-header-final">Inventory</h4>
+            <NavItem 
+              to="/admin/products" 
+              icon={FiBox} 
+              label="All Products"
+              gradient="green"
+            />
+            <NavItem 
+              to="/admin/products/new" 
+              icon={FiPlus} 
+              label="Add Product"
+              gradient="pink"
+            />
+            <NavItem 
+              to="/admin/categories" 
+              icon={TbCategory} 
+              label="Categories"
+              gradient="orange"
+            />
+          </div>
+
+          <div className="nav-section-final">
+            <h4 className="section-header-final">Marketing</h4>
+            <NavItem 
+              to="/admin/banners" 
+              icon={FiImage} 
+              label="Banner Manager"
+              gradient="teal"
+            />
+            <NavItem 
+              to="/admin/banners/upload" 
+              icon={FiUploadCloud} 
+              label="Upload Media"
+              gradient="cyan"
+            />
+            <NavItem 
+              to="/admin/whatsapp" 
+              icon={FiMessageSquare} 
+              label="WhatsApp Campaigns"
+              gradient="green"
+            />
+             {/* Removed Promotions Item */}
+          </div>
+
+          <div className="nav-section-final">
+            <h4 className="section-header-final">Management</h4>
+            <NavItem 
+              to="/admin/registrations" 
+              icon={FiUsers} 
+              label="Customer Database"
+              gradient="indigo"
+            />
+            <NavItem 
+              to="/admin/payment-shipping" 
+              icon={FiCreditCard} 
+              label="Finance & Shipping"
+              gradient="yellow"
+            />
+            {/* Removed System Settings Item */}
+          </div>
+
+        </div>
+
+        {/* Footer */}
+        <div className="sidebar-footer-final">
+          <div className="admin-profile-card">
+            <div className="profile-avatar-final">
+              <div className="avatar-initials">AT</div>
             </div>
-            <div className="profile-info">
-              <span className="p-name">Admin Console</span>
-              <span className="p-role">v2.4.0</span>
+            <div className="profile-info-final">
+              <div className="profile-name-final">Admin Team</div>
+              <div className="profile-role-final">
+                <span className="role-badge">Super Admin</span>
+                <span className="version">v2.4.0</span>
+              </div>
             </div>
-            <button className="logout-mini-btn" onClick={handleLogout} title="Sign Out">
+            <button 
+              className="logout-btn-final" 
+              onClick={handleLogout}
+              title="Sign Out"
+            >
               <FiLogOut />
             </button>
           </div>

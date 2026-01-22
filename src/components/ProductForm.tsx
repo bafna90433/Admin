@@ -1,6 +1,8 @@
 import React, { useEffect, useState, ChangeEvent, FormEvent } from "react";
 import { useNavigate, useParams } from "react-router-dom";
-import { FiX, FiUpload, FiSave } from "react-icons/fi";
+// ✅ Import SweetAlert2
+import Swal from "sweetalert2"; 
+import { FiX, FiUpload, FiSave, FiSearch, FiPlus, FiList, FiImage, FiTrash } from "react-icons/fi";
 import api from "../utils/api";
 import "../styles/ProductForm.css";
 
@@ -12,6 +14,8 @@ interface Category {
 interface ProductOption {
   _id: string;
   name: string;
+  sku?: string;
+  images?: string[];
 }
 
 interface ProductPayload {
@@ -38,6 +42,7 @@ const ProductForm: React.FC = () => {
   const navigate = useNavigate();
   const editMode = Boolean(id);
 
+  // Form State
   const [form, setForm] = useState({
     name: "",
     sku: "",
@@ -49,24 +54,25 @@ const ProductForm: React.FC = () => {
     category: "",
   });
 
+  // Data States
   const [gallery, setGallery] = useState<GalleryImage[]>([]);
   const [categories, setCategories] = useState<Category[]>([]);
-  const [products, setProducts] = useState<ProductOption[]>([]);
   const [relatedProducts, setRelatedProducts] = useState<string[]>([]);
-
-  const [error, setError] = useState<string | null>(null);
-  const [success, setSuccess] = useState<string | null>(null);
+   
+  // UI States
   const [loading, setLoading] = useState(false);
 
+  // Search State
+  const [searchQuery, setSearchQuery] = useState("");
+  const [searchResults, setSearchResults] = useState<ProductOption[]>([]);
+  const [showResults, setShowResults] = useState(false);
+
+  // Load Data
   useEffect(() => {
     const fetchData = async () => {
       try {
-        const [categoriesRes, productsRes] = await Promise.all([
-          api.get("/categories"),
-          api.get("/products"),
-        ]);
+        const categoriesRes = await api.get("/categories");
         setCategories(categoriesRes.data);
-        setProducts(productsRes.data);
 
         if (editMode && id) {
           const productRes = await api.get(`/products/${id}`);
@@ -84,28 +90,127 @@ const ProductForm: React.FC = () => {
           });
 
           setGallery(
-            data.images?.map((url: string) => ({ url, isExisting: true })) || []
+            (data.images || []).map((img: any) => ({
+              url: typeof img === "string" ? img : img.url,
+              isExisting: true,
+            }))
           );
 
           if (Array.isArray(data.relatedProducts)) {
             setRelatedProducts(data.relatedProducts.map((p: any) => p._id || p));
           }
+        } else {
+            // ✅ RESET FORM if in New Mode (handles delete -> new transition)
+            setForm({
+                name: "", sku: "", mrp: "", price: "", description: "",
+                tagline: "", packSize: "", category: "",
+            });
+            setGallery([]);
+            setRelatedProducts([]);
         }
       } catch (err) {
-        setError("Failed to load data.");
+        Swal.fire({
+            icon: 'error',
+            title: 'Error',
+            text: 'Failed to load product data.'
+        });
       }
     };
     fetchData();
   }, [editMode, id]);
 
+  // Search Logic
+  const handleSearch = async (e: ChangeEvent<HTMLInputElement>) => {
+    const query = e.target.value;
+    setSearchQuery(query);
+    
+    if (query.length > 1) {
+      try {
+        const res = await api.get(`/products/search/all?query=${query}`);
+        setSearchResults(res.data);
+        setShowResults(true);
+      } catch (err) {
+        console.error("Search failed");
+      }
+    } else {
+      setSearchResults([]);
+      setShowResults(false);
+    }
+  };
+
+  const selectProduct = (prodId: string) => {
+    setSearchQuery("");
+    setShowResults(false);
+    navigate(`/admin/products/edit/${prodId}`);
+  };
+
+  const handleAddNew = () => {
+    navigate("/admin/products/new");
+  };
+
+  // ✅ UPDATED DELETE HANDLER
+  const handleDelete = async () => {
+    if (!id) return;
+
+    // 1. Confirm Dialog
+    const result = await Swal.fire({
+      title: 'Are you sure?',
+      text: "You won't be able to revert this!",
+      icon: 'warning',
+      showCancelButton: true,
+      confirmButtonColor: '#d33',
+      cancelButtonColor: '#3085d6',
+      confirmButtonText: 'Yes, delete it!'
+    });
+
+    if (result.isConfirmed) {
+      try {
+        setLoading(true);
+        // Show loading state
+        Swal.fire({
+            title: 'Deleting...',
+            allowOutsideClick: false,
+            didOpen: () => { Swal.showLoading(); }
+        });
+
+        await api.delete(`/products/${id}`);
+
+        // 2. Success Dialog
+        await Swal.fire({
+            icon: 'success',
+            title: 'Deleted!',
+            text: 'Product deleted. Ready for new entry.',
+            timer: 1500,
+            showConfirmButton: false
+        });
+
+        // 3. ✅ NAVIGATE TO NEW (Stay on form)
+        navigate("/admin/products/new");
+        
+        // Manual Reset (Double check to ensure UI clears)
+        setForm({
+            name: "", sku: "", mrp: "", price: "", description: "",
+            tagline: "", packSize: "", category: "",
+        });
+        setGallery([]);
+        setRelatedProducts([]);
+
+      } catch (err: any) {
+        Swal.fire({
+            icon: 'error',
+            title: 'Failed',
+            text: err.message || "Failed to delete product"
+        });
+      } finally {
+        setLoading(false);
+      }
+    }
+  };
+
+  // Handlers
   const handleChange = (e: ChangeEvent<HTMLInputElement | HTMLSelectElement | HTMLTextAreaElement>) => {
     const { name, value } = e.target;
     setForm((prev) => ({ ...prev, [name]: value }));
-  };
-
-  const handleRelatedChange = (e: ChangeEvent<HTMLSelectElement>) => {
-    const values = Array.from(e.target.selectedOptions, (opt) => opt.value);
-    setRelatedProducts(values);
   };
 
   const handleGalleryFiles = (e: ChangeEvent<HTMLInputElement>) => {
@@ -128,7 +233,14 @@ const ProductForm: React.FC = () => {
   const handleSubmit = async (e: FormEvent) => {
     e.preventDefault();
     setLoading(true);
-    setError(null);
+    
+    // Show Loading Alert
+    Swal.fire({
+        title: editMode ? 'Updating Product...' : 'Creating Product...',
+        allowOutsideClick: false,
+        didOpen: () => { Swal.showLoading(); }
+    });
+
     try {
       if (!form.name.trim() || !form.sku.trim() || !form.category || !form.price) 
         throw new Error("Required fields are missing");
@@ -136,6 +248,7 @@ const ProductForm: React.FC = () => {
 
       const newImages = gallery.filter((g) => !g.isExisting && g.file);
       let uploadedUrls: string[] = [];
+      
       if (newImages.length) {
         const formData = new FormData();
         newImages.forEach((g) => g.file && formData.append("images", g.file));
@@ -151,11 +264,8 @@ const ProductForm: React.FC = () => {
         mrp: Number(form.mrp) || 0,
         price: Number(form.price),
         description: form.description,
-        
-        // ✅ FIX: Allow sending empty strings to clear the database fields
-        tagline: form.tagline.trim(), 
-        packSize: form.packSize.trim(), 
-        
+        tagline: form.tagline.trim() || undefined,
+        packSize: form.packSize.trim() || undefined,
         category: form.category,
         images: [...gallery.filter((g) => g.isExisting).map((g) => g.url), ...uploadedUrls],
         relatedProducts,
@@ -163,14 +273,37 @@ const ProductForm: React.FC = () => {
 
       if (editMode && id) {
         await api.put(`/products/${id}`, payload);
-        setSuccess("Product updated successfully");
+        
+        await Swal.fire({
+            icon: 'success',
+            title: 'Updated!',
+            text: 'Product updated successfully',
+            timer: 1500,
+            showConfirmButton: false
+        });
+
       } else {
-        await api.post("/products", payload);
-        setSuccess("Product created successfully");
-        setTimeout(() => navigate("/admin/products"), 1500);
+        const res = await api.post("/products", payload);
+        
+        await Swal.fire({
+            icon: 'success',
+            title: 'Created!',
+            text: 'Product created successfully!',
+            timer: 1500,
+            showConfirmButton: false
+        });
+
+        // Redirect to edit page of new product
+        const newId = res.data._id || res.data.id || res.data.product?._id; 
+        if (newId) navigate(`/admin/products/edit/${newId}`);
+        else navigate("/admin/products");
       }
     } catch (err: any) {
-      setError(err.message || "Error saving product.");
+      Swal.fire({
+          icon: 'error',
+          title: 'Error',
+          text: err.message || "Error saving product."
+      });
     } finally {
       setLoading(false);
     }
@@ -178,8 +311,47 @@ const ProductForm: React.FC = () => {
 
   return (
     <div className="product-form-container">
-      {error && <div className="alert alert-error">{error}</div>}
-      {success && <div className="alert alert-success">{success}</div>}
+      
+      {/* Admin Toolbar */}
+      <div className="admin-toolbar">
+        <div className="search-box">
+          <FiSearch className="search-icon" />
+          <input 
+            type="text" 
+            placeholder="Search Product (Name/SKU)..." 
+            value={searchQuery}
+            onChange={handleSearch}
+          />
+          {showResults && searchResults.length > 0 && (
+            <div className="search-dropdown">
+              {searchResults.map((prod) => (
+                <div key={prod._id} className="search-item" onClick={() => selectProduct(prod._id)}>
+                  <div className="s-thumb-container">
+                    {prod.images && prod.images.length > 0 ? (
+                      <img src={prod.images[0]} alt={prod.name} className="s-thumb" />
+                    ) : (
+                      <div className="s-thumb-placeholder"><FiImage /></div>
+                    )}
+                  </div>
+                  <div className="search-info">
+                    <span className="s-name">{prod.name}</span>
+                    <span className="s-sku">{prod.sku}</span>
+                  </div>
+                </div>
+              ))}
+            </div>
+          )}
+        </div>
+
+        <div className="toolbar-actions">
+          <button type="button" className="btn-secondary" onClick={() => navigate("/admin/products")}>
+            <FiList /> List
+          </button>
+          <button type="button" className="btn-primary" onClick={handleAddNew}>
+            <FiPlus /> New
+          </button>
+        </div>
+      </div>
 
       <form onSubmit={handleSubmit} className="product-form">
         <div className="form-grid">
@@ -204,28 +376,14 @@ const ProductForm: React.FC = () => {
               </select>
             </div>
 
-            {/* Tagline Field */}
             <div className="form-group">
               <label>Tagline / Short Note (Optional)</label>
-              <input 
-                type="text" 
-                name="tagline" 
-                value={form.tagline} 
-                onChange={handleChange} 
-                placeholder="e.g., Premium Quality, Best Seller, etc."
-              />
+              <input type="text" name="tagline" value={form.tagline} onChange={handleChange} placeholder="e.g., Premium Quality" />
             </div>
 
-            {/* Pack Size Field */}
             <div className="form-group">
               <label>Pack Size / Unit Info (Optional)</label>
-              <input 
-                type="text" 
-                name="packSize" 
-                value={form.packSize} 
-                onChange={handleChange} 
-                placeholder="e.g., Per Packet: 3 Pcs, 100ml, 500g, etc."
-              />
+              <input type="text" name="packSize" value={form.packSize} onChange={handleChange} placeholder="e.g., 3 Pcs/Pkt" />
             </div>
 
             <div className="pricing-row">
@@ -264,8 +422,16 @@ const ProductForm: React.FC = () => {
           </div>
         </div>
         
+        {/* Form Actions */}
         <div className="form-actions">
           <button type="button" onClick={() => navigate(-1)} className="cancel-btn">Cancel</button>
+
+          {editMode && (
+            <button type="button" onClick={handleDelete} className="delete-btn">
+              <FiTrash /> Delete
+            </button>
+          )}
+
           <button type="submit" className="save-btn" disabled={loading}>
             <FiSave /> {loading ? "Saving..." : (editMode ? "Update" : "Create")}
           </button>

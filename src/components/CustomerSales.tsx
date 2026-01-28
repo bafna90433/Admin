@@ -197,7 +197,7 @@ const CustomerSales: React.FC = () => {
   };
 
   const handleGeneralMessage = (cust: CustomerStat) => {
-    const text = WA_TEMPLATES[waTemplate].replace("{name}", cust.name);
+    const text = WA_TEMPLATES[waTemplate as keyof typeof WA_TEMPLATES].replace("{name}", cust.name);
     setEditModal({ isOpen: true, text, phone: cust.phone, name: cust.name });
   };
 
@@ -209,10 +209,12 @@ const CustomerSales: React.FC = () => {
     const product = selectedPromoObj;
     if (!product) return;
 
-    const BACKEND_DOMAIN = "https://admin.bafnatoys.com"; 
-    const shareLink = `${BACKEND_DOMAIN}/api/share/product/${product._id}`;
+    // Use current timestamp to bust WhatsApp image cache
+    const uniqueId = new Date().getTime(); 
+    // Link format: https://bafnatoys.com/product/{id}?v={timestamp}
+    const productLink = `https://bafnatoys.com/product/${product._id}?v=${uniqueId}`;
     
-    const text = `Hello ${cust.name}! 🌟\n\nCheck out our New Arrival:\n*${product.name}*\nPrice: ₹${product.price}\n\n👇 View & Order Here:\n${shareLink}`;
+    const text = `Hello ${cust.name}! 🌟\n\nCheck out our New Arrival:\n*${product.name}*\nPrice: ₹${product.price}\n\n👇 View & Order Here:\n${productLink}`;
 
     setEditModal({ isOpen: true, text, phone: cust.phone, name: cust.name });
   };
@@ -226,7 +228,8 @@ const CustomerSales: React.FC = () => {
 
   return (
     <div className="product-list-container">
-      {/* Header */}
+      {/* Header code same as before... */}
+      {/* (keeping all header logic, search, dropdowns intact) */}
       <div className="product-list-header" style={{ flexDirection: 'column', gap: '15px', alignItems: 'stretch' }}>
         <div style={{ display: 'flex', justifyContent: 'space-between', flexWrap: 'wrap', gap: '10px' }}>
           <div className="header-content">
@@ -257,7 +260,7 @@ const CustomerSales: React.FC = () => {
               <option value="festival">🪔 Festival</option>
             </select>
 
-            {/* ✅ Custom Image Product Selector */}
+            {/* Custom Image Product Selector */}
             <div className="custom-promo-dropdown" ref={dropdownRef} style={{ position: 'relative', minWidth: '240px' }}>
               <div 
                 onClick={() => setIsDropdownOpen(!isDropdownOpen)}
@@ -315,12 +318,13 @@ const CustomerSales: React.FC = () => {
             <input 
               type="text" 
               placeholder="Search Customer..." 
-              value={search}
-              onChange={(e) => setSearch(e.target.value)}
+              value={search} 
+              onChange={(e) => setSearch(e.target.value)} 
             />
         </div>
       </div>
 
+      {/* Main Table */}
       {loading ? (
         <div style={{ textAlign: "center", padding: "50px" }}>Loading data...</div>
       ) : (
@@ -359,6 +363,7 @@ const CustomerSales: React.FC = () => {
                                 borderRadius: '6px', border: '1px solid #bbf7d0', cursor: 'pointer',
                                 display: 'flex', alignItems: 'center', gap:'5px', fontSize:'0.8rem', fontWeight:'500' 
                             }}
+                            title="Edit & Send Message"
                         >
                             <FiMessageCircle /> Msg
                         </button>
@@ -370,6 +375,7 @@ const CustomerSales: React.FC = () => {
                                 padding: '6px 10px', borderRadius: '6px', cursor: 'pointer', 
                                 display: 'flex', alignItems: 'center', gap: '5px', fontSize: '0.8rem', fontWeight: '500'
                             }}
+                            title="Edit & Send Promotion"
                         >
                             <FiShare2 /> Promote
                         </button>
@@ -395,19 +401,18 @@ const CustomerSales: React.FC = () => {
         </div>
       )}
 
-      {/* ✅ Message Edit Modal with Product Preview */}
+      {/* Message Edit Modal */}
       {editModal && (
         <div style={{
           position: "fixed", top: 0, left: 0, right: 0, bottom: 0,
           background: "rgba(0,0,0,0.6)", zIndex: 2000,
           display: "flex", alignItems: "center", justifyContent: "center", padding: '20px'
         }} onClick={() => setEditModal(null)}>
-          <div 
-            style={{ 
+          <div style={{ 
               background: "white", width: "100%", maxWidth: "500px", borderRadius: "12px", 
-              padding: "25px", display: "flex", flexDirection: "column", gap: "15px",
-              boxShadow: "0 10px 25px rgba(0,0,0,0.2)"
-            }}
+              padding: "25px", display: "flex", flexDirection: "column", gap: "15px", 
+              boxShadow: "0 10px 25px rgba(0,0,0,0.2)" 
+            }} 
             onClick={(e) => e.stopPropagation()}
           >
             <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
@@ -437,26 +442,26 @@ const CustomerSales: React.FC = () => {
               onChange={(e) => setEditModal({...editModal, text: e.target.value})}
               style={{ 
                 width: "100%", height: "150px", padding: "12px", borderRadius: "8px", 
-                border: "1px solid #ddd", fontSize: "0.95rem", resize: "vertical", fontFamily: "inherit"
+                border: "1px solid #ddd", fontSize: "0.95rem", resize: "vertical", fontFamily: "inherit" 
               }}
             />
 
             <div style={{ display: "flex", justifyContent: "flex-end", gap: "10px" }}>
               <button 
-                onClick={() => setEditModal(null)}
+                onClick={() => setEditModal(null)} 
                 style={{ 
                   padding: "10px 20px", borderRadius: "8px", border: "1px solid #ddd", 
-                  background: "white", cursor: "pointer", fontWeight: "500"
+                  background: "white", cursor: "pointer", fontWeight: "500" 
                 }}
               >
                 Cancel
               </button>
               <button 
-                onClick={sendWhatsApp}
+                onClick={sendWhatsApp} 
                 style={{ 
                   padding: "10px 20px", borderRadius: "8px", border: "none", 
-                  background: "#25D366", color: "white", cursor: "pointer", fontWeight: "bold",
-                  display: "flex", alignItems: "center", gap: "8px"
+                  background: "#25D366", color: "white", cursor: "pointer", fontWeight: "bold", 
+                  display: "flex", alignItems: "center", gap: "8px" 
                 }}
               >
                 <FiSend /> Send on WhatsApp
@@ -466,7 +471,7 @@ const CustomerSales: React.FC = () => {
         </div>
       )}
 
-      {/* History Detail Modal */}
+      {/* History Detail Modal with Address */}
       {selectedCustomer && (
         <div style={{
           position: "fixed", top: 0, left: 0, right: 0, bottom: 0,
@@ -488,6 +493,7 @@ const CustomerSales: React.FC = () => {
             <div style={{ padding: "20px", overflowY: "auto", background: "#f9fafb" }}>
                 {selectedCustomer.history.map((order, idx) => (
                     <div key={idx} style={{ background: 'white', borderRadius: '10px', padding: '15px', marginBottom: '15px', boxShadow: '0 2px 5px rgba(0,0,0,0.05)', border: '1px solid #e5e7eb' }}>
+                        {/* Header Row */}
                         <div style={{ display: 'flex', justifyContent: 'space-between', borderBottom: '1px solid #f3f4f6', paddingBottom: '10px', marginBottom: '10px' }}>
                             <div>
                                 <div style={{ fontWeight: 'bold', fontSize: '1rem', color: '#1f2937' }}>#{order.orderId}</div>
@@ -505,6 +511,20 @@ const CustomerSales: React.FC = () => {
                                 </span>
                             </div>
                         </div>
+
+                        {/* ✅ Shipping Address Section */}
+                        {order.shippingAddress && (
+                            <div style={{ fontSize: '0.85rem', color: '#555', background: '#f8f9fa', padding: '10px', borderRadius: '6px', marginBottom: '12px', border: '1px dashed #ddd' }}>
+                                <div style={{ display: 'flex', alignItems: 'center', gap: '6px', marginBottom: '4px', fontWeight: 'bold', color: '#333' }}>
+                                    <FiMapPin /> Shipping Details
+                                </div>
+                                <div><strong>{order.shippingAddress.fullName}</strong></div>
+                                <div>{order.shippingAddress.street}</div>
+                                <div>{order.shippingAddress.city}, {order.shippingAddress.state} - {order.shippingAddress.pincode}</div>
+                            </div>
+                        )}
+
+                        {/* Items List */}
                         <div style={{ display: 'flex', flexDirection: 'column', gap: '10px' }}>
                             {order.items.map((item, i) => (
                                 <div key={i} style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
@@ -521,6 +541,7 @@ const CustomerSales: React.FC = () => {
                         </div>
                     </div>
                 ))}
+                {selectedCustomer.history.length === 0 && <p style={{ textAlign: 'center', color: '#888' }}>No purchase history found.</p>}
             </div>
           </div>
         </div>

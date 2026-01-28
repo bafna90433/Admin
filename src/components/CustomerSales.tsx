@@ -1,7 +1,7 @@
 import React, { useEffect, useState, useMemo } from "react";
 import api, { MEDIA_URL } from "../utils/api";
 import { 
-  FiSearch, FiUser, FiEye, FiX, FiCalendar, FiMapPin, 
+  FiSearch, FiUser, FiEye, FiX, 
   FiMessageCircle, FiShare2, FiSend, FiEdit3 
 } from "react-icons/fi";
 import "../styles/ProductList.css"; 
@@ -70,8 +70,11 @@ const CustomerSales: React.FC = () => {
   const [sortOption, setSortOption] = useState("highestSpent");
   const [waTemplate, setWaTemplate] = useState<keyof typeof WA_TEMPLATES>("followup");
   const [promoProduct, setPromoProduct] = useState<string>("");
+  
+  // Custom Dropdown State
+  const [isDropdownOpen, setIsDropdownOpen] = useState(false);
 
-  // ✅ New State: Message Edit Modal
+  // Edit Modal State
   const [editModal, setEditModal] = useState<{
     isOpen: boolean;
     text: string;
@@ -179,18 +182,11 @@ const CustomerSales: React.FC = () => {
     return null;
   };
 
-  // ✅ 1. General Message Handler
   const handleGeneralMessage = (cust: CustomerStat) => {
-    const text = WA_TEMPLATES[waTemplate].replace("{name}", cust.name);
-    setEditModal({
-      isOpen: true,
-      text: text,
-      phone: cust.phone,
-      name: cust.name
-    });
+    const text = WA_TEMPLATES[waTemplate as keyof typeof WA_TEMPLATES].replace("{name}", cust.name);
+    setEditModal({ isOpen: true, text: text, phone: cust.phone, name: cust.name });
   };
 
-  // ✅ 2. Product Promo Handler (FIXED to show Direct Link)
   const handleProductPromo = (cust: CustomerStat) => {
     if (!promoProduct) {
       alert("Please select a product from the top dropdown first.");
@@ -199,21 +195,15 @@ const CustomerSales: React.FC = () => {
     const product = products.find(p => p._id === promoProduct);
     if (!product) return;
 
-    // 👇 Yahan Hum Seedha Website ka Link bana rahe hain
-    // Isse WhatsApp par "bafnatoys.com" dikhega (Admin Panel nahi)
-    const productLink = `https://bafnatoys.com/product/${product._id}`;
+    // ✅ FIX: Added timestamp (?v=...) to force WhatsApp to fetch the NEW image instead of cache
+    const uniqueId = new Date().getTime(); 
+    const productLink = `https://bafnatoys.com/product/${product._id}?v=${uniqueId}`;
     
     const text = `Hello ${cust.name}! 🌟\n\nCheck out our New Arrival:\n*${product.name}*\nPrice: ₹${product.price}\n\n👇 View & Order Here:\n${productLink}`;
 
-    setEditModal({
-      isOpen: true,
-      text: text,
-      phone: cust.phone,
-      name: cust.name
-    });
+    setEditModal({ isOpen: true, text: text, phone: cust.phone, name: cust.name });
   };
 
-  // ✅ 3. Final Send Action (WhatsApp)
   const sendWhatsApp = () => {
     if (!editModal) return;
     const url = `https://wa.me/91${editModal.phone.replace(/\D/g, '')}?text=${encodeURIComponent(editModal.text)}`;
@@ -254,16 +244,77 @@ const CustomerSales: React.FC = () => {
               <option value="festival">🪔 Festival</option>
             </select>
 
-            <select 
-              value={promoProduct} 
-              onChange={(e) => setPromoProduct(e.target.value)}
-              style={{ padding: '8px 12px', borderRadius: '6px', border: '1px solid #eab308', background: '#fefce8', fontWeight: 'bold' }}
-            >
-              <option value="">📢 Select Product to Promote</option>
-              {products.map(p => (
-                <option key={p._id} value={p._id}>{p.name.substring(0, 30)}... (₹{p.price})</option>
-              ))}
-            </select>
+            {/* Custom Product Dropdown with Images */}
+            <div style={{ position: 'relative', width: '280px' }}>
+              <div 
+                onClick={() => setIsDropdownOpen(!isDropdownOpen)}
+                style={{ 
+                  padding: '8px 12px', borderRadius: '6px', border: '1px solid #eab308', 
+                  background: '#fefce8', cursor: 'pointer', display: 'flex', 
+                  alignItems: 'center', justifyContent: 'space-between', fontWeight: 'bold', color: '#854d0e'
+                }}
+              >
+                {promoProduct ? (
+                  (() => {
+                    const selected = products.find(p => p._id === promoProduct);
+                    return (
+                      <div style={{ display: 'flex', alignItems: 'center', gap: '10px', overflow: 'hidden' }}>
+                        <img 
+                          src={getImageUrl(selected?.images[0] || "")} 
+                          alt="" 
+                          style={{ width: '30px', height: '30px', objectFit: 'cover', borderRadius: '4px' }} 
+                        />
+                        <span style={{ whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
+                          {selected?.name.substring(0, 20)}... (₹{selected?.price})
+                        </span>
+                      </div>
+                    );
+                  })()
+                ) : (
+                  <span>📢 Select Product to Promote</span>
+                )}
+                <span style={{ fontSize: '0.8rem' }}>▼</span>
+              </div>
+
+              {isDropdownOpen && (
+                <div style={{
+                  position: 'absolute', top: '100%', left: 0, width: '100%', maxHeight: '300px', 
+                  overflowY: 'auto', background: 'white', border: '1px solid #ddd', 
+                  borderRadius: '6px', boxShadow: '0 4px 15px rgba(0,0,0,0.15)', zIndex: 100, marginTop: '5px'
+                }}>
+                  {products.map(p => (
+                    <div 
+                      key={p._id}
+                      onClick={() => {
+                        setPromoProduct(p._id);
+                        setIsDropdownOpen(false);
+                      }}
+                      style={{
+                        padding: '10px', borderBottom: '1px solid #f0f0f0', cursor: 'pointer', 
+                        display: 'flex', alignItems: 'center', gap: '10px', 
+                        background: promoProduct === p._id ? '#fefce8' : 'white', transition: 'background 0.2s'
+                      }}
+                      onMouseEnter={(e) => e.currentTarget.style.background = '#f9fafb'}
+                      onMouseLeave={(e) => e.currentTarget.style.background = promoProduct === p._id ? '#fefce8' : 'white'}
+                    >
+                      <img 
+                        src={getImageUrl(p.images[0])} 
+                        alt={p.name} 
+                        style={{ width: '40px', height: '40px', objectFit: 'cover', borderRadius: '4px', border: '1px solid #eee' }} 
+                      />
+                      <div style={{ display: 'flex', flexDirection: 'column' }}>
+                        <span style={{ fontSize: '0.9rem', fontWeight: '500', color: '#333' }}>
+                          {p.name.length > 25 ? p.name.substring(0, 25) + '...' : p.name}
+                        </span>
+                        <span style={{ fontSize: '0.8rem', color: '#059669', fontWeight: 'bold' }}>
+                          ₹{p.price}
+                        </span>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              )}
+            </div>
           </div>
         </div>
 
@@ -272,8 +323,8 @@ const CustomerSales: React.FC = () => {
             <input 
               type="text" 
               placeholder="Search Customer..." 
-              value={search}
-              onChange={(e) => setSearch(e.target.value)}
+              value={search} 
+              onChange={(e) => setSearch(e.target.value)} 
             />
         </div>
       </div>
@@ -311,7 +362,11 @@ const CustomerSales: React.FC = () => {
                     <div style={{ display: 'flex', gap: '8px' }}>
                         <button 
                             onClick={() => handleGeneralMessage(cust)}
-                            style={{ background: '#dcfce7', color: '#166534', padding: '6px 10px', borderRadius: '6px', border: '1px solid #bbf7d0', cursor: 'pointer', display: 'flex', alignItems: 'center', gap:'5px', fontSize:'0.8rem', fontWeight:'500' }}
+                            style={{ 
+                                background: '#dcfce7', color: '#166534', padding: '6px 10px', 
+                                borderRadius: '6px', border: '1px solid #bbf7d0', cursor: 'pointer',
+                                display: 'flex', alignItems: 'center', gap:'5px', fontSize:'0.8rem', fontWeight:'500' 
+                            }}
                             title="Edit & Send Message"
                         >
                             <FiMessageCircle /> Msg
@@ -319,7 +374,11 @@ const CustomerSales: React.FC = () => {
 
                         <button
                             onClick={() => handleProductPromo(cust)}
-                            style={{ background: '#fef08a', color: '#854d0e', border: '1px solid #fde047', padding: '6px 10px', borderRadius: '6px', cursor: 'pointer', display: 'flex', alignItems: 'center', gap: '5px', fontSize: '0.8rem', fontWeight: '500' }}
+                            style={{ 
+                                background: '#fef08a', color: '#854d0e', border: '1px solid #fde047', 
+                                padding: '6px 10px', borderRadius: '6px', cursor: 'pointer', 
+                                display: 'flex', alignItems: 'center', gap: '5px', fontSize: '0.8rem', fontWeight: '500'
+                            }}
                             title="Edit & Send Promotion"
                         >
                             <FiShare2 /> Promote
@@ -350,53 +409,35 @@ const CustomerSales: React.FC = () => {
       {editModal && (
         <div style={{
           position: "fixed", top: 0, left: 0, right: 0, bottom: 0,
-          background: "rgba(0,0,0,0.6)", zIndex: 1100, 
-          display: "flex", alignItems: "center", justifyContent: "center", padding: '20px'
+          background: "rgba(0,0,0,0.6)", zIndex: 1100, display: "flex", alignItems: "center", justifyContent: "center", padding: '20px'
         }} onClick={() => setEditModal(null)}>
-          <div 
-            style={{ 
-              background: "white", width: "100%", maxWidth: "500px", borderRadius: "12px", 
-              padding: "25px", display: "flex", flexDirection: "column", gap: "15px",
-              boxShadow: "0 10px 25px rgba(0,0,0,0.2)"
-            }}
-            onClick={(e) => e.stopPropagation()}
-          >
+          <div style={{ background: "white", width: "100%", maxWidth: "500px", borderRadius: "12px", padding: "25px", display: "flex", flexDirection: "column", gap: "15px", boxShadow: "0 10px 25px rgba(0,0,0,0.2)" }} onClick={(e) => e.stopPropagation()}>
             <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
-              <h3 style={{ margin: 0, display: "flex", alignItems: "center", gap: "8px" }}>
-                <FiEdit3 /> Edit Message
-              </h3>
+              <h3 style={{ margin: 0, display: "flex", alignItems: "center", gap: "8px" }}><FiEdit3 /> Edit Message</h3>
               <button onClick={() => setEditModal(null)} style={{ background: "none", border: "none", cursor: "pointer" }}><FiX size={24} /></button>
             </div>
             
-            <div style={{ fontSize: "0.9rem", color: "#666" }}>
-              Sending to: <strong>{editModal.name}</strong> ({editModal.phone})
-            </div>
+            <div style={{ fontSize: "0.9rem", color: "#666" }}>Sending to: <strong>{editModal.name}</strong> ({editModal.phone})</div>
 
             <textarea 
               value={editModal.text}
               onChange={(e) => setEditModal({...editModal, text: e.target.value})}
-              style={{ 
-                width: "100%", height: "150px", padding: "12px", borderRadius: "8px", 
-                border: "1px solid #ddd", fontSize: "0.95rem", resize: "vertical", fontFamily: "inherit"
-              }}
+              style={{ width: "100%", height: "150px", padding: "12px", borderRadius: "8px", border: "1px solid #ddd", fontSize: "0.95rem", resize: "vertical", fontFamily: "inherit" }}
             />
 
             <div style={{ display: "flex", justifyContent: "flex-end", gap: "10px" }}>
               <button onClick={() => setEditModal(null)} style={{ padding: "10px 20px", borderRadius: "8px", border: "1px solid #ddd", background: "white", cursor: "pointer", fontWeight: "500" }}>Cancel</button>
-              <button onClick={sendWhatsApp} style={{ padding: "10px 20px", borderRadius: "8px", border: "none", background: "#25D366", color: "white", cursor: "pointer", fontWeight: "bold", display: "flex", alignItems: "center", gap: "8px" }}>
-                <FiSend /> Send on WhatsApp
-              </button>
+              <button onClick={sendWhatsApp} style={{ padding: "10px 20px", borderRadius: "8px", border: "none", background: "#25D366", color: "white", cursor: "pointer", fontWeight: "bold", display: "flex", alignItems: "center", gap: "8px" }}><FiSend /> Send on WhatsApp</button>
             </div>
           </div>
         </div>
       )}
 
-      {/* History Detail Modal (Kept same) */}
+      {/* History Detail Modal */}
       {selectedCustomer && (
         <div style={{
           position: "fixed", top: 0, left: 0, right: 0, bottom: 0,
-          background: "rgba(0,0,0,0.6)", zIndex: 1000,
-          display: "flex", alignItems: "center", justifyContent: "center", padding: '20px'
+          background: "rgba(0,0,0,0.6)", zIndex: 1000, display: "flex", alignItems: "center", justifyContent: "center", padding: '20px'
         }} onClick={() => setSelectedCustomer(null)}>
           <div style={{ background: "white", width: "100%", maxWidth: "800px", borderRadius: "12px", maxHeight: "90vh", display: "flex", flexDirection: "column" }} onClick={(e) => e.stopPropagation()}>
             <div style={{ padding: "20px", borderBottom: "1px solid #eee", display: "flex", justifyContent: "space-between", alignItems: "center" }}>

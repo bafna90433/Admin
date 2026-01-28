@@ -18,8 +18,14 @@ import AdminDashboard from "./components/AdminDashboard";
 import AdminOrders from "./components/AdminOrders";
 import WhatsAppSettings from "./components/WhatsAppSettings";
 
-// ✅ NEW: Unified Payment & Shipping Component
+// ✅ UNIFIED: Payment & Shipping Settings
 import PaymentShippingSettings from "./components/PaymentShippingSettings";
+
+// ✅ STOCK: Stock Management Component
+import StockManagement from "./components/StockManagement";
+
+// ✅ NEW: Customer Sales Report Component
+import CustomerSales from "./components/CustomerSales";
 
 // 🔐 Admin Login
 import AdminLogin from "./components/AdminLogin";
@@ -80,6 +86,12 @@ const App: React.FC = () => {
           {/* ✅ UNIFIED: Payment & Shipping Settings */}
           <Route path="payment-shipping" element={<PaymentShippingSettings />} />
           
+          {/* ✅ STOCK: Stock Management Route */}
+          <Route path="inventory" element={<StockManagement />} />
+
+          {/* ✅ NEW: Customer Sales Report Route */}
+          <Route path="sales-report" element={<CustomerSales />} />
+
         </Route>
 
         {/* 404 fallback */}

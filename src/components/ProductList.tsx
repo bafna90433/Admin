@@ -12,6 +12,9 @@ import {
   FiArrowDown,
   FiChevronDown,
   FiChevronUp,
+  FiAlertCircle,
+  FiBox,
+  FiCheckCircle
 } from "react-icons/fi";
 import "../styles/ProductList.css";
 
@@ -25,6 +28,8 @@ interface Product {
   name: string;
   sku: string;
   price?: number | string;
+  stock?: number;
+  unit?: string; // ✅ Added Unit field here
   category?: { _id: string; name: string };
   createdAt?: string;
   images?: string[];
@@ -51,7 +56,7 @@ export default function ProductList() {
 
   const navigate = useNavigate();
 
-  // 🧠 Fetch products + categories
+  // Fetch products + categories
   useEffect(() => {
     const fetchData = async () => {
       try {
@@ -73,13 +78,13 @@ export default function ProductList() {
     fetchData();
   }, []);
 
-  // 🕐 Debounce search
+  // Debounce search
   useEffect(() => {
     const t = setTimeout(() => setDebounced(search), 300);
     return () => clearTimeout(t);
   }, [search]);
 
-  // 🧩 Group products by category
+  // Group products by category
   const groupedProducts = useMemo(() => {
     const q = norm(debounced);
     const filtered = !q
@@ -100,7 +105,7 @@ export default function ProductList() {
     return groups;
   }, [products, debounced]);
 
-  // 🗑 Delete product
+  // Delete product
   const handleDelete = async (id: string) => {
     if (!window.confirm("Are you sure you want to delete this product?")) return;
     try {
@@ -111,7 +116,7 @@ export default function ProductList() {
     }
   };
 
-  // 🖊 Inline Category Change
+  // Inline Category Change
   const handleCategoryChange = (productId: string, newCategoryId: string) => {
     setEditingCategory({ productId, categoryId: newCategoryId });
   };
@@ -144,36 +149,30 @@ export default function ProductList() {
     }
   };
 
-  // ⬆⬇ Move Product (within category only)
+  // Move Product
   const moveProduct = async (id: string, direction: "up" | "down") => {
     try {
       const res = await api.put(`/products/${id}/move`, { direction });
 
       if (res.data.updatedCategoryProducts) {
         const updated = res.data.updatedCategoryProducts;
-
-        // Replace category’s products locally
         setProducts((prev) => {
           const updatedIds = updated.map((u: Product) => u._id);
           const newList = prev.map((p) => {
             const match = updated.find((u: Product) => u._id === p._id);
             return match ? match : p;
           });
-          // sort to maintain correct order after replace
           return newList.sort(
             (a, b) => (a.order || 0) - (b.order || 0)
           );
         });
       }
-
-      console.log(res.data.message);
     } catch (err: any) {
       console.error("❌ Move failed:", err);
       alert(err.response?.data?.message || "Failed to move product.");
     }
   };
 
-  // 🔽 Expand / Collapse Category
   const toggleExpand = (catName: string) => {
     setExpanded((prev) => ({ ...prev, [catName]: !prev[catName] }));
   };
@@ -183,7 +182,7 @@ export default function ProductList() {
 
   return (
     <div className="product-list-container">
-      {/* 🔹 Header */}
+      {/* Header */}
       <div className="product-list-header">
         <div className="header-content">
           <h1>Product Management</h1>
@@ -218,7 +217,7 @@ export default function ProductList() {
         </div>
       </div>
 
-      {/* 🔹 Category Sections */}
+      {/* Category Sections */}
       {Object.keys(groupedProducts).map((catName) => (
         <div key={catName} className="category-group">
           <div
@@ -242,9 +241,9 @@ export default function ProductList() {
                   <th>Image</th>
                   <th>Name</th>
                   <th>SKU</th>
+                  <th>Stock</th>
                   <th>Category</th>
                   <th>Price</th>
-                  <th>Created</th>
                   <th>Actions</th>
                 </tr>
               </thead>
@@ -252,6 +251,8 @@ export default function ProductList() {
                 {groupedProducts[catName].map((p, index) => {
                   const isEditing = editingCategory?.productId === p._id;
                   const currentCat = p.category?._id || "";
+                  const stock = p.stock || 0;
+                  const unitLabel = p.unit ? p.unit : "Units"; // ✅ Logic: Use unit if exists, else "Units"
 
                   return (
                     <tr key={p._id}>
@@ -272,18 +273,29 @@ export default function ProductList() {
                       <td>{p.name}</td>
                       <td>{p.sku}</td>
 
-                      {/* 🔄 Inline Category Edit */}
+                      {/* ✅ UPDATED STOCK COLUMN (Shows Unit Name) */}
+                      <td>
+                         {stock === 0 ? (
+                           <span style={{ display: 'inline-flex', alignItems: 'center', gap: '4px', color: '#ef4444', background: '#fee2e2', padding: '4px 8px', borderRadius: '4px', fontSize: '0.85rem', fontWeight: '600' }}>
+                             <FiAlertCircle size={14} /> Out of Stock
+                           </span>
+                         ) : stock <= 5 ? (
+                           <span style={{ display: 'inline-flex', alignItems: 'center', gap: '4px', color: '#d97706', background: '#fef3c7', padding: '4px 8px', borderRadius: '4px', fontSize: '0.85rem', fontWeight: '600' }}>
+                             <FiAlertCircle size={14} /> Low ({stock} {unitLabel})
+                           </span>
+                         ) : (
+                           <span style={{ display: 'inline-flex', alignItems: 'center', gap: '4px', color: '#10b981', background: '#d1fae5', padding: '4px 8px', borderRadius: '4px', fontSize: '0.85rem', fontWeight: '600' }}>
+                             <FiCheckCircle size={14} /> {stock} {unitLabel}
+                           </span>
+                         )}
+                      </td>
+
+                      {/* Inline Category Edit */}
                       <td>
                         <div className="category-select-wrapper">
                           <select
-                            value={
-                              isEditing
-                                ? editingCategory.categoryId
-                                : currentCat
-                            }
-                            onChange={(e) =>
-                              handleCategoryChange(p._id, e.target.value)
-                            }
+                            value={isEditing ? editingCategory.categoryId : currentCat}
+                            onChange={(e) => handleCategoryChange(p._id, e.target.value)}
                             className="product-category-select"
                           >
                             <option value="">Select Category</option>
@@ -294,61 +306,31 @@ export default function ProductList() {
                             ))}
                           </select>
 
-                          {isEditing &&
-                            editingCategory.categoryId !== currentCat && (
-                              <button
-                                onClick={() => saveCategoryChange(p._id)}
-                                className="save-category-btn"
-                                title="Save"
-                              >
-                                <FiCheck size={18} />
-                              </button>
-                            )}
+                          {isEditing && editingCategory.categoryId !== currentCat && (
+                            <button onClick={() => saveCategoryChange(p._id)} className="save-category-btn" title="Save">
+                              <FiCheck size={18} />
+                            </button>
+                          )}
                         </div>
                       </td>
 
-                      <td>
-                        {p.price ? `₹${Number(p.price).toFixed(2)}` : "—"}
-                      </td>
-                      <td>
-                        {p.createdAt
-                          ? new Date(p.createdAt).toLocaleDateString()
-                          : "—"}
-                      </td>
+                      <td>{p.price ? `₹${Number(p.price).toFixed(2)}` : "—"}</td>
 
                       {/* Actions */}
                       <td className="product-actions">
                         <div className="move-buttons">
-                          <button
-                            onClick={() => moveProduct(p._id, "up")}
-                            disabled={index === 0}
-                            title="Move Up"
-                            className="move-btn"
-                          >
+                          <button onClick={() => moveProduct(p._id, "up")} disabled={index === 0} className="move-btn">
                             <FiArrowUp />
                           </button>
-                          <button
-                            onClick={() => moveProduct(p._id, "down")}
-                            disabled={
-                              index === groupedProducts[catName].length - 1
-                            }
-                            title="Move Down"
-                            className="move-btn"
-                          >
+                          <button onClick={() => moveProduct(p._id, "down")} disabled={index === groupedProducts[catName].length - 1} className="move-btn">
                             <FiArrowDown />
                           </button>
                         </div>
-                        <Link
-                          to={`/admin/products/edit/${p._id}`}
-                          className="edit-button"
-                        >
-                          <FiEdit2 size={16} /> Edit
+                        <Link to={`/admin/products/edit/${p._id}`} className="edit-button">
+                          <FiEdit2 size={16} /> 
                         </Link>
-                        <button
-                          onClick={() => handleDelete(p._id)}
-                          className="delete-button"
-                        >
-                          <FiTrash2 size={16} /> Delete
+                        <button onClick={() => handleDelete(p._id)} className="delete-button">
+                          <FiTrash2 size={16} /> 
                         </button>
                       </td>
                     </tr>

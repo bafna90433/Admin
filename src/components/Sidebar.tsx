@@ -13,7 +13,9 @@ import {
   FiUploadCloud,
   FiCreditCard,
   FiChevronRight,
-  FiSearch
+  FiSearch,
+  FiActivity,
+  FiBarChart2 // ✅ Added Icon for Sales Report
 } from "react-icons/fi";
 import {
   MdOutlineSpaceDashboard
@@ -143,11 +145,29 @@ const Sidebar: React.FC<SidebarProps> = ({ sidebarOpen, closeSidebar }) => {
               label="Add Product"
               gradient="pink"
             />
+             {/* Stock Management Link */}
+             <NavItem 
+              to="/admin/inventory" 
+              icon={FiActivity} 
+              label="Stock & Sales"
+              gradient="red"
+            />
             <NavItem 
               to="/admin/categories" 
               icon={TbCategory} 
               label="Categories"
               gradient="orange"
+            />
+          </div>
+
+          {/* ✅ NEW: Analytics Section */}
+          <div className="nav-section-final">
+            <h4 className="section-header-final">Analytics</h4>
+            <NavItem 
+              to="/admin/sales-report" 
+              icon={FiBarChart2} 
+              label="Customer Sales"
+              gradient="indigo"
             />
           </div>
 
@@ -171,7 +191,6 @@ const Sidebar: React.FC<SidebarProps> = ({ sidebarOpen, closeSidebar }) => {
               label="WhatsApp Campaigns"
               gradient="green"
             />
-             {/* Removed Promotions Item */}
           </div>
 
           <div className="nav-section-final">
@@ -188,7 +207,6 @@ const Sidebar: React.FC<SidebarProps> = ({ sidebarOpen, closeSidebar }) => {
               label="Finance & Shipping"
               gradient="yellow"
             />
-            {/* Removed System Settings Item */}
           </div>
 
         </div>

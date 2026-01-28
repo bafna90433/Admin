@@ -15,6 +15,7 @@ import {
   Calendar,
   Info,
   ExternalLink,
+  CheckCircle,
 } from "lucide-react";
 
 interface OrderModalProps {
@@ -39,7 +40,7 @@ const resolveImage = (img?: string): string => {
   return `${MEDIA_URL}/uploads/${encodeURIComponent(img)}`;
 };
 
-// ✅ Export single order
+// ✅ Export single order (Updated for Excel Payment Mode)
 const exportSingleOrder = (order: any) => {
   const sa = order.shippingAddress;
   const rows = order.items.map((it: any) => ({
@@ -58,6 +59,8 @@ const exportSingleOrder = (order: any) => {
     Price_Per_Pc: it.price,
     Total_Amount: it.price * it.qty,
     Status: order.status,
+    // ✅ Excel Payment Column
+    Payment_Mode: order.paymentMode === "ONLINE" ? "Online Payment" : "Cash on Delivery",
     Date: order.createdAt
       ? new Date(order.createdAt).toLocaleDateString()
       : "",
@@ -82,6 +85,10 @@ const OrderModal: React.FC<OrderModalProps> = ({ order, onClose }) => {
     (sum: number, it: any) => sum + (it.qty || 0),
     0
   );
+
+  // ✅ Logic to display Payment Status correctly
+  const isOnline = order.paymentMode === "ONLINE";
+  const paymentDisplay = isOnline ? "Online Payment (Paid)" : "Cash on Delivery";
 
   return (
     <div className="modal-overlay" onClick={onClose}>
@@ -121,12 +128,21 @@ const OrderModal: React.FC<OrderModalProps> = ({ order, onClose }) => {
                     {order.status?.toUpperCase()}
                   </span>
                 </p>
-                <p>
+                
+                {/* ✅ FIXED PAYMENT DISPLAY */}
+                <p style={{ display: "flex", alignItems: "center", gap: "5px" }}>
                   <strong>
                     <CreditCard size={14} /> Payment:
                   </strong>{" "}
-                  {order.paymentMethod || "COD"}
+                  {isOnline ? (
+                    <span style={{ color: "green", fontWeight: "bold", display: "flex", alignItems: "center", gap: "4px" }}>
+                      {paymentDisplay} <CheckCircle size={14} />
+                    </span>
+                  ) : (
+                    <span>{paymentDisplay}</span>
+                  )}
                 </p>
+
                 <p>
                   <strong>
                     <Calendar size={14} /> Date:

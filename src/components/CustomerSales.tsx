@@ -1,8 +1,8 @@
-import React, { useEffect, useState, useMemo } from "react";
+import React, { useEffect, useState, useMemo, useRef } from "react";
 import api, { MEDIA_URL } from "../utils/api";
 import { 
-  FiSearch, FiUser, FiEye, FiX, 
-  FiMessageCircle, FiShare2, FiSend, FiEdit3 
+  FiSearch, FiUser, FiEye, FiX, FiCalendar, FiMapPin, 
+  FiMessageCircle, FiShare2, FiSend, FiEdit3, FiChevronDown 
 } from "react-icons/fi";
 import "../styles/ProductList.css"; 
 
@@ -73,8 +73,9 @@ const CustomerSales: React.FC = () => {
   
   // Custom Dropdown State
   const [isDropdownOpen, setIsDropdownOpen] = useState(false);
+  const dropdownRef = useRef<HTMLDivElement>(null);
 
-  // Edit Modal State
+  // Message Edit Modal State
   const [editModal, setEditModal] = useState<{
     isOpen: boolean;
     text: string;
@@ -84,6 +85,15 @@ const CustomerSales: React.FC = () => {
 
   useEffect(() => {
     fetchData();
+    
+    // Close dropdown on outside click
+    const handleClickOutside = (event: MouseEvent) => {
+      if (dropdownRef.current && !dropdownRef.current.contains(event.target as Node)) {
+        setIsDropdownOpen(false);
+      }
+    };
+    document.addEventListener("mousedown", handleClickOutside);
+    return () => document.removeEventListener("mousedown", handleClickOutside);
   }, []);
 
   const fetchData = async () => {
@@ -92,7 +102,6 @@ const CustomerSales: React.FC = () => {
       const { data: orders } = await api.get("/orders");
       const { data: productData } = await api.get("/products");
       
-      // Sort products by newest first
       setProducts(productData.reverse()); 
 
       const customerMap: Record<string, CustomerStat> = {};
@@ -175,6 +184,11 @@ const CustomerSales: React.FC = () => {
     return result;
   }, [customers, search, sortOption]);
 
+  const selectedPromoObj = useMemo(() => 
+    products.find(p => p._id === promoProduct), 
+    [products, promoProduct]
+  );
+
   const getCustomerBadge = (cust: CustomerStat) => {
     if (cust.totalSpent > 100000) return <span style={{ background: '#d1fae5', color: '#065f46', fontSize: '0.7rem', padding: '2px 6px', borderRadius: '4px', fontWeight: 'bold', marginLeft: '8px' }}>🟢 VIP</span>;
     if (cust.totalOrders >= 5) return <span style={{ background: '#dbeafe', color: '#1e40af', fontSize: '0.7rem', padding: '2px 6px', borderRadius: '4px', fontWeight: 'bold', marginLeft: '8px' }}>🔵 Regular</span>;
@@ -183,25 +197,24 @@ const CustomerSales: React.FC = () => {
   };
 
   const handleGeneralMessage = (cust: CustomerStat) => {
-    const text = WA_TEMPLATES[waTemplate as keyof typeof WA_TEMPLATES].replace("{name}", cust.name);
-    setEditModal({ isOpen: true, text: text, phone: cust.phone, name: cust.name });
+    const text = WA_TEMPLATES[waTemplate].replace("{name}", cust.name);
+    setEditModal({ isOpen: true, text, phone: cust.phone, name: cust.name });
   };
 
   const handleProductPromo = (cust: CustomerStat) => {
     if (!promoProduct) {
-      alert("Please select a product from the top dropdown first.");
+      alert("Please select a product from the dropdown first.");
       return;
     }
-    const product = products.find(p => p._id === promoProduct);
+    const product = selectedPromoObj;
     if (!product) return;
 
-    // ✅ FIX: Added timestamp (?v=...) to force WhatsApp to fetch the NEW image instead of cache
-    const uniqueId = new Date().getTime(); 
-    const productLink = `https://bafnatoys.com/product/${product._id}?v=${uniqueId}`;
+    const BACKEND_DOMAIN = "https://admin.bafnatoys.com"; 
+    const shareLink = `${BACKEND_DOMAIN}/api/share/product/${product._id}`;
     
-    const text = `Hello ${cust.name}! 🌟\n\nCheck out our New Arrival:\n*${product.name}*\nPrice: ₹${product.price}\n\n👇 View & Order Here:\n${productLink}`;
+    const text = `Hello ${cust.name}! 🌟\n\nCheck out our New Arrival:\n*${product.name}*\nPrice: ₹${product.price}\n\n👇 View & Order Here:\n${shareLink}`;
 
-    setEditModal({ isOpen: true, text: text, phone: cust.phone, name: cust.name });
+    setEditModal({ isOpen: true, text, phone: cust.phone, name: cust.name });
   };
 
   const sendWhatsApp = () => {
@@ -221,7 +234,7 @@ const CustomerSales: React.FC = () => {
             <p>Analyze and engage with your customers</p>
           </div>
           
-          <div style={{ display: 'flex', gap: '10px', flexWrap: 'wrap' }}>
+          <div style={{ display: 'flex', gap: '10px', flexWrap: 'wrap', alignItems: 'center' }}>
             <select 
               value={sortOption} 
               onChange={(e) => setSortOption(e.target.value)}
@@ -244,71 +257,50 @@ const CustomerSales: React.FC = () => {
               <option value="festival">🪔 Festival</option>
             </select>
 
-            {/* Custom Product Dropdown with Images */}
-            <div style={{ position: 'relative', width: '280px' }}>
+            {/* ✅ Custom Image Product Selector */}
+            <div className="custom-promo-dropdown" ref={dropdownRef} style={{ position: 'relative', minWidth: '240px' }}>
               <div 
                 onClick={() => setIsDropdownOpen(!isDropdownOpen)}
-                style={{ 
+                style={{
                   padding: '8px 12px', borderRadius: '6px', border: '1px solid #eab308', 
-                  background: '#fefce8', cursor: 'pointer', display: 'flex', 
-                  alignItems: 'center', justifyContent: 'space-between', fontWeight: 'bold', color: '#854d0e'
+                  background: '#fefce8', cursor: 'pointer', display: 'flex', alignItems: 'center', gap: '10px', fontWeight: 'bold'
                 }}
               >
-                {promoProduct ? (
-                  (() => {
-                    const selected = products.find(p => p._id === promoProduct);
-                    return (
-                      <div style={{ display: 'flex', alignItems: 'center', gap: '10px', overflow: 'hidden' }}>
-                        <img 
-                          src={getImageUrl(selected?.images[0] || "")} 
-                          alt="" 
-                          style={{ width: '30px', height: '30px', objectFit: 'cover', borderRadius: '4px' }} 
-                        />
-                        <span style={{ whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
-                          {selected?.name.substring(0, 20)}... (₹{selected?.price})
-                        </span>
-                      </div>
-                    );
-                  })()
+                {selectedPromoObj ? (
+                  <>
+                    <img src={getImageUrl(selectedPromoObj.images[0])} alt="" style={{ width: '24px', height: '24px', borderRadius: '4px', objectFit: 'cover' }} />
+                    <span style={{ flex: 1, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis', fontSize: '0.85rem' }}>
+                      {selectedPromoObj.name}
+                    </span>
+                  </>
                 ) : (
-                  <span>📢 Select Product to Promote</span>
+                  <span style={{ fontSize: '0.85rem' }}>📢 Select Product</span>
                 )}
-                <span style={{ fontSize: '0.8rem' }}>▼</span>
+                <FiChevronDown />
               </div>
 
               {isDropdownOpen && (
                 <div style={{
-                  position: 'absolute', top: '100%', left: 0, width: '100%', maxHeight: '300px', 
-                  overflowY: 'auto', background: 'white', border: '1px solid #ddd', 
-                  borderRadius: '6px', boxShadow: '0 4px 15px rgba(0,0,0,0.15)', zIndex: 100, marginTop: '5px'
+                  position: 'absolute', top: '110%', left: 0, right: 0, background: 'white', 
+                  border: '1px solid #ddd', borderRadius: '8px', boxShadow: '0 4px 15px rgba(0,0,0,0.15)', 
+                  maxHeight: '350px', overflowY: 'auto', zIndex: 1200
                 }}>
                   {products.map(p => (
                     <div 
                       key={p._id}
-                      onClick={() => {
-                        setPromoProduct(p._id);
-                        setIsDropdownOpen(false);
-                      }}
-                      style={{
-                        padding: '10px', borderBottom: '1px solid #f0f0f0', cursor: 'pointer', 
-                        display: 'flex', alignItems: 'center', gap: '10px', 
-                        background: promoProduct === p._id ? '#fefce8' : 'white', transition: 'background 0.2s'
-                      }}
+                      onClick={() => { setPromoProduct(p._id); setIsDropdownOpen(false); }}
+                      style={{ padding: '10px', display: 'flex', alignItems: 'center', gap: '12px', cursor: 'pointer', borderBottom: '1px solid #f0f0f0' }}
                       onMouseEnter={(e) => e.currentTarget.style.background = '#f9fafb'}
-                      onMouseLeave={(e) => e.currentTarget.style.background = promoProduct === p._id ? '#fefce8' : 'white'}
+                      onMouseLeave={(e) => e.currentTarget.style.background = 'transparent'}
                     >
                       <img 
                         src={getImageUrl(p.images[0])} 
-                        alt={p.name} 
-                        style={{ width: '40px', height: '40px', objectFit: 'cover', borderRadius: '4px', border: '1px solid #eee' }} 
+                        style={{ width: '40px', height: '40px', borderRadius: '4px', objectFit: 'cover', background: '#eee' }} 
+                        alt=""
                       />
-                      <div style={{ display: 'flex', flexDirection: 'column' }}>
-                        <span style={{ fontSize: '0.9rem', fontWeight: '500', color: '#333' }}>
-                          {p.name.length > 25 ? p.name.substring(0, 25) + '...' : p.name}
-                        </span>
-                        <span style={{ fontSize: '0.8rem', color: '#059669', fontWeight: 'bold' }}>
-                          ₹{p.price}
-                        </span>
+                      <div style={{ display: 'flex', flexDirection: 'column', overflow: 'hidden' }}>
+                        <span style={{ fontSize: '0.8rem', fontWeight: '600', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{p.name}</span>
+                        <span style={{ fontSize: '0.75rem', color: '#059669', fontWeight: 'bold' }}>₹{p.price}</span>
                       </div>
                     </div>
                   ))}
@@ -323,8 +315,8 @@ const CustomerSales: React.FC = () => {
             <input 
               type="text" 
               placeholder="Search Customer..." 
-              value={search} 
-              onChange={(e) => setSearch(e.target.value)} 
+              value={search}
+              onChange={(e) => setSearch(e.target.value)}
             />
         </div>
       </div>
@@ -367,7 +359,6 @@ const CustomerSales: React.FC = () => {
                                 borderRadius: '6px', border: '1px solid #bbf7d0', cursor: 'pointer',
                                 display: 'flex', alignItems: 'center', gap:'5px', fontSize:'0.8rem', fontWeight:'500' 
                             }}
-                            title="Edit & Send Message"
                         >
                             <FiMessageCircle /> Msg
                         </button>
@@ -379,7 +370,6 @@ const CustomerSales: React.FC = () => {
                                 padding: '6px 10px', borderRadius: '6px', cursor: 'pointer', 
                                 display: 'flex', alignItems: 'center', gap: '5px', fontSize: '0.8rem', fontWeight: '500'
                             }}
-                            title="Edit & Send Promotion"
                         >
                             <FiShare2 /> Promote
                         </button>
@@ -405,29 +395,72 @@ const CustomerSales: React.FC = () => {
         </div>
       )}
 
-      {/* Message Edit Modal */}
+      {/* ✅ Message Edit Modal with Product Preview */}
       {editModal && (
         <div style={{
           position: "fixed", top: 0, left: 0, right: 0, bottom: 0,
-          background: "rgba(0,0,0,0.6)", zIndex: 1100, display: "flex", alignItems: "center", justifyContent: "center", padding: '20px'
+          background: "rgba(0,0,0,0.6)", zIndex: 2000,
+          display: "flex", alignItems: "center", justifyContent: "center", padding: '20px'
         }} onClick={() => setEditModal(null)}>
-          <div style={{ background: "white", width: "100%", maxWidth: "500px", borderRadius: "12px", padding: "25px", display: "flex", flexDirection: "column", gap: "15px", boxShadow: "0 10px 25px rgba(0,0,0,0.2)" }} onClick={(e) => e.stopPropagation()}>
+          <div 
+            style={{ 
+              background: "white", width: "100%", maxWidth: "500px", borderRadius: "12px", 
+              padding: "25px", display: "flex", flexDirection: "column", gap: "15px",
+              boxShadow: "0 10px 25px rgba(0,0,0,0.2)"
+            }}
+            onClick={(e) => e.stopPropagation()}
+          >
             <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
-              <h3 style={{ margin: 0, display: "flex", alignItems: "center", gap: "8px" }}><FiEdit3 /> Edit Message</h3>
+              <h3 style={{ margin: 0, display: "flex", alignItems: "center", gap: "8px" }}>
+                <FiEdit3 /> Edit Message
+              </h3>
               <button onClick={() => setEditModal(null)} style={{ background: "none", border: "none", cursor: "pointer" }}><FiX size={24} /></button>
             </div>
             
-            <div style={{ fontSize: "0.9rem", color: "#666" }}>Sending to: <strong>{editModal.name}</strong> ({editModal.phone})</div>
+            <div style={{ fontSize: "0.9rem", color: "#666" }}>
+              Sending to: <strong>{editModal.name}</strong> ({editModal.phone})
+            </div>
+
+            {/* Product Quick Preview in Modal */}
+            {selectedPromoObj && editModal.text.includes("Arrival") && (
+              <div style={{ display: 'flex', alignItems: 'center', gap: '12px', padding: '10px', background: '#f0fdf4', borderRadius: '8px', border: '1px dashed #22c55e' }}>
+                <img src={getImageUrl(selectedPromoObj.images[0])} style={{ width: '50px', height: '50px', borderRadius: '6px', objectFit: 'cover' }} alt=""/>
+                <div>
+                  <div style={{ fontSize: '0.85rem', fontWeight: 'bold' }}>{selectedPromoObj.name}</div>
+                  <div style={{ fontSize: '0.8rem', color: '#166534' }}>Price: ₹{selectedPromoObj.price}</div>
+                </div>
+              </div>
+            )}
 
             <textarea 
               value={editModal.text}
               onChange={(e) => setEditModal({...editModal, text: e.target.value})}
-              style={{ width: "100%", height: "150px", padding: "12px", borderRadius: "8px", border: "1px solid #ddd", fontSize: "0.95rem", resize: "vertical", fontFamily: "inherit" }}
+              style={{ 
+                width: "100%", height: "150px", padding: "12px", borderRadius: "8px", 
+                border: "1px solid #ddd", fontSize: "0.95rem", resize: "vertical", fontFamily: "inherit"
+              }}
             />
 
             <div style={{ display: "flex", justifyContent: "flex-end", gap: "10px" }}>
-              <button onClick={() => setEditModal(null)} style={{ padding: "10px 20px", borderRadius: "8px", border: "1px solid #ddd", background: "white", cursor: "pointer", fontWeight: "500" }}>Cancel</button>
-              <button onClick={sendWhatsApp} style={{ padding: "10px 20px", borderRadius: "8px", border: "none", background: "#25D366", color: "white", cursor: "pointer", fontWeight: "bold", display: "flex", alignItems: "center", gap: "8px" }}><FiSend /> Send on WhatsApp</button>
+              <button 
+                onClick={() => setEditModal(null)}
+                style={{ 
+                  padding: "10px 20px", borderRadius: "8px", border: "1px solid #ddd", 
+                  background: "white", cursor: "pointer", fontWeight: "500"
+                }}
+              >
+                Cancel
+              </button>
+              <button 
+                onClick={sendWhatsApp}
+                style={{ 
+                  padding: "10px 20px", borderRadius: "8px", border: "none", 
+                  background: "#25D366", color: "white", cursor: "pointer", fontWeight: "bold",
+                  display: "flex", alignItems: "center", gap: "8px"
+                }}
+              >
+                <FiSend /> Send on WhatsApp
+              </button>
             </div>
           </div>
         </div>
@@ -437,38 +470,57 @@ const CustomerSales: React.FC = () => {
       {selectedCustomer && (
         <div style={{
           position: "fixed", top: 0, left: 0, right: 0, bottom: 0,
-          background: "rgba(0,0,0,0.6)", zIndex: 1000, display: "flex", alignItems: "center", justifyContent: "center", padding: '20px'
+          background: "rgba(0,0,0,0.6)", zIndex: 1500,
+          display: "flex", alignItems: "center", justifyContent: "center", padding: '20px'
         }} onClick={() => setSelectedCustomer(null)}>
-          <div style={{ background: "white", width: "100%", maxWidth: "800px", borderRadius: "12px", maxHeight: "90vh", display: "flex", flexDirection: "column" }} onClick={(e) => e.stopPropagation()}>
+          <div 
+            style={{ background: "white", width: "100%", maxWidth: "800px", borderRadius: "12px", maxHeight: "90vh", display: "flex", flexDirection: "column" }}
+            onClick={(e) => e.stopPropagation()}
+          >
             <div style={{ padding: "20px", borderBottom: "1px solid #eee", display: "flex", justifyContent: "space-between", alignItems: "center" }}>
-              <h2 style={{ margin: 0, fontSize: '1.4rem' }}>{selectedCustomer.name}</h2>
+              <div>
+                  <h2 style={{ margin: 0, fontSize: '1.4rem' }}>{selectedCustomer.name}</h2>
+                  <span style={{ fontSize: "0.9rem", color: "#666" }}>Total Orders: {selectedCustomer.totalOrders}</span>
+              </div>
               <button onClick={() => setSelectedCustomer(null)} style={{ background: "none", border: "none", cursor: "pointer" }}><FiX size={24} /></button>
             </div>
+
             <div style={{ padding: "20px", overflowY: "auto", background: "#f9fafb" }}>
-                {selectedCustomer.history.length === 0 ? <p style={{ textAlign: 'center', color: '#888' }}>No purchase history found.</p> : 
-                    selectedCustomer.history.map((order, idx) => (
-                        <div key={idx} style={{ background: 'white', borderRadius: '10px', padding: '15px', marginBottom: '15px', boxShadow: '0 2px 5px rgba(0,0,0,0.05)', border: '1px solid #e5e7eb' }}>
-                            <div style={{ display: 'flex', justifyContent: 'space-between', borderBottom: '1px solid #f3f4f6', paddingBottom: '10px', marginBottom: '10px' }}>
+                {selectedCustomer.history.map((order, idx) => (
+                    <div key={idx} style={{ background: 'white', borderRadius: '10px', padding: '15px', marginBottom: '15px', boxShadow: '0 2px 5px rgba(0,0,0,0.05)', border: '1px solid #e5e7eb' }}>
+                        <div style={{ display: 'flex', justifyContent: 'space-between', borderBottom: '1px solid #f3f4f6', paddingBottom: '10px', marginBottom: '10px' }}>
+                            <div>
                                 <div style={{ fontWeight: 'bold', fontSize: '1rem', color: '#1f2937' }}>#{order.orderId}</div>
-                                <div style={{ fontWeight: 'bold', color: '#059669', fontSize: '1.1rem' }}>₹{order.total.toLocaleString()}</div>
+                                <div style={{ fontSize: '0.85rem', color: '#6b7280', display: 'flex', alignItems: 'center', gap: '10px', marginTop: '4px' }}>
+                                    <span><FiCalendar /> {order.date}</span>
+                                    <span style={{ padding: '2px 8px', borderRadius: '4px', fontWeight: '600', fontSize: '0.75rem', background: order.paymentMode === 'ONLINE' ? '#dcfce7' : '#ffedd5', color: order.paymentMode === 'ONLINE' ? '#166534' : '#9a3412' }}>
+                                        {order.paymentMode === 'ONLINE' ? 'PAID' : 'COD'}
+                                    </span>
+                                </div>
                             </div>
-                            <div style={{ display: 'flex', flexDirection: 'column', gap: '10px' }}>
-                                {order.items.map((item, i) => (
-                                    <div key={i} style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
-                                        <div style={{ width: '40px', height: '40px', borderRadius: '6px', overflow: 'hidden', border: '1px solid #eee', flexShrink: 0 }}>
-                                            {item.image ? (<img src={getImageUrl(item.image)} alt="" style={{ width: '100%', height: '100%', objectFit: 'cover' }} />) : (<div style={{ width: '100%', height: '100%', background: '#f3f4f6' }} />)}
-                                        </div>
-                                        <div style={{ flex: 1 }}>
-                                            <div style={{ fontSize: '0.9rem', color: '#374151', fontWeight: '500' }}>{item.name}</div>
-                                            <div style={{ fontSize: '0.8rem', color: '#6b7280' }}>{item.qty} {item.unit} x ₹{item.price}</div>
-                                        </div>
-                                        <div style={{ fontWeight: '600', color: '#1f2937' }}>₹{item.qty * item.price}</div>
-                                    </div>
-                                ))}
+                            <div style={{ textAlign: 'right' }}>
+                                <div style={{ fontWeight: 'bold', color: '#059669', fontSize: '1.1rem' }}>₹{order.total.toLocaleString()}</div>
+                                <span style={{ padding: '2px 8px', borderRadius: '12px', fontSize: '0.75rem', fontWeight: 'bold', background: order.status === 'Delivered' ? '#d1fae5' : '#f3f4f6', color: order.status === 'Delivered' ? '#065f46' : '#374151' }}>
+                                    {order.status}
+                                </span>
                             </div>
                         </div>
-                    ))
-                }
+                        <div style={{ display: 'flex', flexDirection: 'column', gap: '10px' }}>
+                            {order.items.map((item, i) => (
+                                <div key={i} style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
+                                    <div style={{ width: '40px', height: '40px', borderRadius: '6px', overflow: 'hidden', border: '1px solid #eee' }}>
+                                        {item.image ? (<img src={getImageUrl(item.image)} alt="" style={{ width: '100%', height: '100%', objectFit: 'cover' }} />) : (<div style={{ width: '100%', height: '100%', background: '#f3f4f6' }} />)}
+                                    </div>
+                                    <div style={{ flex: 1 }}>
+                                        <div style={{ fontSize: '0.9rem', color: '#374151', fontWeight: '500' }}>{item.name}</div>
+                                        <div style={{ fontSize: '0.8rem', color: '#6b7280' }}>{item.qty} {item.unit} x ₹{item.price}</div>
+                                    </div>
+                                    <div style={{ fontWeight: '600', color: '#1f2937' }}>₹{item.qty * item.price}</div>
+                                </div>
+                            ))}
+                        </div>
+                    </div>
+                ))}
             </div>
           </div>
         </div>

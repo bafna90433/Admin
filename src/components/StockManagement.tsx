@@ -37,27 +37,22 @@ const StockManagement: React.FC = () => {
   const fetchStockData = async () => {
     setLoading(true);
     try {
-      // Parallel Fetching for Speed
       const [productsRes, ordersRes] = await Promise.all([
         api.get("/products"),
-        api.get("/orders").catch(() => ({ data: [] })) // Fail-safe for orders
+        api.get("/orders").catch(() => ({ data: [] }))
       ]);
 
       const products = productsRes.data || [];
       const orders = Array.isArray(ordersRes.data) ? ordersRes.data : (ordersRes.data?.orders || []);
 
-      // 🚀 OPTIMIZATION: Create a Sales Map first (Fast Lookup)
       const salesMap: Record<string, number> = {};
 
       if (Array.isArray(orders)) {
         orders.forEach((order: any) => {
-            // Count only valid (not cancelled) orders
-            // ✅ FIX 1: 'orderItems' ki jagah 'items' use kiya (Database Schema ke hisaab se)
             const orderItems = order.items || order.orderItems || []; 
             
             if (order.status !== 'Cancelled' && Array.isArray(orderItems)) {
                 orderItems.forEach((item: any) => {
-                    // ✅ FIX 2: 'product' ki jagah 'productId' check kiya
                     const rawId = item.productId || item.product;
                     const itemId = typeof rawId === 'object' ? rawId?._id : rawId;
                     
@@ -70,7 +65,6 @@ const StockManagement: React.FC = () => {
         });
       }
 
-      // Map products using the Sales Map (Instant)
       const stats = products.map((prod: any) => ({
         _id: prod._id,
         name: prod.name,
@@ -78,11 +72,11 @@ const StockManagement: React.FC = () => {
         stock: prod.stock || 0,
         unit: prod.unit || "", 
         image: prod.images?.[0] || "",
-        totalSold: salesMap[String(prod._id)] || 0 // O(1) lookup
+        totalSold: salesMap[String(prod._id)] || 0
       }));
 
       setInventory(stats);
-      setFilteredInventory(stats);
+      // Filtered inventory useEffect se set hoga
     } catch (err) {
       console.error("Failed to load inventory", err);
     } finally {
@@ -94,22 +88,26 @@ const StockManagement: React.FC = () => {
     fetchStockData();
   }, []);
 
-  // Search Logic
+  // ✅ Page Reset Logic (Sirf search badalne par Page 1 karega)
   useEffect(() => {
-    setCurrentPage(1); // Reset to page 1 on search
+    setCurrentPage(1);
+  }, [searchQuery]);
+
+  // ✅ Filtering Logic (Inventory update hone par list refresh karega bina page change kiye)
+  useEffect(() => {
     if (!searchQuery) {
-        setFilteredInventory(inventory);
+      setFilteredInventory(inventory);
     } else {
-        const lowerQ = searchQuery.toLowerCase();
-        const filtered = inventory.filter(item => 
-            item.name.toLowerCase().includes(lowerQ) || 
-            item.sku.toLowerCase().includes(lowerQ)
-        );
-        setFilteredInventory(filtered);
+      const lowerQ = searchQuery.toLowerCase();
+      const filtered = inventory.filter(item => 
+        item.name.toLowerCase().includes(lowerQ) || 
+        item.sku.toLowerCase().includes(lowerQ)
+      );
+      setFilteredInventory(filtered);
     }
   }, [searchQuery, inventory]);
 
-  // ✅ Pagination Logic
+  // Pagination Logic
   const indexOfLastItem = currentPage * itemsPerPage;
   const indexOfFirstItem = indexOfLastItem - itemsPerPage;
   const currentItems = filteredInventory.slice(indexOfFirstItem, indexOfLastItem);
@@ -129,18 +127,10 @@ const StockManagement: React.FC = () => {
         const updatedInventory = inventory.map(item => 
             item._id === id ? { ...item, stock: editForm.stock, unit: editForm.unit } : item
         );
+        
         setInventory(updatedInventory);
-        
-        // Filtered list bhi update karein taaki search me dikhe
-        if (searchQuery) {
-             setFilteredInventory(prev => prev.map(item => 
-                item._id === id ? { ...item, stock: editForm.stock, unit: editForm.unit } : item
-            ));
-        } else {
-            setFilteredInventory(updatedInventory);
-        }
-        
         setEditingId(null);
+        
         await api.put(`/products/${id}`, { stock: editForm.stock, unit: editForm.unit });
         
         Swal.fire({
@@ -223,7 +213,7 @@ const StockManagement: React.FC = () => {
                     </div>
                   </td>
                   
-                  {/* Editable Unit */}
+                  {/* Editable Unit with Temporary 'S' Fix */}
                   <td style={{ padding: '12px 15px' }}>
                     {editingId === item._id ? (
                         <input 
@@ -233,7 +223,12 @@ const StockManagement: React.FC = () => {
                             style={{ width: '80px', padding: '5px', borderRadius: '4px', border: '1px solid #3b82f6' }}
                         />
                     ) : (
-                        item.unit ? <span style={{ background: '#e0f2fe', color: '#0369a1', padding: '4px 8px', borderRadius: '4px', fontSize: '0.85rem', fontWeight: '500' }}>{item.unit}</span> : <span style={{ color: '#aaa' }}>—</span>
+                        item.unit ? (
+                            <span style={{ background: '#e0f2fe', color: '#0369a1', padding: '4px 8px', borderRadius: '4px', fontSize: '0.85rem', fontWeight: '500' }}>
+                                {/* ✅ TEMPORARY LOGIC: Auto-Add 's' if missing */}
+                                {item.unit}{!item.unit.toLowerCase().endsWith('s') && "s"}
+                            </span>
+                        ) : <span style={{ color: '#aaa' }}>—</span>
                     )}
                   </td>
 
@@ -249,7 +244,6 @@ const StockManagement: React.FC = () => {
                     ) : ( item.stock )}
                   </td>
 
-                  {/* ✅ Total Sold (Now Fixed) */}
                   <td style={{ padding: '12px 15px', color: '#2563eb', fontWeight: 'bold' }}>{item.totalSold}</td>
 
                   {/* Status Logic */}
@@ -281,7 +275,7 @@ const StockManagement: React.FC = () => {
           {filteredInventory.length === 0 && <div style={{ padding: '40px', textAlign: 'center', color: '#888' }}>No inventory found.</div>}
         </div>
 
-        {/* ✅ Pagination Controls */}
+        {/* Pagination Controls */}
         {filteredInventory.length > itemsPerPage && (
             <div style={{ display: 'flex', justifyContent: 'center', alignItems: 'center', marginTop: '20px', gap: '15px' }}>
                 <button 

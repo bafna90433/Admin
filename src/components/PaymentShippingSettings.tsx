@@ -11,9 +11,8 @@ import {
 } from "react-icons/fi";
 import "../styles/PaymentShipping.css";
 
-// ✅ API Configuration (works local + production)
-const API_BASE =
-  (import.meta as any).env?.VITE_API_URL || "http://localhost:5000/api";
+// ✅ API Configuration (local + production)
+const API_BASE = import.meta.env.VITE_API_URL || "http://localhost:5000/api";
 
 const PaymentShippingSettings: React.FC = () => {
   const [shippingCharge, setShippingCharge] = useState<number>(0);
@@ -71,8 +70,6 @@ const PaymentShippingSettings: React.FC = () => {
         text: "Configuration updated successfully.",
         timer: 1500,
         showConfirmButton: false,
-        background: "#fff",
-        iconColor: "#4f46e5",
       });
     } catch (err) {
       console.error("Save error:", err);
@@ -87,7 +84,6 @@ const PaymentShippingSettings: React.FC = () => {
   return (
     <div className="ps-container">
       <div className="ps-wrapper">
-        {/* Header Section */}
         <div className="ps-header">
           <div className="header-content">
             <h1 className="ps-title">Shipping & Payment</h1>
@@ -95,6 +91,7 @@ const PaymentShippingSettings: React.FC = () => {
               Configure delivery fees and COD restrictions.
             </p>
           </div>
+
           <button
             className={`ps-save-btn ${saving ? "loading" : ""}`}
             onClick={handleSaveAll}
@@ -111,7 +108,7 @@ const PaymentShippingSettings: React.FC = () => {
         </div>
 
         <div className="ps-grid">
-          {/* CARD 1: SHIPPING RULES */}
+          {/* SHIPPING */}
           <div className="ps-card">
             <div className="card-top-bar blue"></div>
             <div className="card-content">
@@ -163,7 +160,7 @@ const PaymentShippingSettings: React.FC = () => {
             </div>
           </div>
 
-          {/* CARD 2: COD RULES */}
+          {/* COD */}
           <div className="ps-card">
             <div className="card-top-bar orange"></div>
             <div className="card-content">

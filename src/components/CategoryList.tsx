@@ -7,6 +7,7 @@ import {
   FiX,
   FiArrowUp,
   FiArrowDown,
+  FiImage,
 } from "react-icons/fi";
 import api from "../utils/api";
 import "../styles/CategoryList.css";
@@ -14,6 +15,8 @@ import "../styles/CategoryList.css";
 interface Category {
   _id: string;
   name: string;
+  image: string;
+  imageId: string;
   order?: number;
 }
 
@@ -23,15 +26,27 @@ interface Product {
 }
 
 const CategoryList: React.FC = () => {
+  // Data States
   const [categories, setCategories] = useState<Category[]>([]);
-  const [products, setProducts] = useState<Product[]>([]);
   const [categoryCounts, setCategoryCounts] = useState<Record<string, number>>({});
+  
+  // Create Form States
   const [newCategory, setNewCategory] = useState("");
+  const [newImage, setNewImage] = useState<File | null>(null);
+  const [preview, setPreview] = useState<string | null>(null);
+
+  // Edit States
   const [editId, setEditId] = useState<string | null>(null);
   const [editName, setEditName] = useState("");
+  const [editImage, setEditImage] = useState<File | null>(null);
+  const [editPreview, setEditPreview] = useState<string | null>(null); // 👈 NEW: Edit Preview State
+
+  // UI States
   const [error, setError] = useState("");
   const [loading, setLoading] = useState(false);
   const [isCreating, setIsCreating] = useState(false);
+  
+  // eslint-disable-next-line @typescript-eslint/no-unused-vars
   const [viewMode, setViewMode] = useState<"list" | "grid">("list");
 
   // ✅ Responsive view mode
@@ -49,28 +64,24 @@ const CategoryList: React.FC = () => {
     setLoading(true);
     try {
       const { data } = await api.get("/categories");
-      const sorted = [...data].sort((a, b) => (a.order || 0) - (b.order || 0));
+      const sorted = [...data].sort((a: any, b: any) => (a.order || 0) - (b.order || 0));
       setCategories(sorted);
       setError("");
-    } catch {
-      setError("Failed to load categories. Please try again.");
+    } catch (err) {
+      setError("Failed to load categories.");
     }
     setLoading(false);
   };
 
-  // ✅ Fetch products (for product count)
+  // ✅ Fetch products (for count)
   const fetchProducts = async () => {
     try {
       const { data } = await api.get("/products");
       const counts: Record<string, number> = {};
       data.forEach((prod: Product) => {
-        const catId =
-          typeof prod.category === "string"
-            ? prod.category
-            : prod.category?._id;
+        const catId = typeof prod.category === "string" ? prod.category : prod.category?._id;
         if (catId) counts[catId] = (counts[catId] || 0) + 1;
       });
-      setProducts(data);
       setCategoryCounts(counts);
     } catch {
       // ignore
@@ -82,65 +93,103 @@ const CategoryList: React.FC = () => {
     fetchProducts();
   }, []);
 
+  // ✅ Helper: Handle File Selection (Create & Edit)
+  const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>, isEdit = false) => {
+    const file = e.target.files?.[0];
+    if (file) {
+      if (isEdit) {
+        setEditImage(file);
+        setEditPreview(URL.createObjectURL(file)); // 👈 Show preview immediately in edit row
+      } else {
+        setNewImage(file);
+        setPreview(URL.createObjectURL(file));
+      }
+    }
+  };
+
   // ✅ Create category
   const handleCreate = async () => {
-    if (!newCategory.trim()) return setError("Category name cannot be empty");
+    if (!newCategory.trim()) return setError("Category name is required");
+    if (!newImage) return setError("Category image is required");
+
     setLoading(true);
+    const formData = new FormData();
+    formData.append("name", newCategory);
+    formData.append("image", newImage);
+
     try {
-      await api.post("/categories", { name: newCategory });
+      await api.post("/categories", formData, {
+        headers: { "Content-Type": "multipart/form-data" },
+      });
       setNewCategory("");
+      setNewImage(null);
+      setPreview(null);
       setIsCreating(false);
       await fetchCategories();
-    } catch {
-      setError("Failed to create category");
+    } catch (err: any) {
+      setError(err.response?.data?.message || "Failed to create category");
     }
     setLoading(false);
   };
 
-  // ✅ Edit category
+  // ✅ Setup Edit Mode
   const handleEdit = (cat: Category) => {
     setEditId(cat._id);
     setEditName(cat.name);
+    setEditImage(null);
+    setEditPreview(null); // Reset preview
   };
 
+  // ✅ Cancel Edit
+  const handleCancelEdit = () => {
+    setEditId(null);
+    setEditName("");
+    setEditImage(null);
+    setEditPreview(null);
+  };
+
+  // ✅ Update Category
   const handleUpdate = async (id: string) => {
     if (!editName.trim()) return setError("Category name cannot be empty");
+    
     setLoading(true);
+    const formData = new FormData();
+    formData.append("name", editName);
+    
+    // Sirf tabhi image bhejo agar user ne nayi select ki hai
+    if (editImage) {
+      formData.append("image", editImage);
+    }
+
     try {
-      await api.put(`/categories/${id}`, { name: editName });
-      setEditId(null);
-      setEditName("");
+      await api.put(`/categories/${id}`, formData, {
+        headers: { "Content-Type": "multipart/form-data" },
+      });
+      handleCancelEdit(); // Clear states
       await fetchCategories();
-    } catch {
-      setError("Failed to update category");
+    } catch (err: any) {
+      setError(err.response?.data?.message || "Failed to update category");
     }
     setLoading(false);
   };
 
-  // ✅ Delete category
+  // ✅ Delete & Move Functions
   const handleDelete = async (id: string) => {
-    if (!window.confirm("Are you sure you want to delete this category?")) return;
+    if (!window.confirm("Are you sure? This will delete the category and its image.")) return;
     setLoading(true);
     try {
       await api.delete(`/categories/${id}`);
       await fetchCategories();
       await fetchProducts();
-    } catch {
-      setError("Failed to delete category");
-    }
+    } catch { setError("Failed to delete category"); }
     setLoading(false);
   };
 
-  // ✅ Move category up/down
   const handleMove = async (id: string, direction: "up" | "down") => {
     try {
-      const { data } = await api.put(`/categories/${id}/move`, { direction });
-      console.log("✅ Move:", data.message);
-      await fetchCategories(); // refresh sorted order
-    } catch (err) {
-      console.error("❌ Move error:", err);
-      setError("Failed to move category");
-    }
+      await api.put(`/categories/${id}/move`, { direction });
+      await fetchCategories();
+    } catch { setError("Failed to move category"); }
   };
 
   return (
@@ -149,81 +198,37 @@ const CategoryList: React.FC = () => {
       <div className="category-list-header">
         <div className="header-content">
           <h1>Product Categories</h1>
-          <p className="header-description">Manage your product categories</p>
+          <p className="header-description">Manage your product categories & images</p>
         </div>
         <div className="header-actions">
-          <button
-            className="add-category-button"
-            onClick={() => setIsCreating(true)}
-            disabled={loading || isCreating}
-          >
+          <button className="add-category-button" onClick={() => setIsCreating(true)} disabled={loading || isCreating}>
             <FiPlus size={18} /> Add Category
           </button>
         </div>
       </div>
 
-      {/* Error Message */}
-      {error && (
-        <div className="alert-card error">
-          <div className="alert-content">
-            <div className="alert-icon">!</div>
-            <div className="alert-message">{error}</div>
-            <button className="alert-close" onClick={() => setError("")}>
-              <FiX size={16} />
-            </button>
-          </div>
-        </div>
-      )}
+      {error && <div className="alert-card error">{error}<button className="alert-close" onClick={() => setError("")}><FiX /></button></div>}
 
-      {/* Add Category Form */}
+      {/* Create Form */}
       {isCreating && (
         <div className="category-form-card">
           <div className="form-header">
             <h3>Add New Category</h3>
-            <button
-              className="close-button"
-              onClick={() => {
-                setIsCreating(false);
-                setNewCategory("");
-              }}
-            >
-              <FiX size={20} />
-            </button>
+            <button className="close-button" onClick={() => setIsCreating(false)}><FiX size={20} /></button>
           </div>
           <div className="form-body">
             <div className="form-group">
-              <label className="form-label">
-                Category Name <span className="required">*</span>
-              </label>
-              <input
-                type="text"
-                value={newCategory}
-                onChange={(e) => setNewCategory(e.target.value)}
-                placeholder="e.g., Toys, Dolls"
-                className="form-input"
-                onKeyDown={(e) => {
-                  if (e.key === "Enter") handleCreate();
-                  if (e.key === "Escape") {
-                    setIsCreating(false);
-                    setNewCategory("");
-                  }
-                }}
-                autoFocus
-              />
+              <label className="form-label">Category Name *</label>
+              <input type="text" value={newCategory} onChange={(e) => setNewCategory(e.target.value)} className="form-input" autoFocus />
+            </div>
+            <div className="form-group">
+              <label className="form-label">Category Image *</label>
+              <input type="file" accept="image/*" onChange={(e) => handleFileChange(e, false)} className="form-input" />
+              {preview && <img src={preview} alt="Preview" style={{ marginTop: 10, width: 60, height: 60, objectFit: "cover", borderRadius: 6 }} />}
             </div>
             <div className="form-actions">
-              <button
-                className="cancel-button"
-                onClick={() => {
-                  setIsCreating(false);
-                  setNewCategory("");
-                }}
-              >
-                Cancel
-              </button>
-              <button className="submit-button" onClick={handleCreate}>
-                {loading ? <span className="button-spinner"></span> : "Create"}
-              </button>
+              <button className="cancel-button" onClick={() => setIsCreating(false)}>Cancel</button>
+              <button className="submit-button" onClick={handleCreate} disabled={loading}>{loading ? "Creating..." : "Create"}</button>
             </div>
           </div>
         </div>
@@ -236,6 +241,7 @@ const CategoryList: React.FC = () => {
             <thead>
               <tr>
                 <th>#</th>
+                <th>Image</th>
                 <th>Category Name</th>
                 <th>Products</th>
                 <th>Move</th>
@@ -246,120 +252,80 @@ const CategoryList: React.FC = () => {
               {categories.map((cat, idx) => (
                 <tr key={cat._id}>
                   <td>{idx + 1}</td>
+                  
+                  {/* Image Column (Shows Preview if editing) */}
+                  <td>
+                    {editId === cat._id && editPreview ? (
+                       // Agar edit kar rahe hain aur nayi photo select ki hai -> Show Preview
+                       <img src={editPreview} alt="New Preview" style={{ width: 40, height: 40, borderRadius: 4, objectFit: "cover", border: "2px solid #007bff" }} />
+                    ) : cat.image ? (
+                       // Normal View -> Show Server Image
+                       <img src={cat.image} alt={cat.name} style={{ width: 40, height: 40, borderRadius: 4, objectFit: "cover" }} />
+                    ) : (
+                       <FiImage color="#ccc" size={24} />
+                    )}
+                  </td>
+
+                  {/* Name & File Input Column */}
                   <td>
                     {editId === cat._id ? (
-                      <input
-                        type="text"
-                        value={editName}
-                        onChange={(e) => setEditName(e.target.value)}
-                        onKeyDown={(e) => {
-                          if (e.key === "Enter") handleUpdate(cat._id);
-                          if (e.key === "Escape") {
-                            setEditId(null);
-                            setEditName("");
-                          }
-                        }}
-                        className="edit-input"
-                        autoFocus
-                      />
+                      <div style={{ display: "flex", flexDirection: "column", gap: "8px" }}>
+                        <input
+                          type="text"
+                          value={editName}
+                          onChange={(e) => setEditName(e.target.value)}
+                          className="edit-input"
+                          placeholder="Category Name"
+                        />
+                        {/* Edit Image Input */}
+                        <div style={{fontSize: '12px', display: 'flex', alignItems: 'center', gap: '5px'}}>
+                           <span style={{color: '#666'}}>Change Image:</span>
+                           <input 
+                             type="file" 
+                             accept="image/*"
+                             onChange={(e) => handleFileChange(e, true)}
+                             style={{ fontSize: '12px' }}
+                           />
+                        </div>
+                      </div>
                     ) : (
                       <span className="category-name">{cat.name}</span>
                     )}
                   </td>
 
-                  <td>
-                    <span className="product-count">
-                      {categoryCounts[cat._id] || 0}
-                    </span>
-                  </td>
+                  <td><span className="product-count">{categoryCounts[cat._id] || 0}</span></td>
 
-                  {/* ✅ Move Buttons */}
                   <td>
                     <div className="move-buttons">
-                      <button
-                        onClick={() => handleMove(cat._id, "up")}
-                        disabled={idx === 0}
-                        title="Move Up"
-                      >
-                        <FiArrowUp />
-                      </button>
-                      <button
-                        onClick={() => handleMove(cat._id, "down")}
-                        disabled={idx === categories.length - 1}
-                        title="Move Down"
-                      >
-                        <FiArrowDown />
-                      </button>
+                      <button onClick={() => handleMove(cat._id, "up")} disabled={idx === 0}><FiArrowUp /></button>
+                      <button onClick={() => handleMove(cat._id, "down")} disabled={idx === categories.length - 1}><FiArrowDown /></button>
                     </div>
                   </td>
 
-                  {/* ✅ Edit / Delete Buttons */}
                   <td className="actions-cell">
                     {editId === cat._id ? (
                       <div className="edit-actions">
-                        <button
-                          onClick={() => handleUpdate(cat._id)}
-                          className="save-button"
-                        >
-                          <FiSave size={14} /> Save
+                        <button onClick={() => handleUpdate(cat._id)} className="save-button" disabled={loading}>
+                           <FiSave size={14} /> {loading ? "..." : "Save"}
                         </button>
-                        <button
-                          onClick={() => {
-                            setEditId(null);
-                            setEditName("");
-                          }}
-                          className="cancel-edit-button"
-                        >
-                          <FiX size={14} /> Cancel
-                        </button>
+                        <button onClick={handleCancelEdit} className="cancel-edit-button"><FiX size={14} /> Cancel</button>
                       </div>
                     ) : (
                       <div className="default-actions">
-                        <button
-                          onClick={() => handleEdit(cat)}
-                          className="edit-button"
-                        >
-                          <FiEdit2 size={14} />
-                        </button>
-                        <button
-                          onClick={() => handleDelete(cat._id)}
-                          className="delete-button"
-                        >
-                          <FiTrash2 size={14} />
-                        </button>
+                        <button onClick={() => handleEdit(cat)} className="edit-button"><FiEdit2 size={14} /></button>
+                        <button onClick={() => handleDelete(cat._id)} className="delete-button"><FiTrash2 size={14} /></button>
                       </div>
                     )}
                   </td>
                 </tr>
               ))}
-              {categories.length === 0 && !loading && (
-                <tr>
-                  <td colSpan={5} className="empty-state">
-                    No categories found. Create your first category!
-                  </td>
-                </tr>
-              )}
+              {categories.length === 0 && !loading && <tr><td colSpan={6} className="empty-state">No categories found.</td></tr>}
             </tbody>
           </table>
         </div>
       </div>
-
-      {/* Loading Spinner */}
-      {loading && categories.length === 0 && (
-        <div className="loading-state">
-          <div className="spinner"></div>
-          Loading categories...
-        </div>
-      )}
-
-      {/* Floating Add Button */}
-      <button
-        className="floating-add-button mobile-only"
-        onClick={() => setIsCreating(true)}
-        disabled={loading || isCreating}
-      >
-        <FiPlus size={24} />
-      </button>
+      {loading && categories.length === 0 && <div className="loading-state">Loading...</div>}
+      <button className="floating-add-button mobile-only" onClick={() => setIsCreating(true)}><FiPlus size={24} /></button>
     </div>
   );
 };

@@ -1,24 +1,25 @@
 import React, { useEffect, useState } from "react";
 import axios from "axios";
 import Swal from "sweetalert2";
-import { 
-  FiTruck, 
-  FiDollarSign, 
-  FiSave, 
-  FiCreditCard, 
+import {
+  FiTruck,
+  FiDollarSign,
+  FiSave,
+  FiCreditCard,
   FiPackage,
-  FiInfo
+  FiInfo,
 } from "react-icons/fi";
 import "../styles/PaymentShipping.css";
 
-// ✅ API Configuration
-const API_BASE = "http://localhost:5000/api";
+// ✅ API Configuration (works local + production)
+const API_BASE =
+  (import.meta as any).env?.VITE_API_URL || "http://localhost:5000/api";
 
 const PaymentShippingSettings: React.FC = () => {
   const [shippingCharge, setShippingCharge] = useState<number>(0);
   const [freeLimit, setFreeLimit] = useState<number>(0);
   const [advanceAmount, setAdvanceAmount] = useState<number>(0);
-  
+
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
 
@@ -29,9 +30,10 @@ const PaymentShippingSettings: React.FC = () => {
   const fetchAllSettings = async () => {
     try {
       setLoading(true);
+
       const [shippingRes, codRes] = await Promise.allSettled([
         axios.get(`${API_BASE}/shipping-rules`),
-        axios.get(`${API_BASE}/settings/cod`)
+        axios.get(`${API_BASE}/settings/cod`),
       ]);
 
       if (shippingRes.status === "fulfilled" && shippingRes.value.data) {
@@ -42,7 +44,6 @@ const PaymentShippingSettings: React.FC = () => {
       if (codRes.status === "fulfilled" && codRes.value.data) {
         setAdvanceAmount(codRes.value.data.advanceAmount || 0);
       }
-
     } catch (err) {
       console.error("Error fetching settings:", err);
       Swal.fire("Error", "Could not load settings.", "error");
@@ -61,20 +62,20 @@ const PaymentShippingSettings: React.FC = () => {
         }),
         axios.put(`${API_BASE}/settings/cod`, {
           advanceAmount: Number(advanceAmount),
-        })
+        }),
       ]);
 
       Swal.fire({
-        icon: 'success',
-        title: 'Settings Saved',
-        text: 'Configuration updated successfully.',
+        icon: "success",
+        title: "Settings Saved",
+        text: "Configuration updated successfully.",
         timer: 1500,
         showConfirmButton: false,
-        background: '#fff',
-        iconColor: '#4f46e5'
+        background: "#fff",
+        iconColor: "#4f46e5",
       });
-
     } catch (err) {
+      console.error("Save error:", err);
       Swal.fire("Save Failed", "Something went wrong.", "error");
     } finally {
       setSaving(false);
@@ -86,19 +87,26 @@ const PaymentShippingSettings: React.FC = () => {
   return (
     <div className="ps-container">
       <div className="ps-wrapper">
-        
         {/* Header Section */}
         <div className="ps-header">
           <div className="header-content">
             <h1 className="ps-title">Shipping & Payment</h1>
-            <p className="ps-subtitle">Configure delivery fees and COD restrictions.</p>
+            <p className="ps-subtitle">
+              Configure delivery fees and COD restrictions.
+            </p>
           </div>
-          <button 
-            className={`ps-save-btn ${saving ? 'loading' : ''}`} 
-            onClick={handleSaveAll} 
+          <button
+            className={`ps-save-btn ${saving ? "loading" : ""}`}
+            onClick={handleSaveAll}
             disabled={saving}
           >
-            {saving ? "Saving..." : <><FiSave className="btn-icon" /> Save Changes</>}
+            {saving ? (
+              "Saving..."
+            ) : (
+              <>
+                <FiSave className="btn-icon" /> Save Changes
+              </>
+            )}
           </button>
         </div>
 
@@ -129,7 +137,9 @@ const PaymentShippingSettings: React.FC = () => {
                   />
                   <FiPackage className="input-icon-right" />
                 </div>
-                <p className="help-text">Applied when order value is below free limit.</p>
+                <p className="help-text">
+                  Applied when order value is below free limit.
+                </p>
               </div>
 
               <div className="form-divider"></div>
@@ -146,7 +156,9 @@ const PaymentShippingSettings: React.FC = () => {
                   />
                   <FiDollarSign className="input-icon-right" />
                 </div>
-                <p className="help-text highlight">Orders above this amount get <b>Free Delivery</b>.</p>
+                <p className="help-text highlight">
+                  Orders above this amount get <b>Free Delivery</b>.
+                </p>
               </div>
             </div>
           </div>
@@ -166,8 +178,11 @@ const PaymentShippingSettings: React.FC = () => {
               </div>
 
               <div className="info-alert">
-                <FiInfo className="info-icon"/>
-                <p>Collecting an advance reduces RTO (Return to Origin) chances by 80%.</p>
+                <FiInfo className="info-icon" />
+                <p>
+                  Collecting an advance reduces RTO (Return to Origin) chances by
+                  80%.
+                </p>
               </div>
 
               <div className="form-group">
@@ -182,12 +197,13 @@ const PaymentShippingSettings: React.FC = () => {
                   />
                   <FiCreditCard className="input-icon-right" />
                 </div>
-                <p className="help-text">Customer must pay this online to confirm COD.</p>
+                <p className="help-text">
+                  Customer must pay this online to confirm COD.
+                </p>
               </div>
             </div>
           </div>
         </div>
-
       </div>
     </div>
   );

@@ -11,8 +11,15 @@ import {
 } from "react-icons/fi";
 import "../styles/PaymentShipping.css";
 
-// ✅ API Configuration (local + production)
-const API_BASE = import.meta.env.VITE_API_URL || "http://localhost:5000/api";
+// ✅ API Configuration (works in Webpack/CRA + Vite)
+// Priority: Vite env -> CRA env -> fallback localhost
+const API_BASE =
+  (typeof (globalThis as any).importMeta !== "undefined" &&
+    (globalThis as any).importMeta?.env?.VITE_API_URL) ||
+  (typeof (import.meta as any) !== "undefined" &&
+    (import.meta as any)?.env?.VITE_API_URL) ||
+  process.env.REACT_APP_API_URL ||
+  "http://localhost:5000/api";
 
 const PaymentShippingSettings: React.FC = () => {
   const [shippingCharge, setShippingCharge] = useState<number>(0);

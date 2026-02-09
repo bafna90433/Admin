@@ -1,15 +1,24 @@
 import axios from "axios";
 
-// ✅ VITE projects must use import.meta.env
-export const API_URL: string = import.meta.env.VITE_API_URL as string;
+// 👇 declare for TS (type safety)
+declare const process: {
+  env: {
+    VITE_API_URL?: string;
+    VITE_MEDIA_URL?: string;
+  };
+};
+
+// ✅ API URL from .env (already includes /api in your env)
+export const API_URL: string =
+  process.env.VITE_API_URL || "http://localhost:5000/api";
+
+// ✅ Media URL fallback
 export const MEDIA_URL: string =
-  (import.meta.env.VITE_MEDIA_URL as string) || API_URL?.replace("/api", "");
+  process.env.VITE_MEDIA_URL ||
+  process.env.VITE_API_URL ||
+  "http://localhost:5000";
 
-if (!API_URL) {
-  throw new Error("VITE_API_URL is missing. Set it in Vercel environment variables.");
-}
-
-console.log("👉 API_URL =", API_URL);
+console.log("👉 API_URL = ", API_URL); // Debugging
 
 // ✅ axios instance
 const api = axios.create({

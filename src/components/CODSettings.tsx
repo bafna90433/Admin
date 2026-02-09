@@ -1,8 +1,11 @@
 import React, { useEffect, useState } from "react";
 import "../styles/CODSettings.css";
 
-const API_URL =
-  (import.meta as any).env?.VITE_API_URL || "http://localhost:5000";
+const API_BASE: string | undefined = (import.meta as any).env?.VITE_API_URL;
+
+if (!API_BASE) {
+  throw new Error("VITE_API_URL missing in production env.");
+}
 
 const CODSettings: React.FC = () => {
   const [advanceAmount, setAdvanceAmount] = useState<number>(0);
@@ -10,14 +13,23 @@ const CODSettings: React.FC = () => {
   const [saving, setSaving] = useState(false);
   const [message, setMessage] = useState("");
 
-  /* ================= FETCH SETTINGS ================= */
+  const getAuthHeaders = () => {
+    const token = localStorage.getItem("adminToken");
+    return {
+      "Content-Type": "application/json",
+      ...(token ? { Authorization: `Bearer ${token}` } : {}),
+    };
+  };
+
   useEffect(() => {
     const fetchSettings = async () => {
       try {
         setLoading(true);
-        const res = await fetch(`${API_URL}/api/settings/cod`);
+        const res = await fetch(`${API_BASE}/settings/cod`, {
+          headers: getAuthHeaders(),
+        });
         const data = await res.json();
-        setAdvanceAmount(data?.advanceAmount || 0);
+        setAdvanceAmount(Number(data?.advanceAmount || 0));
       } catch (err) {
         console.error(err);
       } finally {
@@ -27,20 +39,21 @@ const CODSettings: React.FC = () => {
     fetchSettings();
   }, []);
 
-  /* ================= SAVE SETTINGS ================= */
   const saveSettings = async () => {
     try {
       setSaving(true);
       setMessage("");
 
-      await fetch(`${API_URL}/api/settings/cod`, {
+      const res = await fetch(`${API_BASE}/settings/cod`, {
         method: "PUT",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ advanceAmount }),
+        headers: getAuthHeaders(),
+        body: JSON.stringify({ advanceAmount: Number(advanceAmount) }),
       });
 
+      if (!res.ok) throw new Error("Save failed");
       setMessage("✅ COD advance amount saved");
     } catch (err) {
+      console.error(err);
       setMessage("❌ Failed to save COD advance");
     } finally {
       setSaving(false);
@@ -69,11 +82,7 @@ const CODSettings: React.FC = () => {
           </button>
 
           {message && (
-            <p
-              className={`status ${
-                message.startsWith("✅") ? "success" : "error"
-              }`}
-            >
+            <p className={`status ${message.startsWith("✅") ? "success" : "error"}`}>
               {message}
             </p>
           )}

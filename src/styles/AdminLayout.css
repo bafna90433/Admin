@@ -1,8 +1,8 @@
 :root {
   --sidebar-w: 250px;
-  --bg: #F8FAFC;   /* 🔹 Page background */
-  --sidebar-bg: rgba(254, 254, 255, 0.85); /* 🔹 Sidebar background (transparent) */
-  --sidebar-text: #657792; /* 🔹 Sidebar text color */
+  --bg: #F8FAFC;
+  --sidebar-bg: rgba(254, 254, 255, 0.85);
+  --sidebar-text: #657792;
 }
 
 /* Root wrapper */
@@ -20,7 +20,7 @@
   left: 0;
   width: var(--sidebar-w);
   height: 100vh;
-  background: var(--sidebar-bg);  /* 🔹 glass effect */
+  background: var(--sidebar-bg);
   color: var(--sidebar-text);
   overflow-y: auto;
   -webkit-overflow-scrolling: touch;
@@ -28,8 +28,6 @@
   scrollbar-gutter: stable;
   transition: transform 0.3s ease-in-out;
   z-index: 1000;
-
-  /* 🔹 Glass effect */
   backdrop-filter: blur(12px);
   -webkit-backdrop-filter: blur(12px);
 }
@@ -98,8 +96,10 @@
   color: #ef4444;
 }
 
-/* ============== MAIN CONTENT ============== */
-.main-content {
+/* ============== MAIN CONTENT (✅ FIXED SCOPE) ============== */
+/* ❌ OLD: .main-content { ... }  (conflict with Dashboard) */
+/* ✅ NEW: only apply to direct child of admin-layout */
+.admin-layout > .main-content {
   min-height: 100vh;
   padding-left: var(--sidebar-w);
   display: flex;
@@ -158,13 +158,14 @@
 
 /* ============== RESPONSIVE ============== */
 @media (max-width: 850px) {
-  .main-content {
+  .admin-layout > .main-content {
     padding-left: 0;
   }
 
   .sidebar {
     transform: translateX(-100%);
   }
+
   .sidebar.open {
     transform: translateX(0);
     box-shadow: 0 8px 24px rgba(0, 0, 0, 0.25);
@@ -174,7 +175,6 @@
     display: flex;
   }
 
-  /* Show menu only on mobile */
   .menu-btn {
     display: block;
   }

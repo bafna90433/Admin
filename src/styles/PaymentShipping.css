@@ -1,17 +1,24 @@
 /* ================= VARIABLES & RESETS ================= */
 :root {
-  --ps-primary: #4f46e5;       /* Modern Indigo */
+  /* Core Colors */
+  --ps-primary: #4f46e5;       /* Indigo Main */
   --ps-primary-hover: #4338ca;
-  --ps-bg: #f8fafc;            /* Very light gray/blue background */
+  --ps-bg: #f8fafc;            /* Global Background */
   --ps-card-bg: #ffffff;
-  --ps-text-main: #1e293b;     /* Dark Slate - Professional Text */
+  --ps-text-main: #0f172a;     /* Darker Text for readability */
   --ps-text-muted: #64748b;
   --ps-border: #e2e8f0;
+  --ps-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -1px rgba(0, 0, 0, 0.06);
+
+  /* Card Theme Colors */
   --ps-blue-soft: #dbeafe;
   --ps-blue-text: #1e40af;
+  
   --ps-orange-soft: #ffedd5;
   --ps-orange-text: #9a3412;
-  --ps-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -1px rgba(0, 0, 0, 0.06);
+
+  --ps-purple-soft: #f3e8ff;   /* New: For Discount Card */
+  --ps-purple-text: #7e22ce;   /* New: For Discount Card */
 }
 
 .ps-container {
@@ -32,32 +39,31 @@
   display: flex;
   justify-content: space-between;
   align-items: center;
-  margin-bottom: 40px;
+  margin-bottom: 30px;
   flex-wrap: wrap;
   gap: 20px;
 }
 
 .ps-title {
-  font-size: 28px;
+  font-size: 26px;
   font-weight: 700;
   color: var(--ps-text-main);
-  margin: 0 0 8px 0;
+  margin: 0 0 6px 0;
   letter-spacing: -0.5px;
 }
 
 .ps-subtitle {
   color: var(--ps-text-muted);
   font-size: 15px;
-  margin: 0;
 }
 
-/* ================= BUTTONS ================= */
+/* ================= MAIN BUTTONS ================= */
 .ps-save-btn {
   background: var(--ps-primary);
   color: white;
   border: none;
-  padding: 12px 28px;
-  border-radius: 8px;
+  padding: 12px 24px;
+  border-radius: 10px;
   font-size: 15px;
   font-weight: 600;
   cursor: pointer;
@@ -65,13 +71,13 @@
   align-items: center;
   gap: 10px;
   transition: all 0.2s ease;
-  box-shadow: 0 4px 12px rgba(79, 70, 229, 0.3);
+  box-shadow: 0 4px 12px rgba(79, 70, 229, 0.25);
 }
 
 .ps-save-btn:hover {
   background: var(--ps-primary-hover);
   transform: translateY(-2px);
-  box-shadow: 0 6px 16px rgba(79, 70, 229, 0.4);
+  box-shadow: 0 6px 16px rgba(79, 70, 229, 0.35);
 }
 
 .ps-save-btn:disabled {
@@ -80,13 +86,17 @@
   transform: none;
 }
 
-.btn-icon { font-size: 18px; }
+.ps-save-btn.loading {
+  background: #94a3b8;
+  pointer-events: none;
+}
 
 /* ================= GRID & CARDS ================= */
 .ps-grid {
   display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(380px, 1fr));
-  gap: 30px;
+  grid-template-columns: repeat(auto-fit, minmax(350px, 1fr));
+  gap: 25px;
+  align-items: start; /* Prevents cards from stretching unnecessarily */
 }
 
 .ps-card {
@@ -95,47 +105,52 @@
   overflow: hidden;
   box-shadow: var(--ps-shadow);
   border: 1px solid var(--ps-border);
-  transition: transform 0.2s ease;
-  position: relative;
+  transition: transform 0.2s ease, box-shadow 0.2s ease;
+  display: flex;
+  flex-direction: column;
 }
 
 .ps-card:hover {
   transform: translateY(-4px);
-  box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.1);
+  box-shadow: 0 12px 20px -5px rgba(0, 0, 0, 0.1);
+  border-color: #cbd5e1;
 }
 
-/* Colored Top Bar for Cards */
-.card-top-bar { height: 6px; width: 100%; }
+/* Card Top Bars */
+.card-top-bar { height: 5px; width: 100%; }
 .card-top-bar.blue { background: #3b82f6; }
 .card-top-bar.orange { background: #f97316; }
+.card-top-bar.purple { background: #8b5cf6; } /* New */
 
-.card-content { padding: 30px; }
+.card-content { padding: 25px; flex: 1; }
 
-/* Card Header */
+/* Card Headers */
 .card-header {
   display: flex;
   align-items: flex-start;
-  gap: 16px;
-  margin-bottom: 30px;
+  gap: 15px;
+  margin-bottom: 25px;
 }
 
 .icon-circle {
-  width: 48px;
-  height: 48px;
+  width: 44px;
+  height: 44px;
   border-radius: 12px;
   display: flex;
   align-items: center;
   justify-content: center;
-  font-size: 24px;
+  font-size: 22px;
   flex-shrink: 0;
 }
 
+/* Icon Colors */
 .icon-circle.blue { background: var(--ps-blue-soft); color: var(--ps-blue-text); }
 .icon-circle.orange { background: var(--ps-orange-soft); color: var(--ps-orange-text); }
+.icon-circle.purple { background: var(--ps-purple-soft); color: var(--ps-purple-text); }
 
 .card-header h3 {
   margin: 0 0 4px 0;
-  font-size: 18px;
+  font-size: 17px;
   font-weight: 700;
   color: var(--ps-text-main);
 }
@@ -146,15 +161,16 @@
 }
 
 /* ================= FORM INPUTS ================= */
-/* FIX: Text Visibility */
-.form-group { margin-bottom: 24px; }
+.form-group { margin-bottom: 20px; }
 
 .form-group label {
   display: block;
-  font-size: 14px;
+  font-size: 13px;
   font-weight: 600;
-  color: #334155;
+  color: #475569;
   margin-bottom: 8px;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
 }
 
 .input-wrapper {
@@ -163,23 +179,22 @@
   align-items: center;
 }
 
-/* IMPORTANT: Fixed Color and Background */
 .input-wrapper input {
   width: 100%;
-  padding: 14px 45px 14px 35px; /* Left padding for ₹, Right for icon */
-  font-size: 16px;
+  padding: 12px 40px 12px 35px; /* Left for Symbol, Right for Icon */
+  font-size: 15px;
   font-weight: 500;
-  color: #1e293b; /* ✅ Dark Text Color fixed */
+  color: #1e293b;
   background: #ffffff;
   border: 1px solid #cbd5e1;
-  border-radius: 10px;
+  border-radius: 8px;
   outline: none;
   transition: all 0.2s ease;
 }
 
 .input-wrapper input:focus {
   border-color: var(--ps-primary);
-  box-shadow: 0 0 0 4px rgba(79, 70, 229, 0.1);
+  box-shadow: 0 0 0 3px rgba(79, 70, 229, 0.1);
 }
 
 /* Icons inside input */
@@ -188,7 +203,7 @@
   left: 14px;
   color: #64748b;
   font-weight: 600;
-  font-size: 16px;
+  font-size: 15px;
   pointer-events: none;
 }
 
@@ -196,59 +211,81 @@
   position: absolute;
   right: 14px;
   color: #94a3b8;
-  font-size: 20px;
+  font-size: 18px;
   pointer-events: none;
 }
 
 /* Help Text */
 .help-text {
-  font-size: 13px;
+  font-size: 12px;
   color: #64748b;
-  margin-top: 8px;
+  margin-top: 6px;
+  line-height: 1.4;
 }
 
-.help-text.highlight {
-  color: #059669; /* Green for success hint */
-}
-
-/* Info Box */
-.info-alert {
-  background: #eff6ff;
-  border: 1px solid #bfdbfe;
-  color: #1e40af;
-  padding: 12px 16px;
-  border-radius: 8px;
-  font-size: 13px;
-  display: flex;
-  gap: 12px;
-  align-items: center;
-  margin-bottom: 25px;
-  line-height: 1.5;
-}
-
-.info-icon { flex-shrink: 0; font-size: 18px; }
+.help-text.highlight { color: #10b981; font-weight: 500; }
 
 .form-divider {
   height: 1px;
   background: #f1f5f9;
-  margin: 25px 0;
+  margin: 20px 0;
 }
 
-/* Loading State */
+/* Info Alert Box */
+.info-alert {
+  background: #eff6ff;
+  border: 1px solid #bfdbfe;
+  color: #1d4ed8;
+  padding: 12px;
+  border-radius: 8px;
+  font-size: 13px;
+  display: flex;
+  gap: 10px;
+  align-items: center;
+  margin-bottom: 20px;
+  line-height: 1.4;
+}
+.info-icon { flex-shrink: 0; font-size: 16px; }
+
+/* ================= DISCOUNT RULES (NEW) ================= */
+/* This handles the dynamic rows in the middle card */
+
+.discount-rules-container {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+/* The row wrapper is handled in JSX, but we can refine inputs inside it */
+.discount-rules-container input {
+  padding-left: 15px; /* Less padding since no currency symbol in % field */
+} 
+
+/* Specific Delete Button Styling (overrides inline if needed) */
+button svg { pointer-events: none; }
+
+/* Loading & Empty States */
 .ps-loading {
-  height: 100vh;
+  height: 80vh;
   display: flex;
   align-items: center;
   justify-content: center;
   font-size: 18px;
-  color: var(--ps-primary);
-  font-weight: 600;
+  color: var(--ps-text-muted);
+  font-weight: 500;
   background: var(--ps-bg);
 }
 
-/* Mobile Responsive */
-@media (max-width: 600px) {
+/* Responsive */
+@media (max-width: 768px) {
   .ps-container { padding: 20px 15px; }
-  .ps-header { flex-direction: column; align-items: flex-start; }
-  .ps-save-btn { width: 100%; justify-content: center; }
+  
+  .ps-grid {
+    grid-template-columns: 1fr; /* Stack cards on mobile */
+  }
+  
+  /* Reset span for mobile so it flows naturally */
+  .ps-card[style*="grid-row"] {
+    grid-row: auto !important;
+  }
 }

@@ -15,7 +15,9 @@ import {
   FiChevronRight,
   FiSearch,
   FiActivity,
-  FiBarChart2 // ✅ Added Icon for Sales Report
+  FiBarChart2,
+  FiCornerUpLeft,
+  FiTrendingUp // ✅ New Icon
 } from "react-icons/fi";
 import {
   MdOutlineSpaceDashboard
@@ -123,11 +125,24 @@ const Sidebar: React.FC<SidebarProps> = ({ sidebarOpen, closeSidebar }) => {
               label="Analytics Overview"
               gradient="purple"
             />
+            {/* ✅ NEW: Website Traffic Link */}
+            <NavItem 
+              to="/admin/analytics" 
+              icon={FiTrendingUp} 
+              label="Website Traffic"
+              gradient="cyan"
+            />
             <NavItem 
               to="/admin/orders" 
               icon={FiPackage} 
               label="Order Management"
               gradient="blue"
+            />
+            <NavItem 
+              to="/admin/returns" 
+              icon={FiCornerUpLeft} 
+              label="Return Requests"
+              gradient="red"
             />
           </div>
 
@@ -160,7 +175,7 @@ const Sidebar: React.FC<SidebarProps> = ({ sidebarOpen, closeSidebar }) => {
             />
           </div>
 
-          {/* ✅ NEW: Analytics Section */}
+          {/* Analytics Section */}
           <div className="nav-section-final">
             <h4 className="section-header-final">Analytics</h4>
             <NavItem 

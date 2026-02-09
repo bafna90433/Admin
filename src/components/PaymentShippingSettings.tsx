@@ -1,24 +1,40 @@
 import React, { useEffect, useState } from "react";
 import axios from "axios";
 import Swal from "sweetalert2";
-import { 
-  FiTruck, 
-  FiDollarSign, 
-  FiSave, 
-  FiCreditCard, 
+import {
+  FiTruck,
+  FiDollarSign,
+  FiSave,
+  FiCreditCard,
   FiPackage,
-  FiInfo
+  FiInfo,
+  FiPercent,
+  FiPlus,
+  FiTrash2,
+  FiLayers
 } from "react-icons/fi";
 import "../styles/PaymentShipping.css";
 
 // ✅ API Configuration
-const API_BASE = "http://localhost:5000/api";
+const API_BASE =
+  process.env.REACT_APP_API_URL ||
+  (import.meta as any).env?.VITE_API_URL ||
+  "http://localhost:5000/api";
+
+interface DiscountRule {
+  minAmount: number;
+  discountPercentage: number;
+}
 
 const PaymentShippingSettings: React.FC = () => {
+  // Existing States
   const [shippingCharge, setShippingCharge] = useState<number>(0);
   const [freeLimit, setFreeLimit] = useState<number>(0);
   const [advanceAmount, setAdvanceAmount] = useState<number>(0);
   
+  // New State for Discount Rules
+  const [discountRules, setDiscountRules] = useState<DiscountRule[]>([]);
+
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
 
@@ -29,10 +45,15 @@ const PaymentShippingSettings: React.FC = () => {
   const fetchAllSettings = async () => {
     try {
       setLoading(true);
-      const [shippingRes, codRes] = await Promise.allSettled([
+
+      // Added discount-rules to the fetch list
+      const results = await Promise.allSettled([
         axios.get(`${API_BASE}/shipping-rules`),
-        axios.get(`${API_BASE}/settings/cod`)
+        axios.get(`${API_BASE}/settings/cod`),
+        axios.get(`${API_BASE}/discount-rules`), // New Endpoint expected
       ]);
+
+      const [shippingRes, codRes, discountRes] = results;
 
       if (shippingRes.status === "fulfilled" && shippingRes.value.data) {
         setShippingCharge(shippingRes.value.data.shippingCharge || 0);
@@ -43,6 +64,14 @@ const PaymentShippingSettings: React.FC = () => {
         setAdvanceAmount(codRes.value.data.advanceAmount || 0);
       }
 
+      // Load existing discount rules if available
+      if (discountRes.status === "fulfilled" && Array.isArray(discountRes.value.data)) {
+        setDiscountRules(discountRes.value.data);
+      } else {
+        // Default empty rule if none exist
+        setDiscountRules([{ minAmount: 1000, discountPercentage: 5 }]);
+      }
+
     } catch (err) {
       console.error("Error fetching settings:", err);
       Swal.fire("Error", "Could not load settings.", "error");
@@ -51,9 +80,29 @@ const PaymentShippingSettings: React.FC = () => {
     }
   };
 
+  // --- Handlers for Discount Rules ---
+  const handleAddRule = () => {
+    setDiscountRules([...discountRules, { minAmount: 0, discountPercentage: 0 }]);
+  };
+
+  const handleRemoveRule = (index: number) => {
+    const newRules = discountRules.filter((_, i) => i !== index);
+    setDiscountRules(newRules);
+  };
+
+  const handleRuleChange = (index: number, field: keyof DiscountRule, value: number) => {
+    const newRules = [...discountRules];
+    newRules[index] = { ...newRules[index], [field]: value };
+    setDiscountRules(newRules);
+  };
+  // -----------------------------------
+
   const handleSaveAll = async () => {
     setSaving(true);
     try {
+      // Validating Rules before save
+      const validRules = discountRules.filter(r => r.minAmount > 0 && r.discountPercentage > 0);
+
       await Promise.all([
         axios.put(`${API_BASE}/shipping-rules`, {
           shippingCharge: Number(shippingCharge),
@@ -61,21 +110,21 @@ const PaymentShippingSettings: React.FC = () => {
         }),
         axios.put(`${API_BASE}/settings/cod`, {
           advanceAmount: Number(advanceAmount),
-        })
+        }),
+        // Saving the array of rules
+        axios.put(`${API_BASE}/discount-rules`, { rules: validRules }),
       ]);
 
       Swal.fire({
-        icon: 'success',
-        title: 'Settings Saved',
-        text: 'Configuration updated successfully.',
+        icon: "success",
+        title: "Settings Saved",
+        text: "Configuration updated successfully.",
         timer: 1500,
         showConfirmButton: false,
-        background: '#fff',
-        iconColor: '#4f46e5'
       });
-
     } catch (err) {
-      Swal.fire("Save Failed", "Something went wrong.", "error");
+      console.error("Save error:", err);
+      Swal.fire("Save Failed", "Check console for details.", "error");
     } finally {
       setSaving(false);
     }
@@ -86,16 +135,17 @@ const PaymentShippingSettings: React.FC = () => {
   return (
     <div className="ps-container">
       <div className="ps-wrapper">
-        
-        {/* Header Section */}
         <div className="ps-header">
           <div className="header-content">
-            <h1 className="ps-title">Shipping & Payment</h1>
-            <p className="ps-subtitle">Configure delivery fees and COD restrictions.</p>
+            <h1 className="ps-title">Shipping, Payment & Discounts</h1>
+            <p className="ps-subtitle">
+              Manage delivery fees, COD, and volume discounts.
+            </p>
           </div>
-          <button 
-            className={`ps-save-btn ${saving ? 'loading' : ''}`} 
-            onClick={handleSaveAll} 
+
+          <button
+            className={`ps-save-btn ${saving ? "loading" : ""}`}
+            onClick={handleSaveAll}
             disabled={saving}
           >
             {saving ? "Saving..." : <><FiSave className="btn-icon" /> Save Changes</>}
@@ -103,17 +153,16 @@ const PaymentShippingSettings: React.FC = () => {
         </div>
 
         <div className="ps-grid">
-          {/* CARD 1: SHIPPING RULES */}
+          
+          {/* 1. SHIPPING CARD */}
           <div className="ps-card">
             <div className="card-top-bar blue"></div>
             <div className="card-content">
               <div className="card-header">
-                <div className="icon-circle blue">
-                  <FiTruck />
-                </div>
+                <div className="icon-circle blue"><FiTruck /></div>
                 <div>
                   <h3>Delivery Settings</h3>
-                  <span>Manage standard shipping rates</span>
+                  <span>Standard shipping rates</span>
                 </div>
               </div>
 
@@ -125,33 +174,122 @@ const PaymentShippingSettings: React.FC = () => {
                     type="number"
                     value={shippingCharge}
                     onChange={(e) => setShippingCharge(Number(e.target.value))}
-                    placeholder="0"
                   />
                   <FiPackage className="input-icon-right" />
                 </div>
-                <p className="help-text">Applied when order value is below free limit.</p>
               </div>
 
               <div className="form-divider"></div>
 
               <div className="form-group">
-                <label>Free Shipping Threshold</label>
+                <label>Free Shipping Above</label>
                 <div className="input-wrapper success-theme">
                   <span className="currency-symbol">₹</span>
                   <input
                     type="number"
                     value={freeLimit}
                     onChange={(e) => setFreeLimit(Number(e.target.value))}
-                    placeholder="0"
                   />
                   <FiDollarSign className="input-icon-right" />
                 </div>
-                <p className="help-text highlight">Orders above this amount get <b>Free Delivery</b>.</p>
               </div>
             </div>
           </div>
 
-          {/* CARD 2: COD RULES */}
+          {/* 2. VOLUME DISCOUNT CARD (NEW FEATURE) */}
+          <div className="ps-card" style={{ gridRow: "span 2" }}>
+            <div className="card-top-bar purple" style={{ backgroundColor: "#8b5cf6" }}></div>
+            <div className="card-content">
+              <div className="card-header">
+                <div className="icon-circle purple" style={{ backgroundColor: "#f3e8ff", color: "#8b5cf6" }}>
+                  <FiLayers />
+                </div>
+                <div>
+                  <h3>Volume Discounts</h3>
+                  <span>Auto-discount based on cart value</span>
+                </div>
+              </div>
+
+              <div className="info-alert">
+                <FiInfo className="info-icon" />
+                <p>Add rules: e.g. Buy ₹5000 get 8% Off.</p>
+              </div>
+
+              <div className="discount-rules-container" style={{ display: 'flex', flexDirection: 'column', gap: '10px' }}>
+                {discountRules.map((rule, index) => (
+                  <div key={index} style={{ display: 'flex', gap: '10px', alignItems: 'flex-end' }}>
+                    
+                    <div className="form-group" style={{ flex: 1, marginBottom: 0 }}>
+                      <label style={{ fontSize: '12px' }}>Min Order (₹)</label>
+                      <div className="input-wrapper">
+                        <input
+                          type="number"
+                          value={rule.minAmount}
+                          onChange={(e) => handleRuleChange(index, 'minAmount', Number(e.target.value))}
+                          placeholder="Amount"
+                        />
+                      </div>
+                    </div>
+
+                    <div className="form-group" style={{ width: '100px', marginBottom: 0 }}>
+                      <label style={{ fontSize: '12px' }}>Disc (%)</label>
+                      <div className="input-wrapper">
+                        <input
+                          type="number"
+                          value={rule.discountPercentage}
+                          onChange={(e) => handleRuleChange(index, 'discountPercentage', Number(e.target.value))}
+                          placeholder="%"
+                        />
+                        <FiPercent className="input-icon-right" style={{ fontSize: '12px' }}/>
+                      </div>
+                    </div>
+
+                    <button 
+                      onClick={() => handleRemoveRule(index)}
+                      style={{ 
+                        height: '42px', 
+                        width: '42px', 
+                        background: '#fee2e2', 
+                        color: '#ef4444', 
+                        border: 'none', 
+                        borderRadius: '8px', 
+                        cursor: 'pointer',
+                        display: 'flex',
+                        alignItems: 'center',
+                        justifyContent: 'center'
+                      }}
+                    >
+                      <FiTrash2 />
+                    </button>
+                  </div>
+                ))}
+              </div>
+
+              <button 
+                onClick={handleAddRule}
+                style={{
+                  marginTop: '15px',
+                  width: '100%',
+                  padding: '10px',
+                  border: '1px dashed #8b5cf6',
+                  background: '#f5f3ff',
+                  color: '#8b5cf6',
+                  borderRadius: '8px',
+                  cursor: 'pointer',
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  gap: '8px',
+                  fontWeight: 500
+                }}
+              >
+                <FiPlus /> Add Discount Rule
+              </button>
+
+            </div>
+          </div>
+
+          {/* 3. COD CARD */}
           <div className="ps-card">
             <div className="card-top-bar orange"></div>
             <div className="card-content">
@@ -161,13 +299,8 @@ const PaymentShippingSettings: React.FC = () => {
                 </div>
                 <div>
                   <h3>COD Verification</h3>
-                  <span>Secure your cash on delivery orders</span>
+                  <span>Secure COD orders</span>
                 </div>
-              </div>
-
-              <div className="info-alert">
-                <FiInfo className="info-icon"/>
-                <p>Collecting an advance reduces RTO (Return to Origin) chances by 80%.</p>
               </div>
 
               <div className="form-group">
@@ -178,16 +311,17 @@ const PaymentShippingSettings: React.FC = () => {
                     type="number"
                     value={advanceAmount}
                     onChange={(e) => setAdvanceAmount(Number(e.target.value))}
-                    placeholder="0"
                   />
                   <FiCreditCard className="input-icon-right" />
                 </div>
-                <p className="help-text">Customer must pay this online to confirm COD.</p>
+                <p className="help-text">
+                  Customer pays this online to confirm COD.
+                </p>
               </div>
             </div>
           </div>
-        </div>
 
+        </div>
       </div>
     </div>
   );

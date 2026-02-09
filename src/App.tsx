@@ -14,7 +14,7 @@ import CategoryList from "./components/CategoryList";
 import CategoryForm from "./components/CategoryForm";
 import BannerList from "./components/BannerList";
 import AddBanner from "./components/AddBanner";
-import AdminDashboard from "./components/AdminDashboard";
+import AdminDashboard from "./components/AdminDashboard"; // (For Customer Database)
 import AdminOrders from "./components/AdminOrders";
 import WhatsAppSettings from "./components/WhatsAppSettings";
 
@@ -26,6 +26,12 @@ import StockManagement from "./components/StockManagement";
 
 // ✅ NEW: Customer Sales Report Component
 import CustomerSales from "./components/CustomerSales";
+
+// ✅ NEW: Return Requests Component
+import AdminReturns from "./components/AdminReturns";
+
+// ✅ NEW: Traffic Analytics Component
+import TrafficAnalytics from "./components/TrafficAnalytics";
 
 // 🔐 Admin Login
 import AdminLogin from "./components/AdminLogin";
@@ -79,6 +85,12 @@ const App: React.FC = () => {
 
           {/* Orders */}
           <Route path="orders" element={<AdminOrders />} />
+
+          {/* ✅ NEW: Return Requests Route */}
+          <Route path="returns" element={<AdminReturns />} />
+
+          {/* ✅ NEW: Traffic Analytics Route */}
+          <Route path="analytics" element={<TrafficAnalytics />} />
 
           {/* WhatsApp Settings */}
           <Route path="whatsapp" element={<WhatsAppSettings />} />

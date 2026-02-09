@@ -56,6 +56,9 @@ type Order = {
   isShipped?: boolean;
   trackingId?: string;
   courierName?: string;
+
+  // ✅ New Field: Kisne cancel kiya
+  cancelledBy?: string; 
 };
 
 /* --- Helpers --- */
@@ -84,7 +87,7 @@ const formatExcelDate = (iso?: string): string =>
 const exportAllOrders = (orders: Order[]) => {
   const rows = orders.map((o) => ({
     OrderNumber: o.orderNumber || o._id.slice(-6),
-    Status: o.status,
+    Status: o.status + (o.status === 'cancelled' && o.cancelledBy ? ` (${o.cancelledBy})` : ''), // Export me bhi dikhega
     Total: o.total,
     Payment_Mode: o.paymentMode === "ONLINE" ? "Online Payment" : "Cash on Delivery",
     CreatedAt: formatExcelDate(o.createdAt),
@@ -221,7 +224,7 @@ const AdminOrders: React.FC = () => {
   const [viewing, setViewing] = useState<Order | null>(null);
   const [actOn, setActOn] = useState<string | null>(null);
   const [search, setSearch] = useState("");
-  const [activeTab, setActiveTab] = useState<string>("all"); // ✅ Tab State
+  const [activeTab, setActiveTab] = useState<string>("all");
   const [debounced, setDebounced] = useState("");
 
   const fetchOrders = useCallback(async () => {
@@ -248,8 +251,13 @@ const AdminOrders: React.FC = () => {
   const updateStatus = async (id: string, status: OrderStatus) => {
     try {
       setActOn(id);
-      const { data } = await api.patch<Order>(`/orders/${id}/status`, { status });
-      setOrders(prev => prev.map(o => (o._id === id ? { ...o, status: data.status } : o)));
+      // ✅ LOGIC: Agar Admin cancel kar raha hai to 'cancelledBy: Admin' bhejo
+      const payload = status === 'cancelled' ? { status, cancelledBy: 'Admin' } : { status };
+      
+      const { data } = await api.patch<Order>(`/orders/${id}/status`, payload);
+      
+      // Update local state immediately
+      setOrders(prev => prev.map(o => (o._id === id ? { ...o, status: data.status, cancelledBy: data.cancelledBy } : o)));
     } catch (e: any) { alert(e?.response?.data?.message || "Update failed"); } 
     finally { setActOn(null); }
   };
@@ -279,16 +287,11 @@ const AdminOrders: React.FC = () => {
     } finally { setActOn(null); }
   };
 
-  // --- Filtering Logic (Tabs + Search) ---
+  // --- Filtering Logic ---
   const filteredOrders = useMemo(() => {
     let list = orders;
-
-    // 1. Filter by Tab
-    if (activeTab !== "all") {
-      list = list.filter(o => o.status === activeTab);
-    }
-
-    // 2. Filter by Search Text
+    if (activeTab !== "all") list = list.filter(o => o.status === activeTab);
+    
     const q = debounced.trim().toLowerCase();
     if (!q) return list;
 
@@ -316,7 +319,7 @@ const AdminOrders: React.FC = () => {
           </button>
         </header>
 
-        {/* --- Controls (Tabs & Search) --- */}
+        {/* --- Controls --- */}
         <div className="admin-controls">
           <div className="tabs">
             {["all", "pending", "processing", "shipped", "delivered", "cancelled"].map((tab) => (
@@ -341,11 +344,6 @@ const AdminOrders: React.FC = () => {
           </div>
         </div>
 
-        {/* --- Stats Summary --- */}
-        <div className="table-meta">
-           Showing <b>{filteredOrders.length}</b> orders
-        </div>
-
         {/* --- Data Grid --- */}
         {loading ? <div className="loader">Loading Orders...</div> : (
           <div className="orders-grid">
@@ -356,7 +354,21 @@ const AdminOrders: React.FC = () => {
                   {/* Card Header */}
                   <div className="card-top">
                     <span className="order-id">#{o.orderNumber || o._id.slice(-6)}</span>
-                    <span className={`badge ${o.status}`}>{o.status}</span>
+                    <div style={{display: 'flex', flexDirection: 'column', alignItems: 'flex-end'}}>
+                        <span className={`badge ${o.status}`}>{o.status}</span>
+                        
+                        {/* ✅ VISUAL INDICATOR: Who Cancelled */}
+                        {o.status === 'cancelled' && o.cancelledBy === 'Customer' && (
+                            <div style={{fontSize:'10px', color:'#d9534f', fontWeight:'bold', marginTop:'3px', background:'#fff', padding:'2px 5px', borderRadius:'4px', border:'1px solid #d9534f'}}>
+                                👤 By Customer
+                            </div>
+                        )}
+                        {o.status === 'cancelled' && o.cancelledBy === 'Admin' && (
+                            <div style={{fontSize:'10px', color:'#777', fontWeight:'bold', marginTop:'3px', background:'#fff', padding:'2px 5px', borderRadius:'4px', border:'1px solid #777'}}>
+                                🛡️ By Admin
+                            </div>
+                        )}
+                    </div>
                   </div>
 
                   {/* Card Body */}
@@ -368,33 +380,28 @@ const AdminOrders: React.FC = () => {
                         <small>{o.customerId?.otpMobile}</small>
                       </div>
                       <div className="info-cell align-right">
-                        <label>Date</label>
-                        <span>{new Date(o.createdAt).toLocaleDateString()}</span>
-                        <small>{new Date(o.createdAt).toLocaleTimeString([], {hour:'2-digit', minute:'2-digit'})}</small>
+                        <label>Total</label>
+                        <span className="price">₹{o.total.toLocaleString()}</span>
                       </div>
                     </div>
-
+                    
                     <div className="info-row">
                       <div className="info-cell">
                         <label>Location</label>
                         <span>{o.shippingAddress?.city || "N/A"}</span>
-                        <small>{o.shippingAddress?.state}</small>
                       </div>
                       <div className="info-cell align-right">
-                         <label>Total</label>
-                         <span className="price">₹{o.total.toLocaleString()}</span>
-                         <span className={`pay-tag ${o.paymentMode === "ONLINE" ? "online" : "cod"}`}>
-                           {o.paymentMode === "ONLINE" ? "Paid Online" : "COD"}
-                         </span>
+                         <label>Date</label>
+                         <span>{new Date(o.createdAt).toLocaleDateString()}</span>
                       </div>
                     </div>
                   </div>
 
                   {/* Card Actions */}
                   <div className="card-actions">
-                     <button className="btn-icon" onClick={() => setViewing(o)} title="View Details">👁️ View</button>
-                     
-                     <select 
+                      <button className="btn-icon" onClick={() => setViewing(o)}>👁️ View</button>
+                      
+                      <select 
                         className="status-select"
                         value={o.status}
                         disabled={actOn === o._id}
@@ -411,7 +418,6 @@ const AdminOrders: React.FC = () => {
                         className={`btn-ship ${o.isShipped ? "shipped" : ""}`}
                         disabled={!!o.isShipped || actOn === o._id}
                         onClick={() => shipOrderHandler(o._id)}
-                        title={o.isShipped ? `AWB: ${o.trackingId}` : "Book Shipping"}
                       >
                         {o.isShipped ? "✔ Track" : "🚀 Ship"}
                       </button>
@@ -428,7 +434,22 @@ const AdminOrders: React.FC = () => {
         <div className="modal-backdrop" onClick={() => setViewing(null)}>
           <div className="modal-content" onClick={e => e.stopPropagation()}>
             <div className="modal-header">
-              <h3>Order #{viewing.orderNumber || viewing._id.slice(-6)}</h3>
+              <div style={{display:'flex', alignItems:'center', gap:'10px'}}>
+                  <h3>Order #{viewing.orderNumber || viewing._id.slice(-6)}</h3>
+                  {/* ✅ Show Cancelled Label in Modal */}
+                  {viewing.status === 'cancelled' && viewing.cancelledBy && (
+                      <span style={{
+                          fontSize:'12px', 
+                          background: viewing.cancelledBy === 'Customer' ? '#fee2e2' : '#f3f4f6', 
+                          color: viewing.cancelledBy === 'Customer' ? '#991b1b' : '#374151', 
+                          padding:'3px 8px', 
+                          borderRadius:'4px',
+                          fontWeight:'bold'
+                      }}>
+                          (Cancelled by {viewing.cancelledBy})
+                      </span>
+                  )}
+              </div>
               <button className="close-btn" onClick={() => setViewing(null)}>×</button>
             </div>
             

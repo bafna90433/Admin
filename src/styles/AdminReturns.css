@@ -136,12 +136,14 @@
   background: var(--warning-soft);
   color: #92400e;
   border-color: rgba(245,158,11,0.25);
+  display: none;
 }
 
 .status-badge.approved {
   background: var(--success-soft);
   color: #166534;
   border-color: rgba(22,163,74,0.22);
+  display: none;
 }
 
 .status-badge.rejected {

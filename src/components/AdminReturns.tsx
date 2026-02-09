@@ -13,7 +13,7 @@ import {
 import "../styles/AdminReturns.css";
 
 // ================= ENV (Webpack-safe) =================
-// Prefer env, fallback Railway
+// NOTE: Webpack + dotenv-webpack use `process.env.*`
 const API_URL =
   process.env.VITE_API_URL ||
   process.env.REACT_APP_API_URL ||
@@ -71,18 +71,17 @@ type StatusFilter = "All" | "Pending" | "Approved" | "Rejected";
 const resolveImage = (img?: string) => {
   if (!img) return "/placeholder-product.png";
   if (img.startsWith("http")) return img;
-  return `${MEDIA_URL}${img}`; // ✅ FIXED
+  return `${MEDIA_URL}${img}`;
 };
 
-// ================= MAIN COMPONENT =================
 const AdminReturns: React.FC = () => {
   const [orders, setOrders] = useState<Order[]>([]);
   const [loading, setLoading] = useState(true);
+
   const [selectedOrder, setSelectedOrder] = useState<Order | null>(null);
   const [adminComment, setAdminComment] = useState("");
   const [processing, setProcessing] = useState(false);
 
-  // ✅ Search + Filter
   const [search, setSearch] = useState("");
   const [statusFilter, setStatusFilter] = useState<StatusFilter>("All");
 
@@ -94,17 +93,18 @@ const AdminReturns: React.FC = () => {
     };
   }, [selectedOrder]);
 
-  // 1) Fetch Orders
+  // ✅ Fetch Returns
   useEffect(() => {
     const fetchReturns = async () => {
       try {
+        setLoading(true);
         const token = localStorage.getItem("adminToken");
 
         const { data } = await axios.get(`${API_URL}/orders`, {
           headers: { Authorization: `Bearer ${token}` },
         });
 
-        const returnOrders = (data || []).filter(
+        const returnOrders: Order[] = (data || []).filter(
           (o: Order) => o.returnRequest?.isRequested === true
         );
 
@@ -127,7 +127,7 @@ const AdminReturns: React.FC = () => {
     fetchReturns();
   }, []);
 
-  // 2) Handle Action (✅ NO RELOAD, update state locally)
+  // ✅ Approve / Reject (no reload)
   const handleAction = async (status: "Approved" | "Rejected") => {
     if (!selectedOrder) return;
     setProcessing(true);
@@ -141,18 +141,13 @@ const AdminReturns: React.FC = () => {
         { headers: { Authorization: `Bearer ${token}` } }
       );
 
-      // ✅ Update list immediately
       setOrders((prev) =>
         prev.map((o) =>
           o._id === selectedOrder._id
             ? {
                 ...o,
                 returnRequest: o.returnRequest
-                  ? {
-                      ...o.returnRequest,
-                      status,
-                      adminComment,
-                    }
+                  ? { ...o.returnRequest, status, adminComment }
                   : o.returnRequest,
               }
             : o
@@ -172,7 +167,9 @@ const AdminReturns: React.FC = () => {
 
   const getReturnedProducts = (order: Order) => {
     if (!order.returnRequest?.description) return [];
-    const match = order.returnRequest.description.match(/\[RETURN ITEMS: (.*?)\]/);
+    const match = order.returnRequest.description.match(
+      /\[RETURN ITEMS: (.*?)\]/
+    );
     if (match?.[1]) {
       const itemNames = match[1].split(",").map((s) => s.trim());
       return order.items.filter((item) => itemNames.includes(item.name));
@@ -205,12 +202,16 @@ const AdminReturns: React.FC = () => {
       if (!q) return true;
 
       const orderIdText = (order.orderNumber || order._id).toLowerCase();
-      const customerName =
-        (order.customerId?.shopName ||
-          order.shippingAddress?.fullName ||
-          "guest").toLowerCase();
-      const mobile =
-        (order.customerId?.otpMobile || order.shippingAddress?.phone || "").toLowerCase();
+      const customerName = (
+        order.customerId?.shopName ||
+        order.shippingAddress?.fullName ||
+        "guest"
+      ).toLowerCase();
+      const mobile = (
+        order.customerId?.otpMobile ||
+        order.shippingAddress?.phone ||
+        ""
+      ).toLowerCase();
       const reason = (order.returnRequest?.reason || "").toLowerCase();
 
       return (
@@ -255,10 +256,18 @@ const AdminReturns: React.FC = () => {
         </div>
 
         <div className="toolbar-right">
-          <div className="stat-pill">All: <strong>{counts.all}</strong></div>
-          <div className="stat-pill pending">Pending: <strong>{counts.pending}</strong></div>
-          <div className="stat-pill approved">Approved: <strong>{counts.approved}</strong></div>
-          <div className="stat-pill rejected">Rejected: <strong>{counts.rejected}</strong></div>
+          <div className="stat-pill">
+            All: <strong>{counts.all}</strong>
+          </div>
+          <div className="stat-pill pending">
+            Pending: <strong>{counts.pending}</strong>
+          </div>
+          <div className="stat-pill approved">
+            Approved: <strong>{counts.approved}</strong>
+          </div>
+          <div className="stat-pill rejected">
+            Rejected: <strong>{counts.rejected}</strong>
+          </div>
         </div>
       </div>
 
@@ -297,24 +306,36 @@ const AdminReturns: React.FC = () => {
                     </strong>
                     <br />
                     <small style={{ color: "#64748b" }}>
-                      {order.customerId?.otpMobile || order.shippingAddress?.phone || ""}
+                      {order.customerId?.otpMobile ||
+                        order.shippingAddress?.phone ||
+                        ""}
                     </small>
                   </td>
 
                   <td>
-                    {new Date(order.returnRequest?.requestDate || "").toLocaleDateString()}
+                    {new Date(
+                      order.returnRequest?.requestDate || ""
+                    ).toLocaleDateString()}
                   </td>
 
                   <td className="reason-text">{order.returnRequest?.reason}</td>
 
+                  {/* ✅ REMOVE "Rejected" badge (as you asked) */}
                   <td>
-                    <span className={`status-badge ${order.returnRequest?.status.toLowerCase()}`}>
-                      {order.returnRequest?.status}
-                    </span>
+                    {order.returnRequest?.status !== "Rejected" && (
+                      <span
+                        className={`status-badge ${order.returnRequest?.status.toLowerCase()}`}
+                      >
+                        {order.returnRequest?.status}
+                      </span>
+                    )}
                   </td>
 
                   <td>
-                    <button className="btn-view" onClick={() => setSelectedOrder(order)}>
+                    <button
+                      className="btn-view"
+                      onClick={() => setSelectedOrder(order)}
+                    >
                       View Details
                     </button>
                   </td>
@@ -331,7 +352,10 @@ const AdminReturns: React.FC = () => {
           <div className="modal-content">
             <div className="modal-header">
               <h3>Review Return Request</h3>
-              <button className="close-icon" onClick={() => setSelectedOrder(null)}>
+              <button
+                className="close-icon"
+                onClick={() => setSelectedOrder(null)}
+              >
                 <FiX />
               </button>
             </div>
@@ -383,7 +407,9 @@ const AdminReturns: React.FC = () => {
                 <div className="details-grid">
                   <div className="detail-item">
                     <span>Order ID</span>
-                    <strong>{selectedOrder.orderNumber || selectedOrder._id}</strong>
+                    <strong>
+                      {selectedOrder.orderNumber || selectedOrder._id}
+                    </strong>
                   </div>
                   <div className="detail-item">
                     <span>Reason</span>
@@ -396,7 +422,14 @@ const AdminReturns: React.FC = () => {
                 <div style={{ marginTop: "12px" }}>
                   <div className="detail-item">
                     <span>Description</span>
-                    <p style={{ whiteSpace: "pre-wrap", fontSize: "13px", color: "#334155", marginTop: "6px" }}>
+                    <p
+                      style={{
+                        whiteSpace: "pre-wrap",
+                        fontSize: "13px",
+                        color: "#334155",
+                        marginTop: "6px",
+                      }}
+                    >
                       {selectedOrder.returnRequest.description}
                     </p>
                   </div>
@@ -416,7 +449,10 @@ const AdminReturns: React.FC = () => {
                           src={resolveImage(item.image)}
                           alt={item.name}
                           className="product-thumb"
-                          onError={(e) => ((e.target as HTMLImageElement).src = "/placeholder-product.png")}
+                          onError={(e) =>
+                            (((e.target as HTMLImageElement).src =
+                              "/placeholder-product.png"))
+                          }
                         />
                         <div className="product-name">{item.name}</div>
                         <div className="product-qty">Qty: {item.qty}</div>
@@ -444,8 +480,8 @@ const AdminReturns: React.FC = () => {
                           alt="proof"
                           className="proof-thumb"
                           onError={(e) =>
-                            ((e.target as HTMLImageElement).src =
-                              "https://via.placeholder.com/100?text=Error")
+                            (((e.target as HTMLImageElement).src =
+                              "https://via.placeholder.com/100?text=Error"))
                           }
                         />
                       </a>
@@ -463,7 +499,11 @@ const AdminReturns: React.FC = () => {
                       href={resolveImage(selectedOrder.returnRequest.proofVideo)}
                       target="_blank"
                       rel="noreferrer"
-                      style={{ color: "#2563eb", fontSize: "13px", fontWeight: 800 }}
+                      style={{
+                        color: "#2563eb",
+                        fontSize: "13px",
+                        fontWeight: 800,
+                      }}
                     >
                       🎥 Watch Proof Video
                     </a>
@@ -509,11 +549,24 @@ const AdminReturns: React.FC = () => {
                     marginTop: "20px",
                   }}
                 >
-                  <FiAlertCircle style={{ verticalAlign: "middle", marginRight: "5px", color: "#64748b" }} />
+                  <FiAlertCircle
+                    style={{
+                      verticalAlign: "middle",
+                      marginRight: "5px",
+                      color: "#64748b",
+                    }}
+                  />
                   Request is <strong>{selectedOrder.returnRequest.status}</strong>.
                   {selectedOrder.returnRequest.adminComment && (
-                    <div style={{ marginTop: "8px", fontSize: "13px", color: "#475569" }}>
-                      <strong>Admin Note:</strong> {selectedOrder.returnRequest.adminComment}
+                    <div
+                      style={{
+                        marginTop: "8px",
+                        fontSize: "13px",
+                        color: "#475569",
+                      }}
+                    >
+                      <strong>Admin Note:</strong>{" "}
+                      {selectedOrder.returnRequest.adminComment}
                     </div>
                   )}
                 </div>

@@ -1,11 +1,17 @@
 import React, { useEffect, useState } from "react";
 import { Link } from "react-router-dom";
-import api from "../utils/api";
+import axios from "axios"; // ✅ Changed: Import axios directly
 import "../styles/TrafficAnalytics.css";
 import {
   FiArrowLeft, FiActivity, FiUsers, FiCalendar, FiTrendingUp, FiClock,
   FiGlobe, FiInstagram, FiFacebook, FiSearch, FiMessageCircle
 } from "react-icons/fi";
+
+// --- ✅ CONFIGURATION (Live URL Fix) ---
+const API_BASE =
+  process.env.VITE_API_URL ||
+  process.env.REACT_APP_API_URL ||
+  "https://bafnatoys-backend-production.up.railway.app/api";
 
 type TrafficData = { date: string; count: number; };
 type SourceData = { google: number; instagram: number; facebook: number; whatsapp: number; direct: number; other: number; };
@@ -24,7 +30,7 @@ const TrafficAnalytics: React.FC = () => {
   const [totalVisitors, setTotalVisitors] = useState(0);
   const [dailyStats, setDailyStats] = useState<TrafficData[]>([]);
   const [sourceStats, setSourceStats] = useState<SourceData | null>(null);
-  const [countryStats, setCountryStats] = useState<Record<string, number>>({}); // ✅ New State for Countries
+  const [countryStats, setCountryStats] = useState<Record<string, number>>({});
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
@@ -33,7 +39,9 @@ const TrafficAnalytics: React.FC = () => {
 
   const fetchData = async () => {
     try {
-      const res = await api.get("/analytics/stats");
+      // ✅ Changed: Using axios with API_BASE
+      const res = await axios.get(`${API_BASE}/analytics/stats`);
+      
       setTotalVisitors(res.data.totalVisitors || 0);
       
       const stats = res.data.dailyStats || [];
@@ -42,7 +50,6 @@ const TrafficAnalytics: React.FC = () => {
 
       setSourceStats(res.data.sourceStats || { google: 0, instagram: 0, facebook: 0, whatsapp: 0, direct: 0, other: 0 });
       
-      // ✅ Set Country Stats
       setCountryStats(res.data.countryStats || {});
 
     } catch (error) {

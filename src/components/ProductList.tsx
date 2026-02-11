@@ -1,6 +1,6 @@
 import React, { useEffect, useMemo, useState } from "react";
 import { Link, useNavigate } from "react-router-dom";
-import api, { MEDIA_URL } from "../utils/api";
+import axios from "axios"; // ✅ Changed: Import axios directly
 import {
   FiEdit2,
   FiTrash2,
@@ -18,6 +18,17 @@ import {
 } from "react-icons/fi";
 import "../styles/ProductList.css";
 
+// --- ✅ CONFIGURATION (Live URL Fix) ---
+const API_BASE =
+  process.env.VITE_API_URL ||
+  process.env.REACT_APP_API_URL ||
+  "https://bafnatoys-backend-production.up.railway.app/api";
+
+const MEDIA_BASE =
+  process.env.VITE_MEDIA_URL ||
+  process.env.REACT_APP_MEDIA_URL ||
+  "https://bafnatoys-backend-production.up.railway.app";
+
 interface Category {
   _id: string;
   name: string;
@@ -29,7 +40,7 @@ interface Product {
   sku: string;
   price?: number | string;
   stock?: number;
-  unit?: string; // ✅ Added Unit field here
+  unit?: string; 
   category?: { _id: string; name: string };
   createdAt?: string;
   images?: string[];
@@ -37,7 +48,7 @@ interface Product {
 }
 
 const getImageUrl = (url: string) =>
-  url?.startsWith("http") ? url : url ? `${MEDIA_URL}${url}` : "";
+  url?.startsWith("http") ? url : url ? `${MEDIA_BASE}${url}` : "";
 
 const norm = (v?: string) => (v || "").toString().toLowerCase().trim();
 
@@ -60,9 +71,10 @@ export default function ProductList() {
   useEffect(() => {
     const fetchData = async () => {
       try {
+        // ✅ Changed: Using axios with API_BASE
         const [prodRes, catRes] = await Promise.all([
-          api.get("/products"),
-          api.get("/categories"),
+          axios.get(`${API_BASE}/products`),
+          axios.get(`${API_BASE}/categories`),
         ]);
         const sorted = prodRes.data.sort(
           (a: Product, b: Product) => (a.order || 0) - (b.order || 0)
@@ -109,7 +121,8 @@ export default function ProductList() {
   const handleDelete = async (id: string) => {
     if (!window.confirm("Are you sure you want to delete this product?")) return;
     try {
-      await api.delete(`/products/${id}`);
+      // ✅ Changed: Using axios with API_BASE
+      await axios.delete(`${API_BASE}/products/${id}`);
       setProducts((prev) => prev.filter((p) => p._id !== id));
     } catch (err: any) {
       alert(err.response?.data?.message || "Failed to delete product");
@@ -141,7 +154,8 @@ export default function ProductList() {
             : p
         )
       );
-      await api.put(`/products/${productId}`, { category: newCategoryId });
+      // ✅ Changed: Using axios with API_BASE
+      await axios.put(`${API_BASE}/products/${productId}`, { category: newCategoryId });
       setEditingCategory(null);
     } catch {
       alert("Failed to update category.");
@@ -152,12 +166,12 @@ export default function ProductList() {
   // Move Product
   const moveProduct = async (id: string, direction: "up" | "down") => {
     try {
-      const res = await api.put(`/products/${id}/move`, { direction });
+      // ✅ Changed: Using axios with API_BASE
+      const res = await axios.put(`${API_BASE}/products/${id}/move`, { direction });
 
       if (res.data.updatedCategoryProducts) {
         const updated = res.data.updatedCategoryProducts;
         setProducts((prev) => {
-          const updatedIds = updated.map((u: Product) => u._id);
           const newList = prev.map((p) => {
             const match = updated.find((u: Product) => u._id === p._id);
             return match ? match : p;
@@ -252,7 +266,7 @@ export default function ProductList() {
                   const isEditing = editingCategory?.productId === p._id;
                   const currentCat = p.category?._id || "";
                   const stock = p.stock || 0;
-                  const unitLabel = p.unit ? p.unit : "Units"; // ✅ Logic: Use unit if exists, else "Units"
+                  const unitLabel = p.unit ? p.unit : "Units"; 
 
                   return (
                     <tr key={p._id}>
@@ -273,7 +287,6 @@ export default function ProductList() {
                       <td>{p.name}</td>
                       <td>{p.sku}</td>
 
-                      {/* ✅ UPDATED STOCK COLUMN (Shows Unit Name) */}
                       <td>
                          {stock === 0 ? (
                            <span style={{ display: 'inline-flex', alignItems: 'center', gap: '4px', color: '#ef4444', background: '#fee2e2', padding: '4px 8px', borderRadius: '4px', fontSize: '0.85rem', fontWeight: '600' }}>
@@ -290,7 +303,6 @@ export default function ProductList() {
                          )}
                       </td>
 
-                      {/* Inline Category Edit */}
                       <td>
                         <div className="category-select-wrapper">
                           <select
@@ -316,7 +328,6 @@ export default function ProductList() {
 
                       <td>{p.price ? `₹${Number(p.price).toFixed(2)}` : "—"}</td>
 
-                      {/* Actions */}
                       <td className="product-actions">
                         <div className="move-buttons">
                           <button onClick={() => moveProduct(p._id, "up")} disabled={index === 0} className="move-btn">

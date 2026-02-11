@@ -1,6 +1,12 @@
 import React, { useState } from "react";
-import { FiSave, FiX, FiPlus } from "react-icons/fi";
+import { FiSave, FiX } from "react-icons/fi";
 import axios from "axios";
+
+// --- ✅ CONFIGURATION (Live URL Fix) ---
+const API_BASE =
+  process.env.VITE_API_URL ||
+  process.env.REACT_APP_API_URL ||
+  "https://bafnatoys-backend-production.up.railway.app/api";
 
 interface Props {
   onSuccess?: () => void;
@@ -23,9 +29,10 @@ const CategoryForm: React.FC<Props> = ({ onSuccess, onClose, initialName = "" })
         throw new Error("Category name is required");
       }
 
+      // ✅ Changed: Use API_BASE instead of localhost
       const url = initialName 
-        ? `http://localhost:5000/api/categories/${initialName}` 
-        : "http://localhost:5000/api/categories";
+        ? `${API_BASE}/categories/${initialName}` 
+        : `${API_BASE}/categories`;
       
       const method = initialName ? "put" : "post";
       

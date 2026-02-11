@@ -1,11 +1,22 @@
 // src/components/AdminOrders.tsx
 import React, { useEffect, useMemo, useState, useCallback } from "react";
-import api, { MEDIA_URL } from "../utils/api";
+import axios from "axios";
 import "../styles/AdminOrdersModern.css";
 
 // Excel export
 import * as XLSX from "xlsx";
 import { saveAs } from "file-saver";
+
+/* ================= CONFIG (Same style as CustomerSales) ================= */
+const API_BASE =
+  process.env.VITE_API_URL ||
+  process.env.REACT_APP_API_URL ||
+  "https://bafnatoys-backend-production.up.railway.app/api";
+
+const MEDIA_BASE =
+  process.env.VITE_MEDIA_URL ||
+  process.env.REACT_APP_MEDIA_URL ||
+  "https://bafnatoys-backend-production.up.railway.app";
 
 /* --- Types --- */
 type OrderItem = {
@@ -56,7 +67,6 @@ type Order = {
   items: OrderItem[];
   total: number;
 
-  // ✅ IMPORTANT: paymentMode add (COD/ONLINE)
   paymentMode?: PaymentMode;
 
   status: OrderStatus;
@@ -71,13 +81,21 @@ type Order = {
   cancelledBy?: string;
 };
 
+/* --- Axios helpers --- */
+const authHeaders = () => {
+  const token = localStorage.getItem("adminToken");
+  return token ? { Authorization: `Bearer ${token}` } : {};
+};
+
 /* --- Helpers --- */
 const resolveImage = (img?: string): string => {
   if (!img) return "";
   if (img.startsWith("http")) return img;
+  // If backend already stores /uploads/... or /images/...
   if (img.startsWith("/uploads") || img.startsWith("/images"))
-    return `${MEDIA_URL}${img}`;
-  return `${MEDIA_URL}/uploads/${encodeURIComponent(img)}`;
+    return `${MEDIA_BASE}${img}`;
+  // else treat as filename
+  return `${MEDIA_BASE}/uploads/${encodeURIComponent(img)}`;
 };
 
 const toInners = (it: OrderItem): number => {
@@ -112,7 +130,8 @@ const exportAllOrders = (orders: Order[]) => {
   const rows = orders.map((o) => ({
     OrderNumber: o.orderNumber || o._id.slice(-6),
     Status:
-      o.status + (o.status === "cancelled" && o.cancelledBy ? ` (${o.cancelledBy})` : ""),
+      o.status +
+      (o.status === "cancelled" && o.cancelledBy ? ` (${o.cancelledBy})` : ""),
     Total: o.total,
     Payment_Mode: paymentLabel(o.paymentMode),
     CreatedAt: formatExcelDate(o.createdAt),
@@ -134,10 +153,7 @@ const exportAllOrders = (orders: Order[]) => {
   const wb = XLSX.utils.book_new();
   XLSX.utils.book_append_sheet(wb, ws, "Orders");
   const buf = XLSX.write(wb, { bookType: "xlsx", type: "array" });
-  saveAs(
-    new Blob([buf], { type: "application/octet-stream" }),
-    "all_orders.xlsx"
-  );
+  saveAs(new Blob([buf], { type: "application/octet-stream" }), "all_orders.xlsx");
 };
 
 const exportSingleOrder = (order: Order) => {
@@ -287,8 +303,15 @@ const AdminOrders: React.FC = () => {
   const fetchOrders = useCallback(async () => {
     try {
       setLoading(true);
-      const { data } = await api.get<Order[]>("/orders?populate=shippingAddress");
-      setOrders(data || []);
+
+      // ✅ direct axios call (same pattern)
+      const { data } = await axios.get<Order[]>(
+        `${API_BASE}/orders?populate=shippingAddress`,
+        { headers: authHeaders() }
+      );
+
+      const list = Array.isArray(data) ? data : (data as any)?.orders || [];
+      setOrders(list || []);
       setError(null);
     } catch (err: any) {
       setError(err?.response?.data?.message || "Unable to fetch orders");
@@ -309,8 +332,15 @@ const AdminOrders: React.FC = () => {
   const updateStatus = async (id: string, status: OrderStatus) => {
     try {
       setActOn(id);
-      const payload = status === "cancelled" ? { status, cancelledBy: "Admin" } : { status };
-      const { data } = await api.patch<Order>(`/orders/${id}/status`, payload);
+      const payload = status === "cancelled"
+        ? { status, cancelledBy: "Admin" }
+        : { status };
+
+      const { data } = await axios.patch<Order>(
+        `${API_BASE}/orders/${id}/status`,
+        payload,
+        { headers: authHeaders() }
+      );
 
       setOrders((prev) =>
         prev.map((o) =>
@@ -319,7 +349,7 @@ const AdminOrders: React.FC = () => {
                 ...o,
                 status: data.status,
                 cancelledBy: data.cancelledBy,
-                paymentMode: data.paymentMode, // ✅ keep synced
+                paymentMode: data.paymentMode,
               }
             : o
         )
@@ -334,7 +364,8 @@ const AdminOrders: React.FC = () => {
   const deleteOrder = async (id: string) => {
     if (!window.confirm("Delete this order?")) return;
     try {
-      await api.delete(`/orders/${id}`);
+      await axios.delete(`${API_BASE}/orders/${id}`, { headers: authHeaders() });
+
       setOrders((prev) => prev.filter((o) => o._id !== id));
       if (viewing?._id === id) setViewing(null);
     } catch (e: any) {
@@ -346,7 +377,13 @@ const AdminOrders: React.FC = () => {
     if (!window.confirm("Are you sure you want to book shipping with iThinkLogistics?")) return;
     try {
       setActOn(orderId);
-      const { data } = await api.post("/shipping/create", { orderId });
+
+      const { data } = await axios.post(
+        `${API_BASE}/shipping/create`,
+        { orderId },
+        { headers: authHeaders() }
+      );
+
       alert(`✅ Shipping Booked!\nWaybill: ${data.waybill}`);
 
       setOrders((prev) =>
@@ -394,9 +431,11 @@ const AdminOrders: React.FC = () => {
     return list.filter((o) => {
       const inOrderNum = norm(o.orderNumber || o._id).includes(q);
       const inCustomer =
-        norm(o.customerId?.shopName).includes(q) || norm(o.customerId?.otpMobile).includes(q);
+        norm(o.customerId?.shopName).includes(q) ||
+        norm(o.customerId?.otpMobile).includes(q);
       const inShipping =
-        norm(o.shippingAddress?.city).includes(q) || norm(o.shippingAddress?.fullName).includes(q);
+        norm(o.shippingAddress?.city).includes(q) ||
+        norm(o.shippingAddress?.fullName).includes(q);
       const inPayment = norm(o.paymentMode).includes(q);
       return inOrderNum || inCustomer || inShipping || inPayment;
     });
@@ -461,37 +500,32 @@ const AdminOrders: React.FC = () => {
                     <div style={{ display: "flex", flexDirection: "column", alignItems: "flex-end" }}>
                       <span className={`badge ${o.status}`}>{o.status}</span>
 
-                      {/* Cancelled by indicator */}
                       {o.status === "cancelled" && o.cancelledBy === "Customer" && (
-                        <div
-                          style={{
-                            fontSize: "10px",
-                            color: "#d9534f",
-                            fontWeight: "bold",
-                            marginTop: "3px",
-                            background: "#fff",
-                            padding: "2px 5px",
-                            borderRadius: "4px",
-                            border: "1px solid #d9534f",
-                          }}
-                        >
+                        <div style={{
+                          fontSize: "10px",
+                          color: "#d9534f",
+                          fontWeight: "bold",
+                          marginTop: "3px",
+                          background: "#fff",
+                          padding: "2px 5px",
+                          borderRadius: "4px",
+                          border: "1px solid #d9534f",
+                        }}>
                           👤 By Customer
                         </div>
                       )}
 
                       {o.status === "cancelled" && o.cancelledBy === "Admin" && (
-                        <div
-                          style={{
-                            fontSize: "10px",
-                            color: "#777",
-                            fontWeight: "bold",
-                            marginTop: "3px",
-                            background: "#fff",
-                            padding: "2px 5px",
-                            borderRadius: "4px",
-                            border: "1px solid #777",
-                          }}
-                        >
+                        <div style={{
+                          fontSize: "10px",
+                          color: "#777",
+                          fontWeight: "bold",
+                          marginTop: "3px",
+                          background: "#fff",
+                          padding: "2px 5px",
+                          borderRadius: "4px",
+                          border: "1px solid #777",
+                        }}>
                           🛡️ By Admin
                         </div>
                       )}
@@ -511,7 +545,6 @@ const AdminOrders: React.FC = () => {
                       </div>
                     </div>
 
-                    {/* ✅ Payment Mode Visible */}
                     <div className="info-row">
                       <div className="info-cell">
                         <label>Location</label>
@@ -519,12 +552,10 @@ const AdminOrders: React.FC = () => {
                       </div>
                       <div className="info-cell align-right">
                         <label>Payment</label>
-                        <span
-                          style={{
-                            fontWeight: 800,
-                            color: o.paymentMode === "ONLINE" ? "#16a34a" : "#f97316",
-                          }}
-                        >
+                        <span style={{
+                          fontWeight: 800,
+                          color: o.paymentMode === "ONLINE" ? "#16a34a" : "#f97316",
+                        }}>
                           {paymentLabel(o.paymentMode)}
                         </span>
                       </div>
@@ -584,16 +615,14 @@ const AdminOrders: React.FC = () => {
                 <h3>Order #{viewing.orderNumber || viewing._id.slice(-6)}</h3>
 
                 {viewing.status === "cancelled" && viewing.cancelledBy && (
-                  <span
-                    style={{
-                      fontSize: "12px",
-                      background: viewing.cancelledBy === "Customer" ? "#fee2e2" : "#f3f4f6",
-                      color: viewing.cancelledBy === "Customer" ? "#991b1b" : "#374151",
-                      padding: "3px 8px",
-                      borderRadius: "4px",
-                      fontWeight: "bold",
-                    }}
-                  >
+                  <span style={{
+                    fontSize: "12px",
+                    background: viewing.cancelledBy === "Customer" ? "#fee2e2" : "#f3f4f6",
+                    color: viewing.cancelledBy === "Customer" ? "#991b1b" : "#374151",
+                    padding: "3px 8px",
+                    borderRadius: "4px",
+                    fontWeight: "bold",
+                  }}>
                     (Cancelled by {viewing.cancelledBy})
                   </span>
                 )}
@@ -625,20 +654,15 @@ const AdminOrders: React.FC = () => {
             <div className="modal-grid">
               <div className="modal-section">
                 <h4>Customer</h4>
-                <p>
-                  <strong>{viewing.customerId?.shopName}</strong>
-                </p>
+                <p><strong>{viewing.customerId?.shopName}</strong></p>
                 <p>📞 {viewing.customerId?.otpMobile}</p>
                 <p>💬 {viewing.customerId?.whatsapp}</p>
 
-                {/* ✅ Payment Mode in modal */}
                 <p style={{ marginTop: 8 }}>
                   💳 Payment:{" "}
-                  <strong
-                    style={{
-                      color: viewing.paymentMode === "ONLINE" ? "#16a34a" : "#f97316",
-                    }}
-                  >
+                  <strong style={{
+                    color: viewing.paymentMode === "ONLINE" ? "#16a34a" : "#f97316",
+                  }}>
                     {paymentLabel(viewing.paymentMode)}
                   </strong>
                 </p>
@@ -648,9 +672,7 @@ const AdminOrders: React.FC = () => {
                 <h4>Shipping Details</h4>
                 {viewing.shippingAddress ? (
                   <>
-                    <p>
-                      <strong>{viewing.shippingAddress.fullName}</strong>
-                    </p>
+                    <p><strong>{viewing.shippingAddress.fullName}</strong></p>
                     <p>
                       {viewing.shippingAddress.street}, {viewing.shippingAddress.area}
                     </p>
@@ -658,9 +680,7 @@ const AdminOrders: React.FC = () => {
                       {viewing.shippingAddress.city}, {viewing.shippingAddress.state} -{" "}
                       {viewing.shippingAddress.pincode}
                     </p>
-                    <p>
-                      <small>{viewing.shippingAddress.phone}</small>
-                    </p>
+                    <p><small>{viewing.shippingAddress.phone}</small></p>
                   </>
                 ) : (
                   <p className="text-muted">No address provided</p>

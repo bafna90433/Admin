@@ -1,8 +1,11 @@
 import React, { useEffect, useState } from "react";
 import "../styles/CODSettings.css";
 
-const API_URL =
-  (import.meta as any).env?.VITE_API_URL || "http://localhost:5000";
+// --- ✅ CONFIGURATION (Live URL Fix) ---
+const API_BASE =
+  process.env.VITE_API_URL ||
+  process.env.REACT_APP_API_URL ||
+  "https://bafnatoys-backend-production.up.railway.app/api";
 
 const CODSettings: React.FC = () => {
   const [advanceAmount, setAdvanceAmount] = useState<number>(0);
@@ -15,7 +18,8 @@ const CODSettings: React.FC = () => {
     const fetchSettings = async () => {
       try {
         setLoading(true);
-        const res = await fetch(`${API_URL}/api/settings/cod`);
+        // ✅ Changed: Using API_BASE for Live Connection
+        const res = await fetch(`${API_BASE}/settings/cod`);
         const data = await res.json();
         setAdvanceAmount(data?.advanceAmount || 0);
       } catch (err) {
@@ -33,7 +37,8 @@ const CODSettings: React.FC = () => {
       setSaving(true);
       setMessage("");
 
-      await fetch(`${API_URL}/api/settings/cod`, {
+      // ✅ Changed: Using API_BASE for Live Connection
+      await fetch(`${API_BASE}/settings/cod`, {
         method: "PUT",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ advanceAmount }),

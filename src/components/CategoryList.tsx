@@ -9,8 +9,14 @@ import {
   FiArrowDown,
   FiImage,
 } from "react-icons/fi";
-import api from "../utils/api";
+import axios from "axios"; // ✅ Changed: Import axios directly
 import "../styles/CategoryList.css";
+
+// --- ✅ CONFIGURATION (Live URL Fix) ---
+const API_BASE =
+  process.env.VITE_API_URL ||
+  process.env.REACT_APP_API_URL ||
+  "https://bafnatoys-backend-production.up.railway.app/api";
 
 interface Category {
   _id: string;
@@ -39,7 +45,7 @@ const CategoryList: React.FC = () => {
   const [editId, setEditId] = useState<string | null>(null);
   const [editName, setEditName] = useState("");
   const [editImage, setEditImage] = useState<File | null>(null);
-  const [editPreview, setEditPreview] = useState<string | null>(null); // 👈 NEW: Edit Preview State
+  const [editPreview, setEditPreview] = useState<string | null>(null);
 
   // UI States
   const [error, setError] = useState("");
@@ -63,7 +69,8 @@ const CategoryList: React.FC = () => {
   const fetchCategories = async () => {
     setLoading(true);
     try {
-      const { data } = await api.get("/categories");
+      // ✅ Changed: Using axios with API_BASE
+      const { data } = await axios.get(`${API_BASE}/categories`);
       const sorted = [...data].sort((a: any, b: any) => (a.order || 0) - (b.order || 0));
       setCategories(sorted);
       setError("");
@@ -76,7 +83,8 @@ const CategoryList: React.FC = () => {
   // ✅ Fetch products (for count)
   const fetchProducts = async () => {
     try {
-      const { data } = await api.get("/products");
+      // ✅ Changed: Using axios with API_BASE
+      const { data } = await axios.get(`${API_BASE}/products`);
       const counts: Record<string, number> = {};
       data.forEach((prod: Product) => {
         const catId = typeof prod.category === "string" ? prod.category : prod.category?._id;
@@ -99,7 +107,7 @@ const CategoryList: React.FC = () => {
     if (file) {
       if (isEdit) {
         setEditImage(file);
-        setEditPreview(URL.createObjectURL(file)); // 👈 Show preview immediately in edit row
+        setEditPreview(URL.createObjectURL(file)); 
       } else {
         setNewImage(file);
         setPreview(URL.createObjectURL(file));
@@ -118,7 +126,8 @@ const CategoryList: React.FC = () => {
     formData.append("image", newImage);
 
     try {
-      await api.post("/categories", formData, {
+      // ✅ Changed: Using axios with API_BASE
+      await axios.post(`${API_BASE}/categories`, formData, {
         headers: { "Content-Type": "multipart/form-data" },
       });
       setNewCategory("");
@@ -137,7 +146,7 @@ const CategoryList: React.FC = () => {
     setEditId(cat._id);
     setEditName(cat.name);
     setEditImage(null);
-    setEditPreview(null); // Reset preview
+    setEditPreview(null);
   };
 
   // ✅ Cancel Edit
@@ -156,16 +165,16 @@ const CategoryList: React.FC = () => {
     const formData = new FormData();
     formData.append("name", editName);
     
-    // Sirf tabhi image bhejo agar user ne nayi select ki hai
     if (editImage) {
       formData.append("image", editImage);
     }
 
     try {
-      await api.put(`/categories/${id}`, formData, {
+      // ✅ Changed: Using axios with API_BASE
+      await axios.put(`${API_BASE}/categories/${id}`, formData, {
         headers: { "Content-Type": "multipart/form-data" },
       });
-      handleCancelEdit(); // Clear states
+      handleCancelEdit(); 
       await fetchCategories();
     } catch (err: any) {
       setError(err.response?.data?.message || "Failed to update category");
@@ -178,7 +187,8 @@ const CategoryList: React.FC = () => {
     if (!window.confirm("Are you sure? This will delete the category and its image.")) return;
     setLoading(true);
     try {
-      await api.delete(`/categories/${id}`);
+      // ✅ Changed: Using axios with API_BASE
+      await axios.delete(`${API_BASE}/categories/${id}`);
       await fetchCategories();
       await fetchProducts();
     } catch { setError("Failed to delete category"); }
@@ -187,7 +197,8 @@ const CategoryList: React.FC = () => {
 
   const handleMove = async (id: string, direction: "up" | "down") => {
     try {
-      await api.put(`/categories/${id}/move`, { direction });
+      // ✅ Changed: Using axios with API_BASE
+      await axios.put(`${API_BASE}/categories/${id}/move`, { direction });
       await fetchCategories();
     } catch { setError("Failed to move category"); }
   };
@@ -253,20 +264,16 @@ const CategoryList: React.FC = () => {
                 <tr key={cat._id}>
                   <td>{idx + 1}</td>
                   
-                  {/* Image Column (Shows Preview if editing) */}
                   <td>
                     {editId === cat._id && editPreview ? (
-                       // Agar edit kar rahe hain aur nayi photo select ki hai -> Show Preview
                        <img src={editPreview} alt="New Preview" style={{ width: 40, height: 40, borderRadius: 4, objectFit: "cover", border: "2px solid #007bff" }} />
                     ) : cat.image ? (
-                       // Normal View -> Show Server Image
                        <img src={cat.image} alt={cat.name} style={{ width: 40, height: 40, borderRadius: 4, objectFit: "cover" }} />
                     ) : (
                        <FiImage color="#ccc" size={24} />
                     )}
                   </td>
 
-                  {/* Name & File Input Column */}
                   <td>
                     {editId === cat._id ? (
                       <div style={{ display: "flex", flexDirection: "column", gap: "8px" }}>
@@ -277,7 +284,6 @@ const CategoryList: React.FC = () => {
                           className="edit-input"
                           placeholder="Category Name"
                         />
-                        {/* Edit Image Input */}
                         <div style={{fontSize: '12px', display: 'flex', alignItems: 'center', gap: '5px'}}>
                            <span style={{color: '#666'}}>Change Image:</span>
                            <input 

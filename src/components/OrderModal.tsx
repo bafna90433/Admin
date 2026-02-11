@@ -1,7 +1,5 @@
-// src/components/OrderModal.tsx
 import React from "react";
 import "../styles/OrderModal.css";
-import { MEDIA_URL } from "../utils/api";
 import * as XLSX from "xlsx";
 import { saveAs } from "file-saver";
 import {
@@ -18,6 +16,12 @@ import {
   CheckCircle,
 } from "lucide-react";
 
+// --- ✅ CONFIGURATION (Live URL Fix) ---
+const MEDIA_BASE =
+  process.env.VITE_MEDIA_URL ||
+  process.env.REACT_APP_MEDIA_URL ||
+  "https://bafnatoys-backend-production.up.railway.app";
+
 interface OrderModalProps {
   order: any;
   onClose: () => void;
@@ -29,15 +33,15 @@ const currency = new Intl.NumberFormat("en-IN", {
   maximumFractionDigits: 2,
 });
 
-// ✅ Resolve full image path
+// ✅ Resolve full image path using Live MEDIA_BASE
 const resolveImage = (img?: string): string => {
   if (!img) return "";
   if (img.startsWith("http")) return img;
   if (img.startsWith("/uploads") || img.startsWith("/images"))
-    return `${MEDIA_URL}${img}`;
+    return `${MEDIA_BASE}${img}`;
   if (img.startsWith("uploads/") || img.startsWith("images/"))
-    return `${MEDIA_URL}/${img}`;
-  return `${MEDIA_URL}/uploads/${encodeURIComponent(img)}`;
+    return `${MEDIA_BASE}/${img}`;
+  return `${MEDIA_BASE}/uploads/${encodeURIComponent(img)}`;
 };
 
 // ✅ Export single order (Excel)
@@ -86,7 +90,7 @@ const OrderModal: React.FC<OrderModalProps> = ({ order, onClose }) => {
     0
   );
 
-  // ✅ Robust payment mode (fix: sometimes backend sends "COD"/"ONLINE", sometimes empty)
+  // ✅ Robust payment mode logic
   const paymentMode = String(order.paymentMode || "COD").toUpperCase();
   const isOnline = paymentMode === "ONLINE";
   const paymentDisplay = isOnline ? "Online Payment (Paid)" : "Cash on Delivery";
@@ -128,7 +132,6 @@ const OrderModal: React.FC<OrderModalProps> = ({ order, onClose }) => {
                   </span>
                 </p>
 
-                {/* ✅ PAYMENT DISPLAY (Paid/COD) */}
                 <p style={{ display: "flex", alignItems: "center", gap: "6px" }}>
                   <strong style={{ display: "flex", alignItems: "center", gap: "6px" }}>
                     <CreditCard size={14} /> Payment:
@@ -206,11 +209,11 @@ const OrderModal: React.FC<OrderModalProps> = ({ order, onClose }) => {
                   <p>
                     {sa.city}, {sa.state} - <strong>{sa.pincode}</strong>
                   </p>
-                  <p className="mt-2">
+                  <div style={{ marginTop: "8px" }}>
                     <strong style={{ display: "flex", alignItems: "center", gap: "6px" }}>
                       <Phone size={14} /> {sa.phone}
                     </strong>
-                  </p>
+                  </div>
                 </div>
               ) : (
                 <p className="no-data">Shipping address not available.</p>

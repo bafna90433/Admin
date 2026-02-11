@@ -4,8 +4,11 @@ import Swal from "sweetalert2";
 import { FiSave, FiTruck, FiDollarSign } from "react-icons/fi";
 import "../styles/adminsetting.css";
 
-// ✅ API Base URL
-const API_BASE = "http://localhost:5000/api"; 
+// --- ✅ CONFIGURATION (Live URL Fix) ---
+const API_BASE =
+  process.env.VITE_API_URL ||
+  process.env.REACT_APP_API_URL ||
+  "https://bafnatoys-backend-production.up.railway.app/api";
 
 const AdminSettings: React.FC = () => {
   const [shippingCharge, setShippingCharge] = useState<number>(0);
@@ -18,7 +21,7 @@ const AdminSettings: React.FC = () => {
 
   const fetchSettings = async () => {
     try {
-      // ✅ CHANGE: URL updated to '/shipping-rules'
+      // ✅ Changed: Using API_BASE instead of localhost
       const res = await axios.get(`${API_BASE}/shipping-rules`);
       
       if (res.data) {
@@ -33,7 +36,7 @@ const AdminSettings: React.FC = () => {
   const handleSave = async () => {
     setLoading(true);
     try {
-      // ✅ CHANGE: URL updated to '/shipping-rules'
+      // ✅ Changed: Using API_BASE instead of localhost
       await axios.put(`${API_BASE}/shipping-rules`, {
         shippingCharge: Number(shippingCharge),
         freeShippingThreshold: Number(freeLimit),

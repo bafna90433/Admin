@@ -1,7 +1,15 @@
 import React, { useEffect, useState } from "react";
 import axios from "axios";
 import "../styles/WhatsAppSettings.css";
-import { API_URL } from "../utils/api";
+
+// --- ✅ CONFIGURATION (Live URL Fix) ---
+const API_BASE =
+  process.env.VITE_API_URL ||
+  process.env.REACT_APP_API_URL ||
+  "https://bafnatoys-backend-production.up.railway.app/api";
+
+// Backend ka root URL (uploads ke liye)
+const ROOT_BASE = API_BASE.replace(/\/api\/?$/, "");
 
 /* ------------ Types ------------ */
 type Agent = {
@@ -37,7 +45,8 @@ type Settings = {
 const resolveUrl = (u?: string) => {
   if (!u) return "";
   if (u.startsWith("http")) return u;
-  return `${API_URL}${u.startsWith("/") ? u : `/uploads/${u}`}`;
+  // ✅ Changed: Use ROOT_BASE for uploads
+  return `${ROOT_BASE}${u.startsWith("/") ? u : `/uploads/${u}`}`;
 };
 
 const WEEK_DAYS = [
@@ -59,8 +68,9 @@ const AdminWhatsApp: React.FC = () => {
   useEffect(() => {
     (async () => {
       try {
-        const { data } = await axios.get<Settings>(`${API_URL}/whatsapp`);
-        // Set sane defaults for new fields
+        // ✅ Changed: Use API_BASE
+        const { data } = await axios.get<Settings>(`${API_BASE}/whatsapp`);
+        
         data.showOnPaths ||= [];
         data.hideOnPaths ||= [];
         data.days ||= [1, 2, 3, 4, 5];
@@ -118,7 +128,8 @@ const AdminWhatsApp: React.FC = () => {
       try {
         const fd = new FormData();
         fd.append("images", file);
-        const { data } = await axios.post(`${API_URL}/upload`, fd);
+        // ✅ Changed: Use API_BASE
+        const { data } = await axios.post(`${API_BASE}/upload`, fd);
         const rel = data?.url || data?.urls?.[0];
         if (rel) updateAgent(idx, { avatar: rel });
       } catch (e) {
@@ -152,7 +163,8 @@ const AdminWhatsApp: React.FC = () => {
           phone: String(a.phone || "").replace(/\D/g, ""),
         })),
       };
-      const { data } = await axios.put(`${API_URL}/whatsapp`, payload);
+      // ✅ Changed: Use API_BASE
+      const { data } = await axios.put(`${API_BASE}/whatsapp`, payload);
       setSettings(data.settings || payload);
       setMessage("Settings saved successfully!");
       setTimeout(() => setMessage(null), 3000);
@@ -165,7 +177,6 @@ const AdminWhatsApp: React.FC = () => {
 
   if (!settings) return <div className="ws-loading">Loading Settings…</div>;
 
-  /* ------------ UI ------------ */
   return (
     <div className="ws-admin-container">
       <div className="ws-header">

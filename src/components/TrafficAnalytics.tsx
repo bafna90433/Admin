@@ -1,6 +1,7 @@
 import React, { useEffect, useState } from "react";
 import { Link } from "react-router-dom";
-import axios from "axios"; // ✅ Changed: Import axios directly
+import axios from "axios";
+import { io } from "socket.io-client"; // ✅ Added Socket.io Client
 import "../styles/TrafficAnalytics.css";
 import {
   FiArrowLeft, FiActivity, FiUsers, FiCalendar, FiTrendingUp, FiClock,
@@ -12,6 +13,9 @@ const API_BASE =
   process.env.VITE_API_URL ||
   process.env.REACT_APP_API_URL ||
   "https://bafnatoys-backend-production.up.railway.app/api";
+
+// Socket connection should point to the root of your backend
+const SOCKET_BASE = API_BASE.replace(/\/api\/?$/, "");
 
 type TrafficData = { date: string; count: number; };
 type SourceData = { google: number; instagram: number; facebook: number; whatsapp: number; direct: number; other: number; };
@@ -28,10 +32,24 @@ const getFlagEmoji = (countryCode: string) => {
 
 const TrafficAnalytics: React.FC = () => {
   const [totalVisitors, setTotalVisitors] = useState(0);
+  const [onlineCount, setOnlineCount] = useState(0); // ✅ New: Online Users Count
   const [dailyStats, setDailyStats] = useState<TrafficData[]>([]);
   const [sourceStats, setSourceStats] = useState<SourceData | null>(null);
   const [countryStats, setCountryStats] = useState<Record<string, number>>({});
   const [loading, setLoading] = useState(true);
+
+  // ✅ Real-time Socket Connection
+  useEffect(() => {
+    const socket = io(SOCKET_BASE);
+
+    socket.on("updateUserCount", (count: number) => {
+      setOnlineCount(count);
+    });
+
+    return () => {
+      socket.disconnect();
+    };
+  }, []);
 
   useEffect(() => {
     fetchData();
@@ -39,9 +57,7 @@ const TrafficAnalytics: React.FC = () => {
 
   const fetchData = async () => {
     try {
-      // ✅ Changed: Using axios with API_BASE
       const res = await axios.get(`${API_BASE}/analytics/stats`);
-      
       setTotalVisitors(res.data.totalVisitors || 0);
       
       const stats = res.data.dailyStats || [];
@@ -49,7 +65,6 @@ const TrafficAnalytics: React.FC = () => {
       setDailyStats(sortedStats);
 
       setSourceStats(res.data.sourceStats || { google: 0, instagram: 0, facebook: 0, whatsapp: 0, direct: 0, other: 0 });
-      
       setCountryStats(res.data.countryStats || {});
 
     } catch (error) {
@@ -82,25 +97,35 @@ const TrafficAnalytics: React.FC = () => {
 
       {/* KPI Cards */}
       <div className="stats-grid">
+        {/* ✅ New Real-time Online Users Card */}
+        <div className="stat-card border-green">
+          <div className="stat-info">
+            <span className="stat-title">Online Now</span>
+            <h3 className="stat-value" style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+              {onlineCount} 
+              <span className="live-pulse"></span>
+            </h3>
+          </div>
+          <div className="stat-icon bg-green"><FiActivity /></div>
+        </div>
+
         <div className="stat-card border-blue">
           <div className="stat-info"><span className="stat-title">Total Visitors</span><h3 className="stat-value">{totalVisitors.toLocaleString()}</h3></div>
           <div className="stat-icon bg-blue"><FiUsers /></div>
         </div>
-        <div className="stat-card border-green">
-          <div className="stat-info"><span className="stat-title">Visits Today</span><h3 className="stat-value">{todayVisits}</h3></div>
-          <div className="stat-icon bg-green"><FiActivity /></div>
-        </div>
         <div className="stat-card border-purple">
-          <div className="stat-info"><span className="stat-title">Avg. Daily</span><h3 className="stat-value">{dailyStats.length > 0 ? Math.round(totalVisitors / 30) : 0}</h3></div>
+          <div className="stat-info"><span className="stat-title">Visits Today</span><h3 className="stat-value">{todayVisits}</h3></div>
           <div className="stat-icon bg-purple"><FiTrendingUp /></div>
+        </div>
+        <div className="stat-card border-orange">
+          <div className="stat-info"><span className="stat-title">Avg. Daily</span><h3 className="stat-value">{dailyStats.length > 0 ? Math.round(totalVisitors / 30) : 0}</h3></div>
+          <div className="stat-icon bg-orange"><FiClock /></div>
         </div>
       </div>
 
       <div className="content-grid-dashboard">
-        
-        {/* Left Column */}
+        {/* Main Content Area */}
         <div className="main-content">
-            
             {/* 📈 Traffic Graph */}
             <section className="card" style={{ height: '350px', display: 'flex', flexDirection: 'column', marginBottom: '24px' }}>
                 <div className="card-header"><h3>📈 Traffic Trend</h3></div>
@@ -121,9 +146,8 @@ const TrafficAnalytics: React.FC = () => {
                 </div>
             </section>
 
-            {/* Split Row for Sources and Countries */}
+            {/* Split Row */}
             <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '24px' }}>
-                
                 {/* 🔗 Traffic Sources */}
                 <section className="card">
                     <div className="card-header"><h3>🔗 Traffic Sources</h3></div>
@@ -144,8 +168,8 @@ const TrafficAnalytics: React.FC = () => {
                             <p className="text-muted text-center">No country data yet.</p>
                         ) : (
                             Object.entries(countryStats)
-                                .sort(([,a], [,b]) => b - a) // Sort High to Low
-                                .slice(0, 5) // Top 5 Only
+                                .sort(([,a], [,b]) => b - a)
+                                .slice(0, 5)
                                 .map(([code, count]) => (
                                     <div key={code} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '10px', background: '#f8fafc', borderRadius: '8px' }}>
                                         <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
@@ -158,9 +182,7 @@ const TrafficAnalytics: React.FC = () => {
                         )}
                     </div>
                 </section>
-
             </div>
-
         </div>
 
         {/* Right Column: Daily Breakdown */}
@@ -181,13 +203,11 @@ const TrafficAnalytics: React.FC = () => {
                                     <td style={{ textAlign: 'right', fontWeight: '600' }}>{data.count}</td>
                                 </tr>
                             ))}
-                            {dailyStats.length === 0 && <tr><td colSpan={2} className="text-center p-3">No records found.</td></tr>}
                         </tbody>
                     </table>
                 </div>
             </section>
         </div>
-
       </div>
     </div>
   );

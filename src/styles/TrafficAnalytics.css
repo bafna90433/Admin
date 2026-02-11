@@ -196,4 +196,24 @@
   background-color: #d1fae5;
   color: #065f46;
   border: 1px solid #a7f3d0;
+}.live-pulse {
+  display: inline-block;
+  width: 10px;
+  height: 10px;
+  background-color: #10b981; /* Green color */
+  border-radius: 50%;
+  box-shadow: 0 0 0 rgba(16, 185, 129, 0.4);
+  animation: pulse 2s infinite;
+}
+
+@keyframes pulse {
+  0% {
+    box-shadow: 0 0 0 0 rgba(16, 185, 129, 0.7);
+  }
+  70% {
+    box-shadow: 0 0 0 10px rgba(16, 185, 129, 0);
+  }
+  100% {
+    box-shadow: 0 0 0 0 rgba(16, 185, 129, 0);
+  }
 }

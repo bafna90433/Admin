@@ -1,14 +1,25 @@
 import React, { useEffect, useState, useMemo, useRef } from "react";
-import api, { MEDIA_URL } from "../utils/api";
+import axios from "axios"; // ✅ Changed: Import axios directly
 import { 
   FiSearch, FiUser, FiEye, FiX, FiCalendar, FiMapPin, 
   FiMessageCircle, FiShare2, FiSend, FiEdit3, FiChevronDown 
 } from "react-icons/fi";
 import "../styles/ProductList.css"; 
 
+// --- ✅ CONFIGURATION (Live URL Fix) ---
+const API_BASE =
+  process.env.VITE_API_URL ||
+  process.env.REACT_APP_API_URL ||
+  "https://bafnatoys-backend-production.up.railway.app/api";
+
+const MEDIA_BASE =
+  process.env.VITE_MEDIA_URL ||
+  process.env.REACT_APP_MEDIA_URL ||
+  "https://bafnatoys-backend-production.up.railway.app";
+
 // Helper for Image URL
 const getImageUrl = (url: string) =>
-  url?.startsWith("http") ? url : url ? `${MEDIA_URL}${url}` : "";
+  url?.startsWith("http") ? url : url ? `${MEDIA_BASE}${url}` : "";
 
 // --- Types ---
 interface ProductLite {
@@ -99,8 +110,9 @@ const CustomerSales: React.FC = () => {
   const fetchData = async () => {
     setLoading(true);
     try {
-      const { data: orders } = await api.get("/orders");
-      const { data: productData } = await api.get("/products");
+      // ✅ Changed: Using axios with API_BASE
+      const { data: orders } = await axios.get(`${API_BASE}/orders`);
+      const { data: productData } = await axios.get(`${API_BASE}/products`);
       
       setProducts(productData.reverse()); 
 

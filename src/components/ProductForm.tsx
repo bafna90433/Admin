@@ -1,9 +1,15 @@
 import React, { useEffect, useState, ChangeEvent, FormEvent } from "react";
 import { useNavigate, useParams } from "react-router-dom";
 import Swal from "sweetalert2"; 
-import { FiX, FiUpload, FiSave, FiSearch, FiPlus, FiList, FiImage, FiTrash, FiBox, FiLink, FiPackage } from "react-icons/fi"; // ✅ Added FiPackage
-import api from "../utils/api";
+import { FiX, FiUpload, FiSave, FiSearch, FiPlus, FiList, FiImage, FiTrash, FiBox, FiLink, FiPackage } from "react-icons/fi";
+import axios from "axios"; // ✅ Changed: Import axios directly
 import "../styles/ProductForm.css";
+
+// --- ✅ CONFIGURATION (Live URL Fix) ---
+const API_BASE =
+  process.env.VITE_API_URL ||
+  process.env.REACT_APP_API_URL ||
+  "https://bafnatoys-backend-production.up.railway.app/api";
 
 interface Category {
   _id: string;
@@ -30,7 +36,7 @@ interface ProductPayload {
   mrp: number;
   price: number;
   stock: number;
-  unit: string; // ✅ Added Unit
+  unit: string;
   description: string;
   category: string;
   images: string[];
@@ -57,7 +63,7 @@ const ProductForm: React.FC = () => {
     mrp: "",
     price: "",
     stock: "",
-    unit: "", // ✅ Added Unit State (Text Input)
+    unit: "", 
     description: "",
     tagline: "",
     packSize: "",
@@ -85,11 +91,12 @@ const ProductForm: React.FC = () => {
   useEffect(() => {
     const fetchData = async () => {
       try {
-        const categoriesRes = await api.get("/categories");
+        // ✅ Changed: Using axios with API_BASE
+        const categoriesRes = await axios.get(`${API_BASE}/categories`);
         setCategories(categoriesRes.data);
 
         if (editMode && id) {
-          const productRes = await api.get(`/products/${id}`);
+          const productRes = await axios.get(`${API_BASE}/products/${id}`);
           const data = productRes.data;
 
           setForm({
@@ -98,7 +105,7 @@ const ProductForm: React.FC = () => {
             mrp: data.mrp?.toString() || "",
             price: data.price?.toString() || "",
             stock: data.stock?.toString() || "0",
-            unit: data.unit || "", // ✅ Load Unit
+            unit: data.unit || "", 
             description: data.description || "",
             tagline: data.tagline || "",
             packSize: data.packSize || "",
@@ -123,7 +130,7 @@ const ProductForm: React.FC = () => {
         } else {
             // Reset Form
             setForm({
-                name: "", sku: "", mrp: "", price: "", stock: "", unit: "", // ✅ Reset Unit
+                name: "", sku: "", mrp: "", price: "", stock: "", unit: "", 
                 description: "", tagline: "", packSize: "", category: "",
             });
             setGallery([]);
@@ -146,7 +153,8 @@ const ProductForm: React.FC = () => {
     setSearchQuery(query);
     if (query.length > 1) {
       try {
-        const res = await api.get(`/products/search/all?query=${query}`);
+        // ✅ Changed: Using axios with API_BASE
+        const res = await axios.get(`${API_BASE}/products/search/all?query=${query}`);
         setSearchResults(res.data);
         setShowResults(true);
       } catch (err) { console.error("Search failed"); }
@@ -169,7 +177,8 @@ const ProductForm: React.FC = () => {
     
     if (query.length > 1) {
         try {
-            const res = await api.get(`/products/search/all?query=${query}`);
+            // ✅ Changed: Using axios with API_BASE
+            const res = await axios.get(`${API_BASE}/products/search/all?query=${query}`);
             const filtered = res.data.filter((p: ProductOption) => 
                 p._id !== id && !relatedDisplay.some(r => r._id === p._id)
             );
@@ -214,7 +223,8 @@ const ProductForm: React.FC = () => {
       try {
         setLoading(true);
         Swal.fire({ title: 'Deleting...', didOpen: () => Swal.showLoading() });
-        await api.delete(`/products/${id}`);
+        // ✅ Changed: Using axios with API_BASE
+        await axios.delete(`${API_BASE}/products/${id}`);
         await Swal.fire({ icon: 'success', title: 'Deleted!', timer: 1500, showConfirmButton: false });
         navigate("/admin/products/new");
         setForm({ name: "", sku: "", mrp: "", price: "", stock: "", unit: "", description: "", tagline: "", packSize: "", category: "" });
@@ -264,7 +274,8 @@ const ProductForm: React.FC = () => {
       if (newImages.length) {
         const formData = new FormData();
         newImages.forEach((g) => g.file && formData.append("images", g.file));
-        const res = await api.post("/upload", formData, { headers: { "Content-Type": "multipart/form-data" } });
+        // ✅ Changed: Using axios with API_BASE
+        const res = await axios.post(`${API_BASE}/upload`, formData, { headers: { "Content-Type": "multipart/form-data" } });
         uploadedUrls = res.data.urls;
       }
 
@@ -274,7 +285,7 @@ const ProductForm: React.FC = () => {
         mrp: Number(form.mrp) || 0,
         price: Number(form.price),
         stock: Number(form.stock) || 0,
-        unit: form.unit, // ✅ Send Unit to Backend
+        unit: form.unit, 
         description: form.description,
         tagline: form.tagline.trim() || undefined,
         packSize: form.packSize.trim() || undefined,
@@ -284,10 +295,12 @@ const ProductForm: React.FC = () => {
       };
 
       if (editMode && id) {
-        await api.put(`/products/${id}`, payload);
+        // ✅ Changed: Using axios with API_BASE
+        await axios.put(`${API_BASE}/products/${id}`, payload);
         await Swal.fire({ icon: 'success', title: 'Updated!', timer: 1500, showConfirmButton: false });
       } else {
-        const res = await api.post("/products", payload);
+        // ✅ Changed: Using axios with API_BASE
+        const res = await axios.post(`${API_BASE}/products`, payload);
         await Swal.fire({ icon: 'success', title: 'Created!', timer: 1500, showConfirmButton: false });
         const newId = res.data._id || res.data.id || res.data.product?._id; 
         if (newId) navigate(`/admin/products/edit/${newId}`);

@@ -1,6 +1,12 @@
 import React, { useEffect, useMemo, useState } from "react";
-import api from "../utils/api";
+import axios from "axios"; // ✅ Changed: Import axios directly
 import "../styles/AdminHomeBuilder.css";
+
+// --- ✅ CONFIGURATION (Live URL Fix) ---
+const API_BASE =
+  process.env.VITE_API_URL ||
+  process.env.REACT_APP_API_URL ||
+  "https://bafnatoys-backend-production.up.railway.app/api";
 
 // --- ICONS ---
 const Icons = {
@@ -62,20 +68,18 @@ const normalizeCfg = (data: any): HomeConfig => ({
 const toLocalInputDate = (dateString: string | null) => {
   if (!dateString) return "";
   const date = new Date(dateString);
-  // Subtract timezone offset to align UTC representation with Local time
   const offsetMs = date.getTimezoneOffset() * 60000;
   const localDate = new Date(date.getTime() - offsetMs);
-  // Returns format "2025-02-12T19:30" (Local Time)
   return localDate.toISOString().slice(0, 16);
 };
 
 const AdminHomeBuilder: React.FC = () => {
   const [activeTab, setActiveTab] = useState<"banner" | "trending" | "categories" | "hotdeals">("banner");
-   
+    
   const [products, setProducts] = useState<Product[]>([]);
   const [categories, setCategories] = useState<Category[]>([]);
   const [cfg, setCfg] = useState<HomeConfig>(normalizeCfg({}));
-   
+    
   const [newTrendTitle, setNewTrendTitle] = useState("");
   const [activeTrendIndex, setActiveTrendIndex] = useState<number>(0);
   const [search, setSearch] = useState("");
@@ -86,10 +90,11 @@ const AdminHomeBuilder: React.FC = () => {
   useEffect(() => {
     const fetchData = async () => {
       try {
+        // ✅ Changed: Using axios with API_BASE
         const [pRes, cRes, cfgRes] = await Promise.all([
-            api.get("/products").catch(() => ({ data: [] })),
-            api.get("/categories").catch(() => ({ data: [] })),
-            api.get("/home-config").catch(() => ({ data: null }))
+            axios.get(`${API_BASE}/products`).catch(() => ({ data: [] })),
+            axios.get(`${API_BASE}/categories`).catch(() => ({ data: [] })),
+            axios.get(`${API_BASE}/home-config`).catch(() => ({ data: null }))
         ]);
         
         setProducts(Array.isArray(pRes.data?.products) ? pRes.data.products : Array.isArray(pRes.data) ? pRes.data : []);
@@ -113,7 +118,12 @@ const AdminHomeBuilder: React.FC = () => {
     setSaving(true);
     try {
       const payload = normalizeCfg({ ...cfg, hotDealsProductIds: (cfg.hotDealsItems || []).map(x => x.productId) });
-      const res = isNew ? await api.post("/home-config", payload) : await api.put("/home-config", payload);
+      
+      // ✅ Changed: Using axios with API_BASE
+      const res = isNew 
+        ? await axios.post(`${API_BASE}/home-config`, payload) 
+        : await axios.put(`${API_BASE}/home-config`, payload);
+
       setCfg(normalizeCfg(res.data));
       setIsNew(false);
       alert("✅ Configuration Saved Successfully!");
@@ -125,20 +135,24 @@ const AdminHomeBuilder: React.FC = () => {
     setUploading(true);
     try {
       const fd = new FormData(); fd.append("images", file);
-      const { data } = await api.post("/upload", fd, { headers: { "Content-Type": "multipart/form-data" } });
+      
+      // ✅ Changed: Using axios with API_BASE
+      const { data } = await axios.post(`${API_BASE}/upload`, fd, { headers: { "Content-Type": "multipart/form-data" } });
+      
       const url = data?.urls?.[0] || data?.url || "";
       if (url) setCfg(p => ({ ...p, bannerImage: url }));
     } catch (e) { alert("Upload failed"); }
     finally { setUploading(false); }
   };
 
+  // ... (Rest of the Logic functions remain the same) ...
   const addTrendSection = () => {
     if (!newTrendTitle.trim()) return;
     setCfg(p => ({ ...p, trendingSections: [...p.trendingSections, { title: newTrendTitle, productIds: [] }] }));
     setNewTrendTitle("");
     setActiveTrendIndex(cfg.trendingSections.length);
   };
-   
+    
   const toggleTrendProduct = (pid: string) => {
     const sections = [...cfg.trendingSections];
     const section = sections[activeTrendIndex];
@@ -167,6 +181,7 @@ const AdminHomeBuilder: React.FC = () => {
     setCfg(p => ({ ...p, hotDealsItems: p.hotDealsItems?.map(it => it.productId === pid ? { ...it, ...patch } : it) }));
   };
 
+  // --- RENDER (Same as before) ---
   return (
     <div className="pro-builder">
       <header className="pro-header">
@@ -275,7 +290,7 @@ const AdminHomeBuilder: React.FC = () => {
         {/* TAB 3: CATEGORIES */}
         {activeTab === 'categories' && (
           <div className="pro-card">
-             <div className="area-header">
+              <div className="area-header">
                 <h3>Select Categories to Display</h3>
                 <input className="search-input" placeholder="Search categories..." value={search} onChange={e => setSearch(e.target.value)} />
               </div>
@@ -293,7 +308,7 @@ const AdminHomeBuilder: React.FC = () => {
           </div>
         )}
 
-        {/* TAB 4: HOT DEALS (FIXED SCROLL) */}
+        {/* TAB 4: HOT DEALS */}
         {activeTab === 'hotdeals' && (
           <div className="pro-split-view">
              <div className="pro-main-area">
@@ -337,11 +352,9 @@ const AdminHomeBuilder: React.FC = () => {
                              </div>
                            </td>
                            <td>
-                             {/* ✅ UPDATED INPUT: Uses toLocalInputDate helper for correct timezone display */}
                              <input type="datetime-local" className="compact-input" 
                                value={toLocalInputDate(item.endsAt)}
                                onChange={e => {
-                                 // Saves as UTC ISO String
                                  const newVal = e.target.value ? new Date(e.target.value).toISOString() : null;
                                  updateDealItem(item.productId, { endsAt: newVal });
                                }}

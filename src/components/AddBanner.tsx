@@ -1,6 +1,12 @@
 import React, { useState } from "react";
-import api from "../utils/api";
+import axios from "axios"; // ✅ Changed: Import axios directly
 import "../styles/AddBanner.css";
+
+// --- ✅ CONFIGURATION (Live URL Fix) ---
+const API_BASE =
+  process.env.VITE_API_URL ||
+  process.env.REACT_APP_API_URL ||
+  "https://bafnatoys-backend-production.up.railway.app/api";
 
 const AddBanner: React.FC = () => {
   const [selectedFiles, setSelectedFiles] = useState<File[]>([]);
@@ -72,7 +78,8 @@ const AddBanner: React.FC = () => {
       setProgress(0);
       setMessage("");
 
-      const res = await api.post("/banners", formData, {
+      // ✅ Changed: Using axios with API_BASE
+      const res = await axios.post(`${API_BASE}/banners`, formData, {
         headers: { "Content-Type": "multipart/form-data" },
         onUploadProgress: (event) => {
           const percent = Math.round((event.loaded * 100) / (event.total || 1));

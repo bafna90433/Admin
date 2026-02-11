@@ -1,9 +1,8 @@
-// src/components/AdminDashboard.tsx
 import React, { useEffect, useMemo, useState } from "react";
 import toast, { Toaster } from "react-hot-toast";
 import { utils, writeFile } from "xlsx";
 import { format } from "date-fns";
-import api from "../utils/api";
+import axios from "axios"; // ✅ Changed: Import axios directly
 import "../styles/AdminDashboard.css";
 import {
   FiSearch,
@@ -17,7 +16,13 @@ import {
   FiKey,
 } from "react-icons/fi";
 
-// 🧾 Customer Type (Removed visitingCardUrl & isApproved)
+// --- ✅ CONFIGURATION (Live URL Fix) ---
+const API_BASE =
+  process.env.VITE_API_URL ||
+  process.env.REACT_APP_API_URL ||
+  "https://bafnatoys-backend-production.up.railway.app/api";
+
+// 🧾 Customer Type
 type Customer = {
   _id: string;
   shopName: string;
@@ -49,7 +54,8 @@ const AdminDashboard: React.FC = () => {
   const fetchCustomers = async () => {
     try {
       setLoading(true);
-      const { data } = await api.get<Customer[]>("/admin/customers");
+      // ✅ Changed: Using axios with API_BASE
+      const { data } = await axios.get<Customer[]>(`${API_BASE}/admin/customers`);
       setRows(
         Array.isArray(data)
           ? data.sort(
@@ -118,8 +124,9 @@ const AdminDashboard: React.FC = () => {
 
     if (deleteCandidateId) {
       setActing(deleteCandidateId);
+      // ✅ Changed: Using axios with API_BASE
       handleApiAction(
-        api.delete(`/admin/customer/${deleteCandidateId}`),
+        axios.delete(`${API_BASE}/admin/customer/${deleteCandidateId}`),
         () =>
           setRows((p) =>
             p.filter((r) => r._id !== deleteCandidateId)

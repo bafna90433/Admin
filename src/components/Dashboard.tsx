@@ -1,6 +1,6 @@
 import React, { useEffect, useState } from "react";
 import { Link } from "react-router-dom";
-import api, { MEDIA_URL } from "../utils/api";
+import axios from "axios"; // ✅ Changed: Import axios directly
 import "../styles/Dashboard.css";
 import OrderModal from "./OrderModal";
 import {
@@ -15,6 +15,17 @@ import {
   FiActivity,
   FiList
 } from "react-icons/fi";
+
+// --- ✅ CONFIGURATION (Live URL Fix) ---
+const API_BASE =
+  process.env.VITE_API_URL ||
+  process.env.REACT_APP_API_URL ||
+  "https://bafnatoys-backend-production.up.railway.app/api";
+
+const MEDIA_BASE =
+  process.env.VITE_MEDIA_URL ||
+  process.env.REACT_APP_MEDIA_URL ||
+  "https://bafnatoys-backend-production.up.railway.app";
 
 // ✅ Order Type
 type Order = {
@@ -54,7 +65,8 @@ const currency = new Intl.NumberFormat("en-IN", {
 const resolveImage = (img?: string) => {
   if (!img) return "/placeholder.png";
   if (img.startsWith("http")) return img;
-  return `${MEDIA_URL}/${img}`;
+  // ✅ Changed: Use local MEDIA_BASE
+  return `${MEDIA_BASE}${img.startsWith("/") ? "" : "/"}${img}`;
 };
 
 const Dashboard: React.FC = () => {
@@ -70,12 +82,13 @@ const Dashboard: React.FC = () => {
 
   const load = async () => {
     try {
+      // ✅ Changed: Using axios with API_BASE for all requests
       const [prodRes, custRes, orderRes, topProdRes, trafficRes] = await Promise.all([
-        api.get("/products"),
-        api.get("/admin/customers"),
-        api.get<Order[]>("/orders"),
-        api.get<TopProduct[]>("/orders/analytics/top-selling"),
-        api.get("/analytics/stats").catch(() => ({ data: { totalVisitors: 0, dailyStats: [] } })),
+        axios.get(`${API_BASE}/products`),
+        axios.get(`${API_BASE}/admin/customers`),
+        axios.get<Order[]>(`${API_BASE}/orders`),
+        axios.get<TopProduct[]>(`${API_BASE}/orders/analytics/top-selling`),
+        axios.get(`${API_BASE}/analytics/stats`).catch(() => ({ data: { totalVisitors: 0, dailyStats: [] } })),
       ]);
 
       setProductsCount(prodRes.data?.length || 0);

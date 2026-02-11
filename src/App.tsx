@@ -1,3 +1,4 @@
+// src/App.tsx  ✅ FINAL (nothing missed)
 import React from "react";
 import {
   BrowserRouter as Router,
@@ -14,24 +15,27 @@ import CategoryList from "./components/CategoryList";
 import CategoryForm from "./components/CategoryForm";
 import BannerList from "./components/BannerList";
 import AddBanner from "./components/AddBanner";
-import AdminDashboard from "./components/AdminDashboard"; // (For Customer Database)
+import AdminDashboard from "./components/AdminDashboard"; // Customer Database
 import AdminOrders from "./components/AdminOrders";
 import WhatsAppSettings from "./components/WhatsAppSettings";
 
 // ✅ UNIFIED: Payment & Shipping Settings
 import PaymentShippingSettings from "./components/PaymentShippingSettings";
 
-// ✅ STOCK: Stock Management Component
+// ✅ STOCK: Stock Management
 import StockManagement from "./components/StockManagement";
 
-// ✅ NEW: Customer Sales Report Component
+// ✅ Customer Sales Report
 import CustomerSales from "./components/CustomerSales";
 
-// ✅ NEW: Return Requests Component
+// ✅ Return Requests
 import AdminReturns from "./components/AdminReturns";
 
-// ✅ NEW: Traffic Analytics Component
+// ✅ Traffic Analytics
 import TrafficAnalytics from "./components/TrafficAnalytics";
+
+// ✅ NEW: Home Builder (Trending + 330×600 banner)
+import AdminHomeBuilder from "./components/AdminHomeBuilder";
 
 // 🔐 Admin Login
 import AdminLogin from "./components/AdminLogin";
@@ -80,30 +84,35 @@ const App: React.FC = () => {
           <Route path="banners" element={<BannerList />} />
           <Route path="banners/upload" element={<AddBanner />} />
 
+          {/* ✅ NEW: Home Builder */}
+          <Route path="home-builder" element={<AdminHomeBuilder />} />
+
           {/* Customers */}
           <Route path="registrations" element={<AdminDashboard />} />
 
           {/* Orders */}
           <Route path="orders" element={<AdminOrders />} />
 
-          {/* ✅ NEW: Return Requests Route */}
+          {/* Return Requests */}
           <Route path="returns" element={<AdminReturns />} />
 
-          {/* ✅ NEW: Traffic Analytics Route */}
+          {/* Traffic Analytics */}
           <Route path="analytics" element={<TrafficAnalytics />} />
 
           {/* WhatsApp Settings */}
           <Route path="whatsapp" element={<WhatsAppSettings />} />
 
-          {/* ✅ UNIFIED: Payment & Shipping Settings */}
-          <Route path="payment-shipping" element={<PaymentShippingSettings />} />
-          
-          {/* ✅ STOCK: Stock Management Route */}
+          {/* Payment & Shipping Settings */}
+          <Route
+            path="payment-shipping"
+            element={<PaymentShippingSettings />}
+          />
+
+          {/* Stock Management */}
           <Route path="inventory" element={<StockManagement />} />
 
-          {/* ✅ NEW: Customer Sales Report Route */}
+          {/* Customer Sales Report */}
           <Route path="sales-report" element={<CustomerSales />} />
-
         </Route>
 
         {/* 404 fallback */}

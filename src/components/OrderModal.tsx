@@ -40,11 +40,11 @@ const resolveImage = (img?: string): string => {
   return `${MEDIA_URL}/uploads/${encodeURIComponent(img)}`;
 };
 
-// ✅ Export single order (Updated for Excel Payment Mode)
+// ✅ Export single order (Excel)
 const exportSingleOrder = (order: any) => {
   const sa = order.shippingAddress;
-  const rows = order.items.map((it: any) => ({
-    Order_Number: order.orderNumber || order._id.slice(-6),
+  const rows = (order.items || []).map((it: any) => ({
+    Order_Number: order.orderNumber || order._id?.slice(-6),
     Shop_Name: order.customerId?.shopName || "",
     Customer_Mobile: order.customerId?.otpMobile || "",
     Shipping_Name: sa?.fullName || "",
@@ -57,13 +57,13 @@ const exportSingleOrder = (order: any) => {
     Item_Name: it.name,
     Qty_Packets: it.qty,
     Price_Per_Pc: it.price,
-    Total_Amount: it.price * it.qty,
+    Total_Amount: (it.price || 0) * (it.qty || 0),
     Status: order.status,
-    // ✅ Excel Payment Column
-    Payment_Mode: order.paymentMode === "ONLINE" ? "Online Payment" : "Cash on Delivery",
-    Date: order.createdAt
-      ? new Date(order.createdAt).toLocaleDateString()
-      : "",
+    Payment_Mode:
+      String(order.paymentMode || "").toUpperCase() === "ONLINE"
+        ? "Online Payment"
+        : "Cash on Delivery",
+    Date: order.createdAt ? new Date(order.createdAt).toLocaleString() : "",
   }));
 
   const ws = XLSX.utils.json_to_sheet(rows);
@@ -73,7 +73,7 @@ const exportSingleOrder = (order: any) => {
 
   saveAs(
     new Blob([buf], { type: "application/octet-stream" }),
-    `BafnaToys_Order_${order.orderNumber || order._id.slice(-6)}.xlsx`
+    `BafnaToys_Order_${order.orderNumber || order._id?.slice(-6)}.xlsx`
   );
 };
 
@@ -81,13 +81,14 @@ const OrderModal: React.FC<OrderModalProps> = ({ order, onClose }) => {
   const sa = order.shippingAddress;
 
   // ✅ Total Packets = sum of qty
-  const totalPackets = order.items?.reduce(
-    (sum: number, it: any) => sum + (it.qty || 0),
+  const totalPackets = (order.items || []).reduce(
+    (sum: number, it: any) => sum + (Number(it.qty) || 0),
     0
   );
 
-  // ✅ Logic to display Payment Status correctly
-  const isOnline = order.paymentMode === "ONLINE";
+  // ✅ Robust payment mode (fix: sometimes backend sends "COD"/"ONLINE", sometimes empty)
+  const paymentMode = String(order.paymentMode || "COD").toUpperCase();
+  const isOnline = paymentMode === "ONLINE";
   const paymentDisplay = isOnline ? "Online Payment (Paid)" : "Cash on Delivery";
 
   return (
@@ -97,7 +98,7 @@ const OrderModal: React.FC<OrderModalProps> = ({ order, onClose }) => {
         <div className="modal-header">
           <div className="header-title">
             <Package className="header-icon" />
-            <h2>Order Details #{order.orderNumber || order._id.slice(-6)}</h2>
+            <h2>Order Details #{order.orderNumber || order._id?.slice(-6)}</h2>
           </div>
           <button className="modal-close" onClick={onClose}>
             <X size={24} />
@@ -107,10 +108,7 @@ const OrderModal: React.FC<OrderModalProps> = ({ order, onClose }) => {
         <div className="modal-body">
           {/* Actions */}
           <div className="ord-m-actions">
-            <button
-              className="ord-btn-export"
-              onClick={() => exportSingleOrder(order)}
-            >
+            <button className="ord-btn-export" onClick={() => exportSingleOrder(order)}>
               <Download size={18} /> Export to Excel
             </button>
           </div>
@@ -121,36 +119,44 @@ const OrderModal: React.FC<OrderModalProps> = ({ order, onClose }) => {
               <h4 className="section-title">
                 <Info size={18} /> Order Summary
               </h4>
+
               <div className="info-grid">
                 <p>
                   <strong>Status:</strong>{" "}
                   <span className={`status-tag ${order.status}`}>
-                    {order.status?.toUpperCase()}
+                    {String(order.status || "").toUpperCase()}
                   </span>
                 </p>
-                
-                {/* ✅ FIXED PAYMENT DISPLAY */}
-                <p style={{ display: "flex", alignItems: "center", gap: "5px" }}>
-                  <strong>
+
+                {/* ✅ PAYMENT DISPLAY (Paid/COD) */}
+                <p style={{ display: "flex", alignItems: "center", gap: "6px" }}>
+                  <strong style={{ display: "flex", alignItems: "center", gap: "6px" }}>
                     <CreditCard size={14} /> Payment:
-                  </strong>{" "}
+                  </strong>
                   {isOnline ? (
-                    <span style={{ color: "green", fontWeight: "bold", display: "flex", alignItems: "center", gap: "4px" }}>
+                    <span
+                      style={{
+                        color: "#16a34a",
+                        fontWeight: 800,
+                        display: "flex",
+                        alignItems: "center",
+                        gap: "6px",
+                      }}
+                    >
                       {paymentDisplay} <CheckCircle size={14} />
                     </span>
                   ) : (
-                    <span>{paymentDisplay}</span>
+                    <span style={{ fontWeight: 700, color: "#f97316" }}>{paymentDisplay}</span>
                   )}
                 </p>
 
                 <p>
-                  <strong>
+                  <strong style={{ display: "flex", alignItems: "center", gap: "6px" }}>
                     <Calendar size={14} /> Date:
                   </strong>{" "}
-                  {order.createdAt
-                    ? new Date(order.createdAt).toLocaleString()
-                    : "-"}
+                  {order.createdAt ? new Date(order.createdAt).toLocaleString() : "-"}
                 </p>
+
                 <p>
                   <strong>Total Packets:</strong> {totalPackets}
                 </p>
@@ -163,12 +169,10 @@ const OrderModal: React.FC<OrderModalProps> = ({ order, onClose }) => {
                 <User size={18} /> Customer Info
               </h4>
               <p>
-                <strong>Shop:</strong>{" "}
-                {order.customerId?.shopName || "N/A"}
+                <strong>Shop:</strong> {order.customerId?.shopName || "N/A"}
               </p>
               <p>
-                <strong>Phone:</strong>{" "}
-                {order.customerId?.otpMobile || "-"}
+                <strong>Phone:</strong> {order.customerId?.otpMobile || "-"}
               </p>
               {order.customerId?.whatsapp && (
                 <p>
@@ -200,11 +204,10 @@ const OrderModal: React.FC<OrderModalProps> = ({ order, onClose }) => {
                   <p>{sa.street}</p>
                   {sa.area && <p>{sa.area}</p>}
                   <p>
-                    {sa.city}, {sa.state} -{" "}
-                    <strong>{sa.pincode}</strong>
+                    {sa.city}, {sa.state} - <strong>{sa.pincode}</strong>
                   </p>
                   <p className="mt-2">
-                    <strong>
+                    <strong style={{ display: "flex", alignItems: "center", gap: "6px" }}>
                       <Phone size={14} /> {sa.phone}
                     </strong>
                   </p>
@@ -220,26 +223,23 @@ const OrderModal: React.FC<OrderModalProps> = ({ order, onClose }) => {
             <h4 className="section-title">
               <Package size={18} /> Items List
             </h4>
+
             <div className="modal-items-container">
-              {order.items?.map((it: any, i: number) => {
+              {(order.items || []).map((it: any, i: number) => {
                 const img = resolveImage(it.image);
                 return (
                   <div className="ord-m-item" key={i}>
                     <div className="ord-m-img-box">
-                      {img ? (
-                        <img src={img} alt={it.name} />
-                      ) : (
-                        <div className="img-placeholder" />
-                      )}
+                      {img ? <img src={img} alt={it.name} /> : <div className="img-placeholder" />}
                     </div>
+
                     <div className="ord-m-item-info">
                       <span className="item-name-text">{it.name}</span>
-                      <span className="item-qty-text">
-                        {it.qty} packets
-                      </span>
+                      <span className="item-qty-text">{it.qty} packets</span>
                     </div>
+
                     <div className="item-price-text">
-                      {currency.format(it.price * it.qty)}
+                      {currency.format((Number(it.price) || 0) * (Number(it.qty) || 0))}
                     </div>
                   </div>
                 );
@@ -252,9 +252,7 @@ const OrderModal: React.FC<OrderModalProps> = ({ order, onClose }) => {
         <div className="modal-footer">
           <div className="grand-total-display">
             <span>Grand Total:</span>
-            <span className="total-amount">
-              {currency.format(order.total)}
-            </span>
+            <span className="total-amount">{currency.format(order.total || 0)}</span>
           </div>
         </div>
       </div>

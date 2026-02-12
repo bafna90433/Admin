@@ -1,18 +1,16 @@
 import React, { useEffect, useState } from "react";
 import axios from "axios";
+import { FiPower, FiGlobe, FiAlertTriangle } from "react-icons/fi";
 import Swal from "sweetalert2";
-import { FiSave, FiTruck, FiDollarSign } from "react-icons/fi";
-import "../styles/adminsetting.css";
 
-// --- ✅ CONFIGURATION (Live URL Fix) ---
+// ✅ API Configuration
 const API_BASE =
   process.env.VITE_API_URL ||
   process.env.REACT_APP_API_URL ||
   "https://bafnatoys-backend-production.up.railway.app/api";
 
 const AdminSettings: React.FC = () => {
-  const [shippingCharge, setShippingCharge] = useState<number>(0);
-  const [freeLimit, setFreeLimit] = useState<number>(0);
+  const [maintenance, setMaintenance] = useState<boolean>(false);
   const [loading, setLoading] = useState(false);
 
   useEffect(() => {
@@ -21,80 +19,132 @@ const AdminSettings: React.FC = () => {
 
   const fetchSettings = async () => {
     try {
-      // ✅ Changed: Using API_BASE instead of localhost
-      const res = await axios.get(`${API_BASE}/shipping-rules`);
-      
+      const res = await axios.get(`${API_BASE}/settings/maintenance`);
       if (res.data) {
-        setShippingCharge(res.data.shippingCharge || 0);
-        setFreeLimit(res.data.freeShippingThreshold || 0);
+        setMaintenance(res.data.enabled);
       }
     } catch (err) {
       console.error("Failed to load settings", err);
     }
   };
 
-  const handleSave = async () => {
+  const toggleMaintenance = async () => {
+    // Confirm before changing
+    const result = await Swal.fire({
+      title: maintenance ? "Go Live?" : "Enable Maintenance Mode?",
+      text: maintenance 
+        ? "Your website will be visible to everyone." 
+        : "Customers will see a 'Coming Soon' page. Site will be hidden.",
+      icon: "warning",
+      showCancelButton: true,
+      confirmButtonColor: maintenance ? "#10b981" : "#ef4444",
+      cancelButtonColor: "#6b7280",
+      confirmButtonText: maintenance ? "Yes, Go Live!" : "Yes, Disable Site"
+    });
+
+    if (!result.isConfirmed) return;
+
     setLoading(true);
     try {
-      // ✅ Changed: Using API_BASE instead of localhost
-      await axios.put(`${API_BASE}/shipping-rules`, {
-        shippingCharge: Number(shippingCharge),
-        freeShippingThreshold: Number(freeLimit),
+      const newState = !maintenance;
+      await axios.put(`${API_BASE}/settings/maintenance`, {
+        enabled: newState,
       });
-      Swal.fire("Success", "Shipping rules updated successfully!", "success");
+      
+      setMaintenance(newState);
+      
+      Swal.fire(
+        "Updated!",
+        `Website is now ${newState ? "Under Maintenance 🔴" : "Live 🟢"}.`,
+        "success"
+      );
     } catch (err) {
       console.error(err);
-      Swal.fire("Error", "Failed to update settings", "error");
+      Swal.fire("Error", "Failed to update status", "error");
     } finally {
       setLoading(false);
     }
   };
 
   return (
-    <div className="admin-dashboard-container">
-      <div className="dashboard-header">
-        <h1 className="heading">Shipping Configuration</h1>
+    <div className="admin-dashboard-container" style={{ padding: "20px" }}>
+      <div className="dashboard-header" style={{ marginBottom: "30px" }}>
+        <h1 className="heading">General Settings</h1>
+        <p style={{ color: "#666" }}>Manage global website configurations.</p>
       </div>
 
-      <div className="register-container" style={{ maxWidth: "600px", margin: "20px auto" }}>
-        
-        {/* Shipping Charge Input */}
-        <div className="form-group">
-          <label className="input-label">
-            <FiTruck /> Standard Courier Charge (₹)
-          </label>
-          <input
-            type="number"
-            value={shippingCharge}
-            onChange={(e) => setShippingCharge(Number(e.target.value))}
-            placeholder="e.g. 250"
-          />
-          <small>Yeh charge tab lagega jab order value limit se kam hogi.</small>
+      <div 
+        className="settings-card" 
+        style={{ 
+          maxWidth: "600px", 
+          background: "white", 
+          padding: "25px", 
+          borderRadius: "12px",
+          boxShadow: "0 4px 15px rgba(0,0,0,0.05)",
+          border: maintenance ? "2px solid #ef4444" : "1px solid #e5e7eb"
+        }}
+      >
+        <div style={{ display: "flex", alignItems: "center", gap: "15px", marginBottom: "20px" }}>
+          <div style={{ 
+            background: maintenance ? "#fee2e2" : "#d1fae5", 
+            padding: "12px", 
+            borderRadius: "50%",
+            color: maintenance ? "#ef4444" : "#10b981"
+          }}>
+            {maintenance ? <FiAlertTriangle size={24} /> : <FiGlobe size={24} />}
+          </div>
+          <div>
+            <h3 style={{ margin: 0, fontSize: "18px" }}>Website Status</h3>
+            <p style={{ margin: "5px 0 0", fontSize: "14px", color: "#6b7280" }}>
+              Control whether your shop is open to customers.
+            </p>
+          </div>
         </div>
 
-        {/* Free Shipping Limit Input */}
-        <div className="form-group">
-          <label className="input-label">
-            <FiDollarSign /> Free Shipping Above Amount (₹)
-          </label>
-          <input
-            type="number"
-            value={freeLimit}
-            onChange={(e) => setFreeLimit(Number(e.target.value))}
-            placeholder="e.g. 5000"
-          />
-          <small>Agar order is amount se zyada hai, to courier FREE hoga.</small>
+        <div style={{ 
+          background: "#f9fafb", 
+          padding: "20px", 
+          borderRadius: "8px", 
+          display: "flex", 
+          justifyContent: "space-between", 
+          alignItems: "center" 
+        }}>
+          <div>
+            <span style={{ 
+              fontWeight: "bold", 
+              fontSize: "16px",
+              color: maintenance ? "#ef4444" : "#10b981"
+            }}>
+              {maintenance ? "🔴 Maintenance Mode ON" : "🟢 Website is LIVE"}
+            </span>
+            <div style={{ fontSize: "12px", color: "#888", marginTop: "4px" }}>
+              {maintenance 
+                ? "Customers see 'Coming Soon' page." 
+                : "Customers can browse and order."}
+            </div>
+          </div>
+
+          <button
+            onClick={toggleMaintenance}
+            disabled={loading}
+            style={{
+              display: "flex",
+              alignItems: "center",
+              gap: "8px",
+              padding: "10px 20px",
+              borderRadius: "8px",
+              border: "none",
+              fontWeight: "bold",
+              cursor: loading ? "not-allowed" : "pointer",
+              background: maintenance ? "#10b981" : "#ef4444",
+              color: "white",
+              transition: "all 0.2s"
+            }}
+          >
+            <FiPower />
+            {loading ? "Updating..." : (maintenance ? "Go Live" : "Disable Site")}
+          </button>
         </div>
-
-        <button 
-          className="action-btn" 
-          onClick={handleSave} 
-          disabled={loading}
-          style={{ width: "100%", marginTop: "20px" }}
-        >
-          {loading ? "Saving..." : <><FiSave /> Save Settings</>}
-        </button>
-
       </div>
     </div>
   );

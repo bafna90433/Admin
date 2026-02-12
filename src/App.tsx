@@ -1,4 +1,4 @@
-// src/App.tsx  ✅ FINAL (nothing missed)
+// src/App.tsx  ✅ FINAL (Settings Route Added)
 import React from "react";
 import {
   BrowserRouter as Router,
@@ -36,6 +36,9 @@ import TrafficAnalytics from "./components/TrafficAnalytics";
 
 // ✅ NEW: Home Builder (Trending + 330×600 banner)
 import AdminHomeBuilder from "./components/AdminHomeBuilder";
+
+// ✅ NEW: Website Settings (Maintenance Mode)
+import AdminSettings from "./components/AdminSettings"; 
 
 // 🔐 Admin Login
 import AdminLogin from "./components/AdminLogin";
@@ -107,6 +110,9 @@ const App: React.FC = () => {
             path="payment-shipping"
             element={<PaymentShippingSettings />}
           />
+
+          {/* ✅ NEW: General Settings (Maintenance Mode) */}
+          <Route path="settings" element={<AdminSettings />} />
 
           {/* Stock Management */}
           <Route path="inventory" element={<StockManagement />} />

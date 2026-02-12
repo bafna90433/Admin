@@ -1,4 +1,3 @@
-// src/components/Sidebar.tsx ✅ FINAL (Home Builder included)
 import React from "react";
 import { Link, useLocation, useNavigate } from "react-router-dom";
 import {
@@ -18,7 +17,8 @@ import {
   FiBarChart2,
   FiCornerUpLeft,
   FiTrendingUp,
-  FiGrid, // ✅ Home Builder icon
+  FiGrid,
+  FiSettings, // ✅ 1. Settings Icon Import kiya
 } from "react-icons/fi";
 import { MdOutlineSpaceDashboard } from "react-icons/md";
 import { TbCategory } from "react-icons/tb";
@@ -185,19 +185,8 @@ const Sidebar: React.FC<SidebarProps> = ({ sidebarOpen, closeSidebar }) => {
           </div>
 
           <div className="nav-section-final">
-            <h4 className="section-header-final">Analytics</h4>
-            <NavItem
-              to="/admin/sales-report"
-              icon={FiBarChart2}
-              label="Customer Sales"
-              gradient="indigo"
-            />
-          </div>
-
-          <div className="nav-section-final">
             <h4 className="section-header-final">Marketing</h4>
 
-            {/* ✅ Home Builder */}
             <NavItem
               to="/admin/home-builder"
               icon={FiGrid}
@@ -241,6 +230,14 @@ const Sidebar: React.FC<SidebarProps> = ({ sidebarOpen, closeSidebar }) => {
               icon={FiCreditCard}
               label="Finance & Shipping"
               gradient="yellow"
+            />
+
+            {/* ✅ 2. Yahan Naya Settings Link Add Kiya */}
+            <NavItem
+              to="/admin/settings"
+              icon={FiSettings}
+              label="Settings & Config"
+              gradient="gray"
             />
           </div>
         </div>

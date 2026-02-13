@@ -8,8 +8,11 @@
     "esModuleInterop": true,
     "skipLibCheck": true,
     "forceConsistentCasingInFileNames": true,
-    "types": ["node"],             // 👈 Node types add karo
-    "lib": ["esnext", "dom"]       // 👈 Browser + ESNext support
+    
+    "resolveJsonModule": true,     // 👈 ✅ YE LINE ADD KARNI HAI (JSON Fix)
+    
+    "types": ["node"],
+    "lib": ["esnext", "dom"]
   },
   "include": ["src", "src/types"]
 }

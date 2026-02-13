@@ -9,11 +9,8 @@ import {
   FiGlobe, FiSearch, FiInstagram, FiFacebook, FiMessageCircle
 } from "react-icons/fi";
 
-// --- CONFIGURATION ---
 const API_BASE = (import.meta as any).env?.VITE_API_URL || "https://bafnatoys-backend-production.up.railway.app/api";
 const SOCKET_BASE = API_BASE.replace(/\/api\/?$/, "");
-
-const getStateName = (code: string) => code; // Simple helper, or reuse your big map
 
 const TrafficAnalytics: React.FC = () => {
   const [totalVisitors, setTotalVisitors] = useState(0);
@@ -48,7 +45,6 @@ const TrafficAnalytics: React.FC = () => {
   };
 
   const topPages = Object.entries(pageStats).sort(([, a], [, b]) => b - a).slice(0, 5);
-  const topStates = Object.entries(stateStats).sort(([, a], [, b]) => b - a).slice(0, 5);
 
   return (
     <div className="dashboard-container">
@@ -71,7 +67,7 @@ const TrafficAnalytics: React.FC = () => {
 
       <div className="content-grid-dashboard">
         
-        {/* 🗺️ BIG MAP SECTION (Spans Full Width) */}
+        {/* 🗺️ BIG MAP SECTION (Full Width) */}
         <section className="card map-card">
           <div className="card-header"><h3>📍 India User Heatmap</h3></div>
           <div style={{ padding: "10px" }}>
@@ -102,6 +98,8 @@ const TrafficAnalytics: React.FC = () => {
           <div style={{ padding: "20px", display: "flex", flexDirection: "column", gap: "15px" }}>
             <SourceRow icon={<FiSearch />} label="Google" count={sourceStats?.google} color="#4285F4" />
             <SourceRow icon={<FiInstagram />} label="Instagram" count={sourceStats?.instagram} color="#E1306C" />
+            <SourceRow icon={<FiFacebook />} label="Facebook" count={sourceStats?.facebook} color="#1877F2" />
+            <SourceRow icon={<FiMessageCircle />} label="WhatsApp" count={sourceStats?.whatsapp} color="#25D366" />
             <SourceRow icon={<FiGlobe />} label="Direct" count={sourceStats?.direct} color="#94a3b8" />
           </div>
         </section>
@@ -146,6 +144,7 @@ const TrafficAnalytics: React.FC = () => {
   );
 };
 
+// Helper Components
 const StatCard = ({ title, value, icon, color, pulse }: any) => (
   <div className={`stat-card border-${color}`}>
     <div className="stat-info"><span className="stat-title">{title}</span><h3 className="stat-value">{value} {pulse && <span className="live-pulse"></span>}</h3></div>

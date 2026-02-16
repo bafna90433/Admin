@@ -1,4 +1,4 @@
-// src/App.tsx  ✅ FINAL (Settings Route Added)
+// src/App.tsx  ✅ FINAL (Reviews Route Added)
 import React from "react";
 import {
   BrowserRouter as Router,
@@ -39,6 +39,9 @@ import AdminHomeBuilder from "./components/AdminHomeBuilder";
 
 // ✅ NEW: Website Settings (Maintenance Mode)
 import AdminSettings from "./components/AdminSettings"; 
+
+// ✅ NEW: Review Management
+import AdminReviews from "./components/AdminReviews";
 
 // 🔐 Admin Login
 import AdminLogin from "./components/AdminLogin";
@@ -101,6 +104,9 @@ const App: React.FC = () => {
 
           {/* Traffic Analytics */}
           <Route path="analytics" element={<TrafficAnalytics />} />
+          
+          {/* ✅ NEW: Reviews Management Route */}
+          <Route path="reviews" element={<AdminReviews />} />
 
           {/* WhatsApp Settings */}
           <Route path="whatsapp" element={<WhatsAppSettings />} />

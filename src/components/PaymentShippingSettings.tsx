@@ -12,6 +12,9 @@ import {
   FiPlus,
   FiTrash2,
   FiLayers,
+  FiMessageSquare, // New Icon for Reviews
+  FiCheckCircle,   // New Icon for Active state
+  FiXCircle        // New Icon for Inactive state
 } from "react-icons/fi";
 import "../styles/PaymentShipping.css";
 
@@ -27,12 +30,16 @@ interface DiscountRule {
 }
 
 const PaymentShippingSettings: React.FC = () => {
+  // --- Existing States ---
   const [shippingCharge, setShippingCharge] = useState<number>(0);
   const [freeLimit, setFreeLimit] = useState<number>(0);
   const [advanceAmount, setAdvanceAmount] = useState<number>(0);
   const [discountRules, setDiscountRules] = useState<DiscountRule[]>([
     { minAmount: 1000, discountPercentage: 5 },
   ]);
+
+  // --- ✅ NEW: Review State ---
+  const [enableReviews, setEnableReviews] = useState<boolean>(true);
 
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
@@ -46,22 +53,25 @@ const PaymentShippingSettings: React.FC = () => {
     try {
       setLoading(true);
 
-      const [shippingRes, codRes, discountRes] = await Promise.allSettled([
+      const [shippingRes, codRes, discountRes, reviewRes] = await Promise.allSettled([
         axios.get(`${API_BASE}/shipping-rules`),
         axios.get(`${API_BASE}/settings/cod`),
         axios.get(`${API_BASE}/discount-rules`),
+        axios.get(`${API_BASE}/settings/reviews`), // ✅ Fetch Review Settings
       ]);
 
+      // 1. Shipping
       if (shippingRes.status === "fulfilled" && shippingRes.value.data) {
         setShippingCharge(shippingRes.value.data.shippingCharge || 0);
         setFreeLimit(shippingRes.value.data.freeShippingThreshold || 0);
       }
 
+      // 2. COD
       if (codRes.status === "fulfilled" && codRes.value.data) {
         setAdvanceAmount(codRes.value.data.advanceAmount || 0);
       }
 
-      // ✅ discount rules load
+      // 3. Discount Rules
       if (
         discountRes.status === "fulfilled" &&
         Array.isArray(discountRes.value.data) &&
@@ -70,6 +80,12 @@ const PaymentShippingSettings: React.FC = () => {
         setDiscountRules(discountRes.value.data);
       } else {
         setDiscountRules([{ minAmount: 1000, discountPercentage: 5 }]);
+      }
+
+      // 4. ✅ Reviews
+      if (reviewRes.status === "fulfilled" && reviewRes.value.data) {
+        // Default to true if undefined
+        setEnableReviews(reviewRes.value.data.enabled !== false);
       }
     } catch (err) {
       console.error("Error fetching settings:", err);
@@ -111,7 +127,7 @@ const PaymentShippingSettings: React.FC = () => {
   const handleSaveAll = async () => {
     setSaving(true);
     try {
-      // ✅ validate
+      // ✅ validate discounts
       const validRules = discountRules
         .filter((r) => r.minAmount > 0 && r.discountPercentage > 0)
         .map((r) => ({
@@ -135,6 +151,8 @@ const PaymentShippingSettings: React.FC = () => {
           advanceAmount: Number(advanceAmount),
         }),
         axios.put(`${API_BASE}/discount-rules`, { rules: validRules }),
+        // ✅ Save Review Settings
+        axios.put(`${API_BASE}/settings/reviews`, { enabled: enableReviews }),
       ]);
 
       Swal.fire({
@@ -159,9 +177,9 @@ const PaymentShippingSettings: React.FC = () => {
       <div className="ps-wrapper">
         <div className="ps-header">
           <div className="header-content">
-            <h1 className="ps-title">Shipping, Payment & Discounts</h1>
+            <h1 className="ps-title">Store Configuration</h1>
             <p className="ps-subtitle">
-              Manage delivery fees, COD, and volume discounts.
+              Manage delivery fees, COD, reviews, and discounts.
             </p>
           </div>
 
@@ -225,7 +243,7 @@ const PaymentShippingSettings: React.FC = () => {
             </div>
           </div>
 
-          {/* 2) DISCOUNTS */}
+          {/* 2) DISCOUNTS (Large Card) */}
           <div className="ps-card" style={{ gridRow: "span 2" }}>
             <div
               className="card-top-bar purple"
@@ -250,7 +268,6 @@ const PaymentShippingSettings: React.FC = () => {
                 <p>Add rules: e.g. Buy ₹5000 get 8% Off.</p>
               </div>
 
-              {/* ✅ Same UI as your old one */}
               <div
                 className="discount-rules-container"
                 style={{ display: "flex", flexDirection: "column", gap: "10px" }}
@@ -374,6 +391,88 @@ const PaymentShippingSettings: React.FC = () => {
               </div>
             </div>
           </div>
+
+          {/* 4) ✅ NEW: REVIEW SETTINGS */}
+          <div className="ps-card">
+            <div className="card-top-bar" style={{ backgroundColor: "#059669" }} /> {/* Green */}
+            <div className="card-content">
+              <div className="card-header">
+                <div className="icon-circle" style={{ backgroundColor: "#d1fae5", color: "#059669" }}>
+                  <FiMessageSquare />
+                </div>
+                <div>
+                  <h3>Product Reviews</h3>
+                  <span>Enable/Disable user reviews</span>
+                </div>
+              </div>
+
+              <div className="form-group" style={{ marginBottom: "0", marginTop: "10px" }}>
+                <div 
+                  className="toggle-container"
+                  style={{
+                    display: "flex",
+                    alignItems: "center",
+                    justifyContent: "space-between",
+                    padding: "15px",
+                    background: enableReviews ? "#ecfdf5" : "#f3f4f6",
+                    borderRadius: "10px",
+                    border: `1px solid ${enableReviews ? "#10b981" : "#e5e7eb"}`,
+                    transition: "all 0.3s ease"
+                  }}
+                >
+                  <div style={{ display: "flex", alignItems: "center", gap: "10px" }}>
+                    {enableReviews ? (
+                      <FiCheckCircle style={{ color: "#10b981", fontSize: "1.2rem" }} />
+                    ) : (
+                      <FiXCircle style={{ color: "#9ca3af", fontSize: "1.2rem" }} />
+                    )}
+                    <span style={{ 
+                      fontWeight: 600, 
+                      color: enableReviews ? "#065f46" : "#6b7280" 
+                    }}>
+                      {enableReviews ? "Reviews Enabled" : "Reviews Disabled"}
+                    </span>
+                  </div>
+
+                  <label className="switch" style={{ position: "relative", display: "inline-block", width: "50px", height: "26px" }}>
+                    <input 
+                      type="checkbox" 
+                      checked={enableReviews} 
+                      onChange={(e) => setEnableReviews(e.target.checked)}
+                      style={{ opacity: 0, width: 0, height: 0 }}
+                    />
+                    <span 
+                      className="slider round" 
+                      style={{
+                        position: "absolute",
+                        cursor: "pointer",
+                        top: 0, left: 0, right: 0, bottom: 0,
+                        backgroundColor: enableReviews ? "#10b981" : "#ccc",
+                        transition: ".4s",
+                        borderRadius: "34px"
+                      }}
+                    >
+                      <span style={{
+                        position: "absolute",
+                        content: '""',
+                        height: "18px",
+                        width: "18px",
+                        left: enableReviews ? "26px" : "4px",
+                        bottom: "4px",
+                        backgroundColor: "white",
+                        transition: ".4s",
+                        borderRadius: "50%"
+                      }}/>
+                    </span>
+                  </label>
+                </div>
+                <p className="help-text" style={{ marginTop: "10px" }}>
+                  When disabled, the review form and list will be hidden on all product pages.
+                </p>
+              </div>
+            </div>
+          </div>
+
         </div>
       </div>
     </div>

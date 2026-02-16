@@ -5,7 +5,7 @@ import {
   FiBox,
   FiPlus,
   FiUsers,
-  FiMessageSquare,
+  FiMessageSquare, // Used for Reviews & WhatsApp
   FiLogOut,
   FiX,
   FiImage,
@@ -18,7 +18,8 @@ import {
   FiCornerUpLeft,
   FiTrendingUp,
   FiGrid,
-  FiSettings, // ✅ 1. Settings Icon Import kiya
+  FiSettings,
+  FiStar, // ✅ New Icon for Reviews
 } from "react-icons/fi";
 import { MdOutlineSpaceDashboard } from "react-icons/md";
 import { TbCategory } from "react-icons/tb";
@@ -225,6 +226,14 @@ const Sidebar: React.FC<SidebarProps> = ({ sidebarOpen, closeSidebar }) => {
               gradient="indigo"
             />
 
+            {/* ✅ ADDED: Reviews Link */}
+            <NavItem
+              to="/admin/reviews"
+              icon={FiStar}
+              label="Product Reviews"
+              gradient="yellow"
+            />
+
             <NavItem
               to="/admin/payment-shipping"
               icon={FiCreditCard}
@@ -232,7 +241,6 @@ const Sidebar: React.FC<SidebarProps> = ({ sidebarOpen, closeSidebar }) => {
               gradient="yellow"
             />
 
-            {/* ✅ 2. Yahan Naya Settings Link Add Kiya */}
             <NavItem
               to="/admin/settings"
               icon={FiSettings}

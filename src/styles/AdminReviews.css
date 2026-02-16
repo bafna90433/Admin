@@ -1,0 +1,210 @@
+/* Container Layout */
+.admin-reviews-page {
+  padding: 24px;
+  background-color: #f9fafb;
+  min-height: 100vh;
+  font-family: 'Inter', sans-serif;
+}
+
+/* Header Section */
+.ar-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 24px;
+}
+
+.ar-title-block h2 {
+  font-size: 1.5rem;
+  font-weight: 700;
+  color: #1f2937;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin: 0;
+}
+
+.ar-icon {
+  color: #4f46e5;
+}
+
+.ar-title-block p {
+  color: #6b7280;
+  font-size: 0.875rem;
+  margin-top: 4px;
+}
+
+.ar-badge {
+  background-color: #ffffff;
+  padding: 8px 16px;
+  border-radius: 8px;
+  box-shadow: 0 1px 3px rgba(0,0,0,0.1);
+  font-size: 0.875rem;
+  font-weight: 600;
+  color: #374151;
+}
+
+.ar-badge span {
+  color: #4f46e5;
+  font-weight: 800;
+  margin-left: 4px;
+}
+
+/* Table Container */
+.ar-table-container {
+  background: #ffffff;
+  border-radius: 12px;
+  box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.05);
+  overflow: hidden; /* Important for rounded corners */
+  border: 1px solid #e5e7eb;
+}
+
+/* Table Styles */
+.ar-table {
+  width: 100%;
+  border-collapse: collapse;
+  text-align: left;
+}
+
+.ar-table thead {
+  background-color: #f9fafb;
+  border-bottom: 1px solid #e5e7eb;
+}
+
+.ar-table th {
+  padding: 16px;
+  font-size: 0.75rem;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  font-weight: 600;
+  color: #6b7280;
+}
+
+.ar-table tbody tr {
+  border-bottom: 1px solid #f3f4f6;
+  transition: background-color 0.2s;
+}
+
+.ar-table tbody tr:last-child {
+  border-bottom: none;
+}
+
+.ar-table tbody tr:hover {
+  background-color: #f8fafc;
+}
+
+/* Table Cells */
+.ar-table td {
+  padding: 16px;
+  vertical-align: middle;
+}
+
+/* Product Cell */
+.ar-product-cell .product-info {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  font-weight: 500;
+  color: #111827;
+}
+
+.product-icon {
+  color: #3b82f6;
+  font-size: 1.1rem;
+}
+
+.deleted-text {
+  color: #ef4444;
+  font-style: italic;
+}
+
+/* Customer Cell */
+.ar-customer-cell {
+  color: #4b5563;
+  font-weight: 500;
+}
+
+/* Rating Cell */
+.ar-rating {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  color: #eab308; /* Yellow-500 */
+  font-weight: 700;
+  font-size: 0.95rem;
+}
+
+.star-icon {
+  fill: currentColor;
+  font-size: 0.85rem;
+}
+
+/* Comment Cell */
+.ar-comment-cell {
+  color: #4b5563;
+  max-width: 250px;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+/* Date Cell */
+.ar-date-cell {
+  color: #9ca3af;
+  font-size: 0.85rem;
+}
+
+/* Action Cell */
+.ar-action-cell {
+  text-align: center;
+}
+
+.ar-delete-btn {
+  background-color: #fef2f2;
+  color: #dc2626;
+  border: none;
+  width: 36px;
+  height: 36px;
+  border-radius: 8px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  transition: all 0.2s ease;
+}
+
+.ar-delete-btn:hover {
+  background-color: #fee2e2;
+  color: #b91c1c;
+  transform: scale(1.05);
+}
+
+/* Loading & Empty States */
+.ar-loading {
+  text-align: center;
+  padding: 40px;
+  color: #6b7280;
+}
+
+.ar-empty {
+  padding: 40px;
+  text-align: center;
+  color: #9ca3af;
+  font-style: italic;
+}
+
+/* Mobile Responsiveness */
+@media (max-width: 768px) {
+  .ar-header {
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 15px;
+  }
+  
+  .ar-table th:nth-child(4), 
+  .ar-table td:nth-child(4),
+  .ar-table th:nth-child(5), 
+  .ar-table td:nth-child(5) {
+    display: none; /* Hide Comment & Date on small screens */
+  }
+}

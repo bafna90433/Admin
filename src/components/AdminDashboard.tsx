@@ -2,7 +2,7 @@ import React, { useEffect, useMemo, useState } from "react";
 import toast, { Toaster } from "react-hot-toast";
 import { utils, writeFile } from "xlsx";
 import { format } from "date-fns";
-import axios from "axios"; // ✅ Changed: Import axios directly
+import axios from "axios";
 import "../styles/AdminDashboard.css";
 import {
   FiSearch,
@@ -14,15 +14,21 @@ import {
   FiAlertCircle,
   FiPhone,
   FiKey,
+  FiChevronLeft,
+  FiChevronRight,
+  FiChevronsLeft,
+  FiChevronsRight,
+  FiMapPin,
+  FiHome,
 } from "react-icons/fi";
 
-// --- ✅ CONFIGURATION (Live URL Fix) ---
+// --- CONFIGURATION ---
 const API_BASE =
   process.env.VITE_API_URL ||
   process.env.REACT_APP_API_URL ||
   "https://bafnatoys-backend-production.up.railway.app/api";
 
-// 🧾 Customer Type
+// Customer Type
 type Customer = {
   _id: string;
   shopName: string;
@@ -32,7 +38,32 @@ type Customer = {
   createdAt: string;
 };
 
-// 🧩 Main Component
+// Function to extract city from address
+const extractCity = (address: string): string => {
+  if (!address) return "Unknown";
+  
+  const lines = address.split('\n');
+  for (const line of lines) {
+    const lowerLine = line.toLowerCase();
+    if (lowerLine.includes('city:') || lowerLine.includes('town:') || lowerLine.includes('district:')) {
+      const parts = line.split(':');
+      if (parts.length > 1) return parts[1].trim();
+    }
+  }
+  
+  for (let i = Math.max(0, lines.length - 3); i < lines.length; i++) {
+    const line = lines[i];
+    if (line.includes(',')) {
+      const parts = line.split(',');
+      if (parts.length > 1) return parts[0].trim();
+    }
+  }
+  
+  const firstLine = lines.find(l => l.trim().length > 0);
+  return firstLine ? firstLine.substring(0, 15) + '...' : "Unknown";
+};
+
+// Main Component
 const AdminDashboard: React.FC = () => {
   const [rows, setRows] = useState<Customer[]>([]);
   const [filteredRows, setFilteredRows] = useState<Customer[]>([]);
@@ -41,20 +72,39 @@ const AdminDashboard: React.FC = () => {
   const [acting, setActing] = useState<string | null>(null);
   const [searchTerm, setSearchTerm] = useState("");
   const [isSearchFocused, setIsSearchFocused] = useState(false);
+  
+  // Pagination states
+  const [currentPage, setCurrentPage] = useState(1);
+  const [itemsPerPage] = useState(10); // Fixed at 10 as per image
+  
+  // Track expanded addresses
+  const [expandedAddresses, setExpandedAddresses] = useState<Set<string>>(new Set());
 
   // Delete confirmation modal
   const [deleteCandidateId, setDeleteCandidateId] = useState<string | null>(null);
   const [deletePassword, setDeletePassword] = useState("");
 
-  // ✅ Stats (Only Total Count now)
+  // Toggle address expansion
+  const toggleAddress = (customerId: string) => {
+    setExpandedAddresses(prev => {
+      const newSet = new Set(prev);
+      if (newSet.has(customerId)) {
+        newSet.delete(customerId);
+      } else {
+        newSet.add(customerId);
+      }
+      return newSet;
+    });
+  };
+
+  // Stats
   const stats = useMemo(() => ({
-      total: rows.length,
-    }), [rows]);
+    total: rows.length,
+  }), [rows]);
 
   const fetchCustomers = async () => {
     try {
       setLoading(true);
-      // ✅ Changed: Using axios with API_BASE
       const { data } = await axios.get<Customer[]>(`${API_BASE}/admin/customers`);
       setRows(
         Array.isArray(data)
@@ -93,7 +143,23 @@ const AdminDashboard: React.FC = () => {
       );
     }
     setFilteredRows(result);
+    setCurrentPage(1);
   }, [rows, searchTerm]);
+
+  // Pagination logic
+  const paginatedData = useMemo(() => {
+    const startIndex = (currentPage - 1) * itemsPerPage;
+    const endIndex = startIndex + itemsPerPage;
+    return filteredRows.slice(startIndex, endIndex);
+  }, [filteredRows, currentPage, itemsPerPage]);
+
+  const totalPages = Math.ceil(filteredRows.length / itemsPerPage);
+
+  const handlePageChange = (page: number) => {
+    if (page >= 1 && page <= totalPages) {
+      setCurrentPage(page);
+    }
+  };
 
   const handleApiAction = async (
     action: Promise<any>,
@@ -124,7 +190,6 @@ const AdminDashboard: React.FC = () => {
 
     if (deleteCandidateId) {
       setActing(deleteCandidateId);
-      // ✅ Changed: Using axios with API_BASE
       handleApiAction(
         axios.delete(`${API_BASE}/admin/customer/${deleteCandidateId}`),
         () =>
@@ -142,9 +207,10 @@ const AdminDashboard: React.FC = () => {
   const handleExport = () => {
     const dataToExport = filteredRows.map((c) => ({
       "Shop Name": c.shopName,
-      "Address": c.address || "N/A", 
-      Mobile: c.otpMobile,
-      WhatsApp: c.whatsapp,
+      "City": extractCity(c.address),
+      "Full Address": c.address || "N/A",
+      "Mobile": c.otpMobile,
+      "WhatsApp": c.whatsapp,
       "Registered On": format(new Date(c.createdAt), "dd MMM yyyy, hh:mm a"),
     }));
 
@@ -156,18 +222,6 @@ const AdminDashboard: React.FC = () => {
     const worksheet = utils.json_to_sheet(dataToExport);
     const workbook = utils.book_new();
     utils.book_append_sheet(workbook, worksheet, "Customers");
-
-    const cols = Object.keys(dataToExport[0]).map((key) => ({
-      wch:
-        Math.max(
-          key.length,
-          ...dataToExport.map((row) =>
-            String(row[key as keyof typeof row]).length
-          )
-        ) + 2,
-    }));
-
-    worksheet["!cols"] = cols;
     writeFile(
       workbook,
       `BafnaToys_Customers_${format(new Date(), "yyyy-MM-dd")}.xlsx`
@@ -188,27 +242,68 @@ const AdminDashboard: React.FC = () => {
     window.open(waLink, "_blank", "noopener,noreferrer");
   };
 
+  // Generate page numbers
+  const getPageNumbers = () => {
+    const pages = [];
+    const maxVisible = 5;
+    
+    if (totalPages <= maxVisible) {
+      for (let i = 1; i <= totalPages; i++) pages.push(i);
+    } else {
+      if (currentPage <= 3) {
+        for (let i = 1; i <= 4; i++) pages.push(i);
+        pages.push(-1);
+        pages.push(totalPages);
+      } else if (currentPage >= totalPages - 2) {
+        pages.push(1);
+        pages.push(-1);
+        for (let i = totalPages - 3; i <= totalPages; i++) pages.push(i);
+      } else {
+        pages.push(1);
+        pages.push(-1);
+        for (let i = currentPage - 1; i <= currentPage + 1; i++) pages.push(i);
+        pages.push(-1);
+        pages.push(totalPages);
+      }
+    }
+    return pages;
+  };
+
   return (
-    <div className="admin-dashboard-container">
+    <div className="admin-dashboard-container fullscreen">
       <Toaster position="top-center" reverseOrder={false} />
 
+      {/* Header with Profile Icon */}
       <div className="dashboard-header">
-        <div>
-          <h1 className="heading">Customer Management</h1>
+        <div className="header-left">
+          <h1 className="heading">
+            <FiHome className="heading-icon" /> Customer Management
+          </h1>
           <p className="subheading">
             View, manage, and export all customer registrations.
           </p>
         </div>
-        <button className="action-btn export-btn" onClick={handleExport}>
-          <FiDownload size={16} /> Export to Excel
-        </button>
+        <div className="header-right">
+          <button className="action-btn export-btn" onClick={handleExport}>
+            <FiDownload size={16} /> Export to Excel
+          </button>
+          <div className="profile-section">
+            <div className="profile-icon">
+              <FiUser size={22} />
+            </div>
+            <div className="profile-info">
+              <span className="profile-name">Admin User</span>
+              <span className="profile-role">Administrator</span>
+            </div>
+          </div>
+        </div>
       </div>
 
-      {/* ✅ Simplified Stats - Only Total */}
+      {/* Stats Card with Icon */}
       <div className="stats-cards-container">
-        <div className="stats-card total" style={{maxWidth: '300px'}}>
+        <div className="stats-card total">
           <div className="stats-icon">
-            <FiUser />
+            <FiUser size={24} />
           </div>
           <div>
             <div className="stats-number">{stats.total}</div>
@@ -217,9 +312,9 @@ const AdminDashboard: React.FC = () => {
         </div>
       </div>
 
-      {/* 🔍 Search Only (Filter Removed) */}
+      {/* Search */}
       <div className="table-toolbar">
-        <div className="search-box-wrapper" style={{maxWidth: '100%'}}>
+        <div className="search-box-wrapper">
           <div className={`search-box ${isSearchFocused ? "focused" : ""}`}>
             <FiSearch className="search-icon" />
             <input
@@ -242,8 +337,8 @@ const AdminDashboard: React.FC = () => {
         </div>
       </div>
 
-      {/* 🧾 Customers Table */}
-      <div className="table-container">
+      {/* Customers List - Card Style */}
+      <div className="table-container fullscreen">
         {loading && (
           <div className="loader-container">
             <div className="loader"></div>
@@ -255,111 +350,162 @@ const AdminDashboard: React.FC = () => {
           </div>
         )}
         {!loading && !err && (
-          <div className="customers-table-wrapper">
-            <table className="customers-table">
-              <thead>
-                <tr>
-                  <th>Shop Name</th>
-                  <th>Address</th>
-                  <th>Contact Details</th>
-                  <th>Registered On</th>
-                  <th style={{ textAlign: "center" }}>Actions</th>
-                </tr>
-              </thead>
-              <tbody>
-                {filteredRows.length > 0 ? (
-                  filteredRows.map((customer) => {
-                    return (
-                      <tr key={customer._id}>
-                        <td data-label="Shop Name">
-                          <div className="cell-content shop-name-cell">
+          <>
+            <div className="customers-list">
+              {paginatedData.length > 0 ? (
+                paginatedData.map((customer) => {
+                  const isExpanded = expandedAddresses.has(customer._id);
+                  const cityName = extractCity(customer.address);
+                  
+                  return (
+                    <div key={customer._id} className="customer-card">
+                      <div className="card-main">
+                        <div className="card-left">
+                          <div className="shop-name">
+                            <FiMapPin className="location-icon" size={16} />
                             {customer.shopName}
                           </div>
-                        </td>
-
-                        {/* Address Column */}
-                        <td data-label="Address">
-                          <div className="cell-content" style={{ textAlign: "left", fontSize: "13px", maxWidth: "300px" }}>
-                            {customer.address ? (
-                                customer.address.split('\n').map((line, idx) => {
-                                    const parts = line.split(':');
-                                    if(parts.length > 1) {
-                                        const label = parts[0]; 
-                                        const value = parts.slice(1).join(':'); 
-                                        return (
-                                            <div key={idx} style={{ marginBottom: "2px", lineHeight: "1.4" }}>
-                                                <strong style={{ color: "#333", fontWeight: 700 }}>{label}:</strong>
-                                                <span style={{ color: "#555", marginLeft: "4px" }}>{value}</span>
-                                            </div>
-                                        );
-                                    }
-                                    return <div key={idx} style={{ marginBottom: "2px" }}>{line}</div>;
-                                })
-                            ) : (
-                                <span style={{ color: "#999", fontStyle: "italic" }}>N/A</span>
-                            )}
+                          <div className="city-row">
+                            <span className="dash">-</span>
+                            <FiMapPin className="city-icon" size={14} />
+                            <span className="city-name">{cityName}</span>
                           </div>
-                        </td>
-
-                        <td data-label="Contact">
-                          <div className="cell-content contact-cell">
-                            <div className="contact-info">
-                              <FiPhone size={14} /> {customer.otpMobile}
-                            </div>
-                            {customer.whatsapp && (
-                              <div className="contact-info">
-                                <FiMessageSquare size={14} />{" "}
-                                {customer.whatsapp}
+                        </div>
+                        <div className="card-right">
+                          <button
+                            className="action-btn-sm whatsapp-btn"
+                            onClick={() => openWhatsApp(customer.whatsapp)}
+                            title="Send WhatsApp Message"
+                          >
+                            <FiMessageSquare size={14} /> Chat
+                          </button>
+                          <button
+                            className="action-btn-icon delete-btn"
+                            title="Delete Customer"
+                            disabled={acting === customer._id}
+                            onClick={() => deleteUser(customer._id)}
+                          >
+                            <FiTrash2 size={16} />
+                          </button>
+                        </div>
+                      </div>
+                      
+                      {/* Address toggle */}
+                      {customer.address && (
+                        <div className="address-section">
+                          <button 
+                            className="toggle-address-btn"
+                            onClick={() => toggleAddress(customer._id)}
+                          >
+                            {isExpanded ? "Hide full address" : "See full address"}
+                          </button>
+                          
+                          {isExpanded && (
+                            <div className="full-address">
+                              {customer.address.split('\n').map((line, idx) => {
+                                const parts = line.split(':');
+                                if(parts.length > 1) {
+                                  return (
+                                    <div key={idx} className="address-line">
+                                      <strong>{parts[0]}:</strong>
+                                      <span>{parts.slice(1).join(':')}</span>
+                                    </div>
+                                  );
+                                }
+                                return <div key={idx} className="address-line">{line}</div>;
+                              })}
+                              <div className="contact-details">
+                                <div className="contact-item">
+                                  <FiPhone size={12} className="contact-icon" />
+                                  <span>{customer.otpMobile}</span>
+                                </div>
+                                {customer.whatsapp && customer.whatsapp !== customer.otpMobile && (
+                                  <div className="contact-item">
+                                    <FiMessageSquare size={12} className="contact-icon" />
+                                    <span>{customer.whatsapp}</span>
+                                  </div>
+                                )}
                               </div>
-                            )}
-                          </div>
-                        </td>
-                        <td data-label="Registered">
-                          <div className="cell-content date-cell">
-                            {format(new Date(customer.createdAt), "dd MMM, yyyy")}
-                          </div>
-                        </td>
-                        
-                        {/* ✅ Simplified Actions (Notify & Delete Only) */}
-                        <td data-label="Actions">
-                          <div className="actions-cell">
-                            {customer.whatsapp && (
-                                <button
-                                  className="action-btn-sm whatsapp-btn"
-                                  onClick={() => openWhatsApp(customer.whatsapp)}
-                                  title="Send WhatsApp Message"
-                                >
-                                  <FiMessageSquare size={14} /> Chat
-                                </button>
-                            )}
-                            
-                            <button
-                                className="action-btn-icon delete-btn"
-                                title="Delete Customer"
-                                disabled={acting === customer._id}
-                                onClick={() => deleteUser(customer._id)}
-                              >
-                                <FiTrash2 size={16} />
-                              </button>
-                          </div>
-                        </td>
-                      </tr>
-                    );
-                  })
-                ) : (
-                  <tr>
-                    <td colSpan={5} className="no-results">
-                      No customers match your criteria.
-                    </td>
-                  </tr>
-                )}
-              </tbody>
-            </table>
-          </div>
+                              <div className="reg-date">
+                                <FiUser size={12} className="reg-icon" />
+                                Registered: {format(new Date(customer.createdAt), "dd MMM yyyy, hh:mm a")}
+                              </div>
+                            </div>
+                          )}
+                        </div>
+                      )}
+                    </div>
+                  );
+                })
+              ) : (
+                <div className="no-results">
+                  No customers match your criteria.
+                </div>
+              )}
+            </div>
+
+            {/* Pagination */}
+            {filteredRows.length > 0 && (
+              <div className="pagination-container">
+                <div className="pagination-info">
+                  Showing 1 to {Math.min(itemsPerPage, filteredRows.length)} of {filteredRows.length} entries
+                </div>
+                <div className="pagination-controls">
+                  <button
+                    className="pagination-btn"
+                    onClick={() => handlePageChange(1)}
+                    disabled={currentPage === 1}
+                    title="First page"
+                  >
+                    <FiChevronsLeft size={18} />
+                  </button>
+                  <button
+                    className="pagination-btn"
+                    onClick={() => handlePageChange(currentPage - 1)}
+                    disabled={currentPage === 1}
+                    title="Previous page"
+                  >
+                    <FiChevronLeft size={18} />
+                  </button>
+                  
+                  {getPageNumbers().map((page, index) => (
+                    page === -1 ? (
+                      <span key={`ellipsis-${index}`} className="pagination-ellipsis">...</span>
+                    ) : (
+                      <button
+                        key={page}
+                        className={`pagination-btn ${currentPage === page ? 'active' : ''}`}
+                        onClick={() => handlePageChange(page)}
+                      >
+                        {page}
+                      </button>
+                    )
+                  ))}
+                  
+                  <button
+                    className="pagination-btn"
+                    onClick={() => handlePageChange(currentPage + 1)}
+                    disabled={currentPage === totalPages}
+                    title="Next page"
+                  >
+                    <FiChevronRight size={18} />
+                  </button>
+                  <button
+                    className="pagination-btn"
+                    onClick={() => handlePageChange(totalPages)}
+                    disabled={currentPage === totalPages}
+                    title="Last page"
+                  >
+                    <FiChevronsRight size={18} />
+                  </button>
+                </div>
+              </div>
+            )}
+          </>
         )}
       </div>
 
-      {/* 🧨 Delete Confirmation Modal */}
+      {/* Delete Confirmation Modal */}
       {deleteCandidateId && (
         <div className="delete-modal-overlay">
           <div className="delete-modal-content">

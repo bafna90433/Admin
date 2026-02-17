@@ -4,12 +4,28 @@ import Swal from "sweetalert2";
 import { FiTrash2, FiStar, FiMessageSquare, FiBox, FiUser, FiCalendar } from "react-icons/fi";
 import "../styles/AdminReviews.css"; 
 
-// ✅ Ensure API base matches your local backend port
-const API_BASE = "http://localhost:5000/api"; 
+// ✅ FIX 1: Interface Define kiya taaki TypeScript ko data ka structure pata ho
+interface Review {
+  _id: string;
+  productId?: {
+    name: string;
+  };
+  shopName?: string;
+  rating: number;
+  comment: string;
+  createdAt: string;
+}
 
-const AdminReviews = () => {
-  const [reviews, setReviews] = useState([]);
-  const [loading, setLoading] = useState(true);
+// ✅ FIX 2: 'import.meta' hata diya, wapas 'process.env' lagaya jo aapke project me chalta hai
+const API_BASE =
+  process.env.VITE_API_URL ||
+  process.env.REACT_APP_API_URL ||
+  "https://bafnatoys-backend-production.up.railway.app/api";
+
+const AdminReviews: React.FC = () => {
+  // ✅ FIX 3: State ko bataya ki isme 'Review' objects ka array aayega
+  const [reviews, setReviews] = useState<Review[]>([]);
+  const [loading, setLoading] = useState<boolean>(true);
 
   useEffect(() => {
     fetchReviews();
@@ -18,17 +34,17 @@ const AdminReviews = () => {
   const fetchReviews = async () => {
     try {
       setLoading(true);
-      // ✅ Fetching all reviews with populated product data
       const res = await axios.get(`${API_BASE}/reviews/all/list`);
       setReviews(res.data);
     } catch (error) {
       console.error("Error fetching reviews:", error);
-      Swal.fire("Error", "Failed to load reviews. Make sure backend is running on port 5000", "error");
+      Swal.fire("Error", "Failed to load reviews. Check backend connection.", "error");
     } finally {
       setLoading(false);
     }
   };
 
+  // ✅ FIX 4: 'id' ko explicitly 'string' type diya
   const handleDelete = async (id: string) => {
     const result = await Swal.fire({
       title: "Delete permanently?",
@@ -97,20 +113,20 @@ const AdminReviews = () => {
                   </td>
                 </tr>
               ) : (
-                reviews.map((review: any) => (
+                reviews.map((review) => (
                   <tr key={review._id}>
                     <td className="ar-product-cell">
                       <div className="product-info">
                         <FiBox className="product-icon" />
+                        {/* Safe check for productId */}
                         <span>{review.productId?.name || <em className="deleted-text">Product Removed</em>}</span>
                       </div>
                     </td>
 
-                    {/* ✅ HIGHLIGHTED: Shop Name Integration */}
                     <td className="ar-customer-cell">
                       <div className="ar-user-highlight">
                         <FiUser className="ar-user-icon" />
-                        <strong>{review.shopName}</strong>
+                        <strong>{review.shopName || "Unknown Shop"}</strong>
                       </div>
                     </td>
 

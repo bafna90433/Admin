@@ -9,13 +9,15 @@ import { saveAs } from "file-saver";
 
 /* ================= CONFIG (Same style as CustomerSales) ================= */
 const API_BASE =
-  process.env.VITE_API_URL ||
-  process.env.REACT_APP_API_URL ||
+  (import.meta as any).env?.VITE_API_URL ||
+  (process as any).env?.VITE_API_URL ||
+  (process as any).env?.REACT_APP_API_URL ||
   "https://bafnatoys-backend-production.up.railway.app/api";
 
 const MEDIA_BASE =
-  process.env.VITE_MEDIA_URL ||
-  process.env.REACT_APP_MEDIA_URL ||
+  (import.meta as any).env?.VITE_MEDIA_URL ||
+  (process as any).env?.VITE_MEDIA_URL ||
+  (process as any).env?.REACT_APP_MEDIA_URL ||
   "https://bafnatoys-backend-production.up.railway.app";
 
 /* --- Types --- */
@@ -50,13 +52,7 @@ type ShippingAddress = {
   isDefault?: boolean;
 };
 
-type OrderStatus =
-  | "pending"
-  | "processing"
-  | "shipped"
-  | "delivered"
-  | "cancelled";
-
+type OrderStatus = "pending" | "processing" | "shipped" | "delivered" | "cancelled";
 type PaymentMode = "COD" | "ONLINE";
 
 type Order = {
@@ -68,16 +64,14 @@ type Order = {
   total: number;
 
   paymentMode?: PaymentMode;
-
   status: OrderStatus;
   shippingAddress?: ShippingAddress;
 
-  // Shipping Integration Fields
   isShipped?: boolean;
   trackingId?: string;
   courierName?: string;
+  trackingToken?: string; // ✅ Internal link token
 
-  // Cancel info
   cancelledBy?: string;
 };
 
@@ -91,10 +85,7 @@ const authHeaders = () => {
 const resolveImage = (img?: string): string => {
   if (!img) return "";
   if (img.startsWith("http")) return img;
-  // If backend already stores /uploads/... or /images/...
-  if (img.startsWith("/uploads") || img.startsWith("/images"))
-    return `${MEDIA_BASE}${img}`;
-  // else treat as filename
+  if (img.startsWith("/uploads") || img.startsWith("/images")) return `${MEDIA_BASE}${img}`;
   return `${MEDIA_BASE}/uploads/${encodeURIComponent(img)}`;
 };
 
@@ -122,32 +113,51 @@ const formatExcelDate = (iso?: string): string =>
       })
     : "-";
 
-const paymentLabel = (mode?: PaymentMode) =>
-  mode === "ONLINE" ? "Paid (Online)" : "Cash on Delivery";
+const paymentLabel = (mode?: PaymentMode) => (mode === "ONLINE" ? "Paid (Online)" : "Cash on Delivery");
+
+/* ✅ WhatsApp normalize: show as 91XXXXXXXXXX */
+const normalizeWhatsApp91 = (raw?: string) => {
+  const digits = String(raw || "").replace(/\D/g, "");
+  if (!digits) return "";
+  const without91 = digits.startsWith("91") ? digits.slice(2) : digits;
+  const last10 = without91.length > 10 ? without91.slice(-10) : without91;
+  if (last10.length !== 10) return "";
+  return `91${last10}`;
+};
+
+/* ✅ Smart Tracking link for admin view only */
+const getExternalTrackingLink = (courier?: string) => {
+  const cName = norm(courier);
+  if (cName.includes("delhivery")) return "https://www.delhivery.com/tracking";
+  if (cName.includes("vxpress") || cName.includes("v-xpress") || cName.includes("v xpress"))
+    return "https://vxpress.in/track-result/";
+  return null;
+};
 
 /* --- Export Functions --- */
 const exportAllOrders = (orders: Order[]) => {
-  const rows = orders.map((o) => ({
-    OrderNumber: o.orderNumber || o._id.slice(-6),
-    Status:
-      o.status +
-      (o.status === "cancelled" && o.cancelledBy ? ` (${o.cancelledBy})` : ""),
-    Total: o.total,
-    Payment_Mode: paymentLabel(o.paymentMode),
-    CreatedAt: formatExcelDate(o.createdAt),
-    Shop: o.customerId?.shopName || "",
-    Phone: o.customerId?.otpMobile || "",
-    WhatsApp: o.customerId?.whatsapp || "",
-    ShippingName: o.shippingAddress?.fullName || "",
-    ShippingPhone: o.shippingAddress?.phone || "",
-    ShippingAddress: `${o.shippingAddress?.street || ""}, ${o.shippingAddress?.area || ""}`,
-    ShippingCity: o.shippingAddress?.city || "",
-    ShippingState: o.shippingAddress?.state || "",
-    ShippingPincode: o.shippingAddress?.pincode || "",
-    TotalPackets: o.items.reduce((sum, it) => sum + toInners(it), 0),
-    TrackingID: o.trackingId || "-",
-    Courier: o.courierName || "-",
-  }));
+  const rows = orders.map((o) => {
+    const wa = normalizeWhatsApp91(o.customerId?.whatsapp || o.customerId?.otpMobile);
+    return {
+      OrderNumber: o.orderNumber || o._id.slice(-6),
+      Status: o.status + (o.status === "cancelled" && o.cancelledBy ? ` (${o.cancelledBy})` : ""),
+      Total: o.total,
+      Payment_Mode: paymentLabel(o.paymentMode),
+      CreatedAt: formatExcelDate(o.createdAt),
+      Shop: o.customerId?.shopName || "",
+      Phone: o.customerId?.otpMobile || "",
+      WhatsApp: wa || "",
+      ShippingName: o.shippingAddress?.fullName || "",
+      ShippingPhone: o.shippingAddress?.phone || "",
+      ShippingAddress: `${o.shippingAddress?.street || ""}, ${o.shippingAddress?.area || ""}`,
+      ShippingCity: o.shippingAddress?.city || "",
+      ShippingState: o.shippingAddress?.state || "",
+      ShippingPincode: o.shippingAddress?.pincode || "",
+      TotalPackets: o.items.reduce((sum, it) => sum + toInners(it), 0),
+      TrackingID: o.trackingId || "-",
+      Courier: o.courierName || "-",
+    };
+  });
 
   const ws = XLSX.utils.json_to_sheet(rows);
   const wb = XLSX.utils.book_new();
@@ -158,11 +168,14 @@ const exportAllOrders = (orders: Order[]) => {
 
 const exportSingleOrder = (order: Order) => {
   const createdAt = formatExcelDate(order.createdAt);
+  const wa = normalizeWhatsApp91(order.customerId?.whatsapp || order.customerId?.otpMobile);
+
   const rows = order.items.map((it) => ({
     OrderNumber: order.orderNumber || order._id.slice(-6),
     Payment_Mode: paymentLabel(order.paymentMode),
     Shop: order.customerId?.shopName || "",
     Phone: order.customerId?.otpMobile || "",
+    WhatsApp: wa || "",
     ShippingName: order.shippingAddress?.fullName || "",
     ShippingAddress: `${order.shippingAddress?.street || ""}, ${order.shippingAddress?.area || ""}`,
     Item: it.name,
@@ -172,16 +185,14 @@ const exportSingleOrder = (order: Order) => {
     Packets: toInners(it),
     CreatedAt: createdAt,
     TrackingID: order.trackingId || "-",
+    Courier: order.courierName || "-",
   }));
 
   const ws = XLSX.utils.json_to_sheet(rows);
   const wb = XLSX.utils.book_new();
   XLSX.utils.book_append_sheet(wb, ws, "Order");
   const buf = XLSX.write(wb, { bookType: "xlsx", type: "array" });
-  saveAs(
-    new Blob([buf], { type: "application/octet-stream" }),
-    `order_${order.orderNumber || order._id.slice(-6)}.xlsx`
-  );
+  saveAs(new Blob([buf], { type: "application/octet-stream" }), `order_${order.orderNumber || order._id.slice(-6)}.xlsx`);
 };
 
 /* --- Invoice Generator --- */
@@ -196,6 +207,7 @@ const generateInvoice = (order: Order) => {
   });
 
   const shippingAddr = order.shippingAddress;
+  const wa = normalizeWhatsApp91(order.customerId?.whatsapp || order.customerId?.otpMobile);
 
   let shippingHtml = "No shipping address provided";
   if (shippingAddr) {
@@ -244,7 +256,11 @@ const generateInvoice = (order: Order) => {
         <div class="invoice-details">
           <div class="detail-section">
             <h3>Bill To</h3>
-            <p><strong>${order.customerId?.shopName || "-"}</strong><br>Mobile: ${order.customerId?.otpMobile || "-"}</p>
+            <p>
+              <strong>${order.customerId?.shopName || "-"}</strong><br>
+              Mobile: ${order.customerId?.otpMobile || "-"}<br>
+              WhatsApp: ${wa || "-"}
+            </p>
           </div>
           <div class="detail-section">
             <h3>Ship To</h3>
@@ -265,10 +281,7 @@ const generateInvoice = (order: Order) => {
           <thead><tr><th>Product</th><th>Qty</th><th>Rate</th><th>Amount</th></tr></thead>
           <tbody>
             ${order.items
-              .map(
-                (it) =>
-                  `<tr><td>${it.name}</td><td>${it.qty}</td><td>₹${it.price}</td><td>₹${it.qty * it.price}</td></tr>`
-              )
+              .map((it) => `<tr><td>${it.name}</td><td>${it.qty}</td><td>₹${it.price}</td><td>₹${it.qty * it.price}</td></tr>`)
               .join("")}
           </tbody>
           <tfoot>
@@ -289,7 +302,10 @@ const generateInvoice = (order: Order) => {
   printWindow.document.close();
 };
 
-/* --- Main Component --- */
+/* ===================== Courier Options ===================== */
+/* ✅ As per your requirement: ONLY 2 couriers */
+const COURIERS = ["Delhivery", "V-Xpress"] as const;
+
 const AdminOrders: React.FC = () => {
   const [orders, setOrders] = useState<Order[]>([]);
   const [loading, setLoading] = useState(true);
@@ -300,16 +316,19 @@ const AdminOrders: React.FC = () => {
   const [activeTab, setActiveTab] = useState<string>("all");
   const [debounced, setDebounced] = useState("");
 
+  // ✅ Ship modal state
+  const [shipOpen, setShipOpen] = useState(false);
+  const [shipOrder, setShipOrder] = useState<Order | null>(null);
+  const [shipCourier, setShipCourier] = useState<string>(COURIERS[0]);
+  const [shipTracking, setShipTracking] = useState<string>("");
+  const [shipErr, setShipErr] = useState<string>("");
+
   const fetchOrders = useCallback(async () => {
     try {
       setLoading(true);
-
-      // ✅ direct axios call (same pattern)
-      const { data } = await axios.get<Order[]>(
-        `${API_BASE}/orders?populate=shippingAddress`,
-        { headers: authHeaders() }
-      );
-
+      const { data } = await axios.get<Order[]>(`${API_BASE}/orders?populate=shippingAddress`, {
+        headers: authHeaders(),
+      });
       const list = Array.isArray(data) ? data : (data as any)?.orders || [];
       setOrders(list || []);
       setError(null);
@@ -332,15 +351,11 @@ const AdminOrders: React.FC = () => {
   const updateStatus = async (id: string, status: OrderStatus) => {
     try {
       setActOn(id);
-      const payload = status === "cancelled"
-        ? { status, cancelledBy: "Admin" }
-        : { status };
+      const payload = status === "cancelled" ? { status, cancelledBy: "Admin" } : { status };
 
-      const { data } = await axios.patch<Order>(
-        `${API_BASE}/orders/${id}/status`,
-        payload,
-        { headers: authHeaders() }
-      );
+      const { data } = await axios.patch<Order>(`${API_BASE}/orders/${id}/status`, payload, {
+        headers: authHeaders(),
+      });
 
       setOrders((prev) =>
         prev.map((o) =>
@@ -350,10 +365,29 @@ const AdminOrders: React.FC = () => {
                 status: data.status,
                 cancelledBy: data.cancelledBy,
                 paymentMode: data.paymentMode,
+                isShipped: data.isShipped,
+                trackingId: data.trackingId,
+                courierName: data.courierName,
               }
             : o
         )
       );
+
+      if (viewing?._id === id) {
+        setViewing((v) =>
+          v
+            ? {
+                ...v,
+                status: data.status,
+                cancelledBy: data.cancelledBy,
+                paymentMode: data.paymentMode,
+                isShipped: data.isShipped,
+                trackingId: data.trackingId,
+                courierName: data.courierName,
+              }
+            : v
+        );
+      }
     } catch (e: any) {
       alert(e?.response?.data?.message || "Update failed");
     } finally {
@@ -373,49 +407,80 @@ const AdminOrders: React.FC = () => {
     }
   };
 
-  const shipOrderHandler = async (orderId: string) => {
-    if (!window.confirm("Are you sure you want to book shipping with iThinkLogistics?")) return;
-    try {
-      setActOn(orderId);
+  const openShipModal = (o: Order) => {
+    setShipOrder(o);
+    setShipErr("");
+    // ✅ if old courier exists and not in 2 options, default to first
+    const existing = (o.courierName || "").trim();
+    const normalized = existing.toLowerCase();
+    const isAllowed =
+      normalized.includes("delhivery") ||
+      normalized.includes("vxpress") ||
+      normalized.includes("v-xpress") ||
+      normalized.includes("v xpress");
 
-      const { data } = await axios.post(
-        `${API_BASE}/shipping/create`,
-        { orderId },
+    setShipCourier(isAllowed ? existing : COURIERS[0]);
+    setShipTracking(o.trackingId?.trim() || "");
+    setShipOpen(true);
+  };
+
+  const closeShipModal = () => {
+    setShipOpen(false);
+    setShipOrder(null);
+    setShipErr("");
+  };
+
+  const submitShip = async () => {
+    if (!shipOrder) return;
+
+    const courier = shipCourier.trim();
+    const tracking = shipTracking.trim();
+
+    if (!courier) return setShipErr("Courier select karo.");
+    if (!tracking) return setShipErr("Tracking / AWB number required.");
+
+    try {
+      setShipErr("");
+      setActOn(shipOrder._id);
+
+      const { data } = await axios.patch<Order>(
+        `${API_BASE}/orders/${shipOrder._id}/status`,
+        { status: "shipped", courierName: courier, trackingId: tracking },
         { headers: authHeaders() }
       );
 
-      alert(`✅ Shipping Booked!\nWaybill: ${data.waybill}`);
-
       setOrders((prev) =>
         prev.map((o) =>
-          o._id === orderId
+          o._id === shipOrder._id
             ? {
                 ...o,
-                isShipped: true,
-                trackingId: data.waybill,
-                courierName: "iThinkLogistics",
-                status: "shipped",
+                isShipped: data.isShipped,
+                trackingId: data.trackingId,
+                courierName: data.courierName,
+                status: data.status,
               }
             : o
         )
       );
 
-      if (viewing?._id === orderId) {
+      if (viewing?._id === shipOrder._id) {
         setViewing((prev) =>
           prev
             ? {
                 ...prev,
-                isShipped: true,
-                trackingId: data.waybill,
-                courierName: "iThinkLogistics",
-                status: "shipped",
+                isShipped: data.isShipped,
+                trackingId: data.trackingId,
+                courierName: data.courierName,
+                status: data.status,
               }
             : null
         );
       }
-    } catch (error: any) {
-      const msg = error.response?.data?.message || "Shipping booking failed";
-      alert(`❌ Error: ${msg}`);
+
+      closeShipModal();
+      alert("✅ Shipped updated. WhatsApp customer ko backend se send ho jayega.");
+    } catch (e: any) {
+      setShipErr(e?.response?.data?.message || "Shipping update failed");
     } finally {
       setActOn(null);
     }
@@ -432,10 +497,9 @@ const AdminOrders: React.FC = () => {
       const inOrderNum = norm(o.orderNumber || o._id).includes(q);
       const inCustomer =
         norm(o.customerId?.shopName).includes(q) ||
-        norm(o.customerId?.otpMobile).includes(q);
-      const inShipping =
-        norm(o.shippingAddress?.city).includes(q) ||
-        norm(o.shippingAddress?.fullName).includes(q);
+        norm(o.customerId?.otpMobile).includes(q) ||
+        norm(o.customerId?.whatsapp).includes(q);
+      const inShipping = norm(o.shippingAddress?.city).includes(q) || norm(o.shippingAddress?.fullName).includes(q);
       const inPayment = norm(o.paymentMode).includes(q);
       return inOrderNum || inCustomer || inShipping || inPayment;
     });
@@ -492,115 +556,110 @@ const AdminOrders: React.FC = () => {
             {filteredOrders.length === 0 ? (
               <div className="empty-state">No orders found.</div>
             ) : (
-              filteredOrders.map((o) => (
-                <div className={`order-card status-${o.status}`} key={o._id}>
-                  <div className="card-top">
-                    <span className="order-id">#{o.orderNumber || o._id.slice(-6)}</span>
+              filteredOrders.map((o) => {
+                const wa = normalizeWhatsApp91(o.customerId?.whatsapp || o.customerId?.otpMobile);
+                return (
+                  <div className={`order-card status-${o.status}`} key={o._id}>
+                    <div className="card-top">
+                      <span className="order-id">#{o.orderNumber || o._id.slice(-6)}</span>
+                      <div style={{ display: "flex", flexDirection: "column", alignItems: "flex-end" }}>
+                        <span className={`badge ${o.status}`}>{o.status}</span>
+                        {o.status === "cancelled" && (
+                          <div
+                            style={{
+                              fontSize: "10px",
+                              color: "#d9534f",
+                              fontWeight: "bold",
+                              marginTop: "3px",
+                              background: "#fff",
+                              padding: "2px 5px",
+                              borderRadius: "4px",
+                              border: "1px solid #d9534f",
+                            }}
+                          >
+                            🚫 {o.cancelledBy || "Cancelled"}
+                          </div>
+                        )}
+                      </div>
+                    </div>
 
-                    <div style={{ display: "flex", flexDirection: "column", alignItems: "flex-end" }}>
-                      <span className={`badge ${o.status}`}>{o.status}</span>
+                    <div className="card-body">
+                      <div className="info-row">
+                        <div className="info-cell">
+                          <label>Customer</label>
+                          <strong>{o.customerId?.shopName || "Guest"}</strong>
+                          <small>📞 {o.customerId?.otpMobile || "-"}</small>
+                          <small>💬 {wa || "-"}</small>
+                        </div>
+                        <div className="info-cell align-right">
+                          <label>Total</label>
+                          <span className="price">₹{o.total.toLocaleString()}</span>
+                        </div>
+                      </div>
 
-                      {o.status === "cancelled" && o.cancelledBy === "Customer" && (
-                        <div style={{
-                          fontSize: "10px",
-                          color: "#d9534f",
-                          fontWeight: "bold",
-                          marginTop: "3px",
-                          background: "#fff",
-                          padding: "2px 5px",
-                          borderRadius: "4px",
-                          border: "1px solid #d9534f",
-                        }}>
-                          👤 By Customer
+                      <div className="info-row">
+                        <div className="info-cell">
+                          <label>Location</label>
+                          <span>{o.shippingAddress?.city || "N/A"}</span>
+                        </div>
+                        <div className="info-cell align-right">
+                          <label>Payment</label>
+                          <span style={{ fontWeight: 800, color: o.paymentMode === "ONLINE" ? "#16a34a" : "#f97316" }}>
+                            {paymentLabel(o.paymentMode)}
+                          </span>
+                        </div>
+                      </div>
+
+                      <div className="info-row">
+                        <div className="info-cell">
+                          <label>Date</label>
+                          <span>{new Date(o.createdAt).toLocaleDateString()}</span>
+                        </div>
+                        <div className="info-cell align-right">
+                          <label>Items</label>
+                          <span>{o.items?.length || 0}</span>
+                        </div>
+                      </div>
+
+                      {o.isShipped && o.trackingId && (
+                        <div className="info-row" style={{ marginTop: 8 }}>
+                          <div className="info-cell">
+                            <label>Tracking</label>
+                            <span>
+                              🚚 {o.courierName || "Courier"}: <b>{o.trackingId}</b>
+                            </span>
+                          </div>
                         </div>
                       )}
+                    </div>
 
-                      {o.status === "cancelled" && o.cancelledBy === "Admin" && (
-                        <div style={{
-                          fontSize: "10px",
-                          color: "#777",
-                          fontWeight: "bold",
-                          marginTop: "3px",
-                          background: "#fff",
-                          padding: "2px 5px",
-                          borderRadius: "4px",
-                          border: "1px solid #777",
-                        }}>
-                          🛡️ By Admin
-                        </div>
-                      )}
+                    <div className="card-actions">
+                      <button className="btn-icon" onClick={() => setViewing(o)}>
+                        👁️ View
+                      </button>
+                      <select
+                        className="status-select"
+                        value={o.status}
+                        disabled={actOn === o._id}
+                        onChange={(e) => updateStatus(o._id, e.target.value as OrderStatus)}
+                      >
+                        <option value="pending">Pending</option>
+                        <option value="processing">Processing</option>
+                        <option value="shipped">Shipped</option>
+                        <option value="delivered">Delivered</option>
+                        <option value="cancelled">Cancelled</option>
+                      </select>
+                      <button
+                        className={`btn-ship ${o.isShipped ? "shipped" : ""}`}
+                        disabled={actOn === o._id}
+                        onClick={() => openShipModal(o)}
+                      >
+                        {o.isShipped ? "✏️ Update" : "🚚 Ship"}
+                      </button>
                     </div>
                   </div>
-
-                  <div className="card-body">
-                    <div className="info-row">
-                      <div className="info-cell">
-                        <label>Customer</label>
-                        <strong>{o.customerId?.shopName || "Guest"}</strong>
-                        <small>{o.customerId?.otpMobile}</small>
-                      </div>
-                      <div className="info-cell align-right">
-                        <label>Total</label>
-                        <span className="price">₹{o.total.toLocaleString()}</span>
-                      </div>
-                    </div>
-
-                    <div className="info-row">
-                      <div className="info-cell">
-                        <label>Location</label>
-                        <span>{o.shippingAddress?.city || "N/A"}</span>
-                      </div>
-                      <div className="info-cell align-right">
-                        <label>Payment</label>
-                        <span style={{
-                          fontWeight: 800,
-                          color: o.paymentMode === "ONLINE" ? "#16a34a" : "#f97316",
-                        }}>
-                          {paymentLabel(o.paymentMode)}
-                        </span>
-                      </div>
-                    </div>
-
-                    <div className="info-row">
-                      <div className="info-cell">
-                        <label>Date</label>
-                        <span>{new Date(o.createdAt).toLocaleDateString()}</span>
-                      </div>
-                      <div className="info-cell align-right">
-                        <label>Items</label>
-                        <span>{o.items?.length || 0}</span>
-                      </div>
-                    </div>
-                  </div>
-
-                  <div className="card-actions">
-                    <button className="btn-icon" onClick={() => setViewing(o)}>
-                      👁️ View
-                    </button>
-
-                    <select
-                      className="status-select"
-                      value={o.status}
-                      disabled={actOn === o._id}
-                      onChange={(e) => updateStatus(o._id, e.target.value as OrderStatus)}
-                    >
-                      <option value="pending">Pending</option>
-                      <option value="processing">Processing</option>
-                      <option value="shipped">Shipped</option>
-                      <option value="delivered">Delivered</option>
-                      <option value="cancelled">Cancelled</option>
-                    </select>
-
-                    <button
-                      className={`btn-ship ${o.isShipped ? "shipped" : ""}`}
-                      disabled={!!o.isShipped || actOn === o._id}
-                      onClick={() => shipOrderHandler(o._id)}
-                    >
-                      {o.isShipped ? "✔ Track" : "🚀 Ship"}
-                    </button>
-                  </div>
-                </div>
-              ))
+                );
+              })
             )}
           </div>
         )}
@@ -611,24 +670,9 @@ const AdminOrders: React.FC = () => {
         <div className="modal-backdrop" onClick={() => setViewing(null)}>
           <div className="modal-content" onClick={(e) => e.stopPropagation()}>
             <div className="modal-header">
-              <div style={{ display: "flex", alignItems: "center", gap: "10px" }}>
-                <h3>Order #{viewing.orderNumber || viewing._id.slice(-6)}</h3>
-
-                {viewing.status === "cancelled" && viewing.cancelledBy && (
-                  <span style={{
-                    fontSize: "12px",
-                    background: viewing.cancelledBy === "Customer" ? "#fee2e2" : "#f3f4f6",
-                    color: viewing.cancelledBy === "Customer" ? "#991b1b" : "#374151",
-                    padding: "3px 8px",
-                    borderRadius: "4px",
-                    fontWeight: "bold",
-                  }}>
-                    (Cancelled by {viewing.cancelledBy})
-                  </span>
-                )}
-              </div>
+              <h3>Order #{viewing.orderNumber}</h3>
               <button className="close-btn" onClick={() => setViewing(null)}>
-                ×
+                &times;
               </button>
             </div>
 
@@ -639,13 +683,6 @@ const AdminOrders: React.FC = () => {
               <button className="btn-secondary" onClick={() => generateInvoice(viewing)}>
                 📄 Invoice
               </button>
-
-              {viewing.isShipped && viewing.trackingId && (
-                <div className="tracking-box">
-                  🚚 {viewing.courierName}: <b>{viewing.trackingId}</b>
-                </div>
-              )}
-
               <button className="btn-danger" onClick={() => deleteOrder(viewing._id)}>
                 🗑 Delete
               </button>
@@ -654,59 +691,119 @@ const AdminOrders: React.FC = () => {
             <div className="modal-grid">
               <div className="modal-section">
                 <h4>Customer</h4>
-                <p><strong>{viewing.customerId?.shopName}</strong></p>
-                <p>📞 {viewing.customerId?.otpMobile}</p>
-                <p>💬 {viewing.customerId?.whatsapp}</p>
-
-                <p style={{ marginTop: 8 }}>
-                  💳 Payment:{" "}
-                  <strong style={{
-                    color: viewing.paymentMode === "ONLINE" ? "#16a34a" : "#f97316",
-                  }}>
-                    {paymentLabel(viewing.paymentMode)}
-                  </strong>
+                <p>
+                  <strong>{viewing.customerId?.shopName}</strong>
                 </p>
+                <p>📞 {viewing.customerId?.otpMobile}</p>
+                <p>💬 {normalizeWhatsApp91(viewing.customerId?.whatsapp || viewing.customerId?.otpMobile)}</p>
               </div>
-
               <div className="modal-section">
                 <h4>Shipping Details</h4>
                 {viewing.shippingAddress ? (
                   <>
-                    <p><strong>{viewing.shippingAddress.fullName}</strong></p>
                     <p>
-                      {viewing.shippingAddress.street}, {viewing.shippingAddress.area}
+                      <strong>{viewing.shippingAddress.fullName}</strong>
                     </p>
                     <p>
-                      {viewing.shippingAddress.city}, {viewing.shippingAddress.state} -{" "}
-                      {viewing.shippingAddress.pincode}
+                      {viewing.shippingAddress.street}, {viewing.shippingAddress.city}
                     </p>
-                    <p><small>{viewing.shippingAddress.phone}</small></p>
+                    <p>
+                      {viewing.shippingAddress.state} - {viewing.shippingAddress.pincode}
+                    </p>
                   </>
                 ) : (
-                  <p className="text-muted">No address provided</p>
+                  <p>No address provided</p>
                 )}
               </div>
             </div>
 
+            {/* ✅ Smart Tracking Link Section */}
+            {viewing.isShipped && viewing.trackingId && (
+              <div style={{ background: "#f0f4f8", padding: "15px", borderRadius: "10px", marginBottom: "20px" }}>
+                <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+                  <span>
+                    🚚 <b>{viewing.courierName}</b>: {viewing.trackingId}
+                  </span>
+                  {getExternalTrackingLink(viewing.courierName) && (
+                    <a
+                      href={getExternalTrackingLink(viewing.courierName)!}
+                      target="_blank"
+                      rel="noreferrer"
+                      style={{ color: "#2c5aa0", fontWeight: "bold" }}
+                    >
+                      🌐 Track Live
+                    </a>
+                  )}
+                </div>
+              </div>
+            )}
+
             <div className="items-list">
               <h4>Items ({viewing.items.length})</h4>
               {viewing.items.map((it, i) => (
-                <div className="item-row" key={i}>
-                  {it.image && <img src={resolveImage(it.image)} alt="" />}
-                  <div className="item-details">
-                    <span className="item-name">{it.name}</span>
-                    <span className="item-meta">
-                      {toInners(it)} packets • x{it.qty} units
+                <div
+                  key={i}
+                  className="item-row"
+                  style={{ display: "flex", justifyContent: "space-between", padding: "8px 0", borderBottom: "1px solid #eee" }}
+                >
+                  <div style={{ display: "flex", gap: "10px", alignItems: "center" }}>
+                    {it.image && <img src={resolveImage(it.image)} alt="" style={{ width: "40px", height: "40px", borderRadius: "4px" }} />}
+                    <span>
+                      {it.name} (x{it.qty})
                     </span>
                   </div>
-                  <div className="item-price">₹{(it.price * it.qty).toFixed(2)}</div>
+                  <span>₹{(it.price * it.qty).toFixed(2)}</span>
                 </div>
               ))}
+              <div style={{ textAlign: "right", marginTop: "15px", fontSize: "1.1rem" }}>
+                <strong>Grand Total: ₹{viewing.total}</strong>
+              </div>
             </div>
+          </div>
+        </div>
+      )}
 
-            <div className="modal-footer">
-              <span>Total Amount:</span>
-              <span className="grand-total">₹{viewing.total.toLocaleString()}</span>
+      {/* --- Ship Modal --- */}
+      {shipOpen && shipOrder && (
+        <div className="modal-backdrop" onClick={closeShipModal}>
+          <div className="modal-content" onClick={(e) => e.stopPropagation()} style={{ maxWidth: "400px" }}>
+            <div className="modal-header">
+              <h3>🚚 Ship Order #{shipOrder.orderNumber}</h3>
+              <button className="close-btn" onClick={closeShipModal}>
+                &times;
+              </button>
+            </div>
+            <div style={{ padding: "16px" }}>
+              <label style={{ display: "block", marginBottom: "6px", fontWeight: 600 }}>Courier</label>
+              <select
+                value={shipCourier}
+                onChange={(e) => setShipCourier(e.target.value)}
+                style={{ width: "100%", padding: "10px", borderRadius: "8px", border: "1px solid #ddd", marginBottom: "16px" }}
+              >
+                {COURIERS.map((c) => (
+                  <option key={c} value={c}>
+                    {c}
+                  </option>
+                ))}
+              </select>
+
+              <label style={{ display: "block", marginBottom: "6px", fontWeight: 600 }}>AWB / Tracking Number</label>
+              <input
+                value={shipTracking}
+                onChange={(e) => setShipTracking(e.target.value)}
+                placeholder="Enter ID"
+                style={{ width: "100%", padding: "10px", borderRadius: "8px", border: "1px solid #ddd" }}
+              />
+              {shipErr && <p style={{ color: "red", marginTop: "10px" }}>{shipErr}</p>}
+
+              <div style={{ display: "flex", gap: "10px", justifyContent: "flex-end", marginTop: "20px" }}>
+                <button onClick={closeShipModal} className="btn-secondary">
+                  Cancel
+                </button>
+                <button onClick={submitShip} disabled={actOn === shipOrder._id} className="btn-primary">
+                  {actOn === shipOrder._id ? "Saving..." : "Save & Ship"}
+                </button>
+              </div>
             </div>
           </div>
         </div>

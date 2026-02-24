@@ -70,7 +70,7 @@ type Order = {
   isShipped?: boolean;
   trackingId?: string;
   courierName?: string;
-  trackingToken?: string; // ✅ Internal link token
+  trackingToken?: string;
 
   cancelledBy?: string;
 };
@@ -134,13 +134,19 @@ const getExternalTrackingLink = (courier?: string) => {
   return null;
 };
 
+/* ✅ Status label: processing ko CONFIRM dikhana hai */
+const statusLabel = (s: OrderStatus) => {
+  if (s === "processing") return "Confirmed";
+  return s.charAt(0).toUpperCase() + s.slice(1);
+};
+
 /* --- Export Functions --- */
 const exportAllOrders = (orders: Order[]) => {
   const rows = orders.map((o) => {
     const wa = normalizeWhatsApp91(o.customerId?.whatsapp || o.customerId?.otpMobile);
     return {
       OrderNumber: o.orderNumber || o._id.slice(-6),
-      Status: o.status + (o.status === "cancelled" && o.cancelledBy ? ` (${o.cancelledBy})` : ""),
+      Status: statusLabel(o.status as OrderStatus) + (o.status === "cancelled" && o.cancelledBy ? ` (${o.cancelledBy})` : ""),
       Total: o.total,
       Payment_Mode: paymentLabel(o.paymentMode),
       CreatedAt: formatExcelDate(o.createdAt),
@@ -172,6 +178,7 @@ const exportSingleOrder = (order: Order) => {
 
   const rows = order.items.map((it) => ({
     OrderNumber: order.orderNumber || order._id.slice(-6),
+    Status: statusLabel(order.status),
     Payment_Mode: paymentLabel(order.paymentMode),
     Shop: order.customerId?.shopName || "",
     Phone: order.customerId?.otpMobile || "",
@@ -303,7 +310,7 @@ const generateInvoice = (order: Order) => {
 };
 
 /* ===================== Courier Options ===================== */
-/* ✅ As per your requirement: ONLY 2 couriers */
+/* ✅ ONLY 2 couriers */
 const COURIERS = ["Delhivery", "V-Xpress"] as const;
 
 const AdminOrders: React.FC = () => {
@@ -410,7 +417,7 @@ const AdminOrders: React.FC = () => {
   const openShipModal = (o: Order) => {
     setShipOrder(o);
     setShipErr("");
-    // ✅ if old courier exists and not in 2 options, default to first
+
     const existing = (o.courierName || "").trim();
     const normalized = existing.toLowerCase();
     const isAllowed =
@@ -419,7 +426,7 @@ const AdminOrders: React.FC = () => {
       normalized.includes("v-xpress") ||
       normalized.includes("v xpress");
 
-    setShipCourier(isAllowed ? existing : COURIERS[0]);
+    setShipCourier(isAllowed && existing ? existing : COURIERS[0]);
     setShipTracking(o.trackingId?.trim() || "");
     setShipOpen(true);
   };
@@ -488,7 +495,12 @@ const AdminOrders: React.FC = () => {
 
   const filteredOrders = useMemo(() => {
     let list = orders;
-    if (activeTab !== "all") list = list.filter((o) => o.status === activeTab);
+
+    if (activeTab !== "all") {
+      // ✅ UI me "confirmed" tab dikhana hai but backend me status "processing" hi rahega
+      const mapped = activeTab === "confirmed" ? "processing" : activeTab;
+      list = list.filter((o) => o.status === mapped);
+    }
 
     const q = debounced.trim().toLowerCase();
     if (!q) return list;
@@ -522,13 +534,20 @@ const AdminOrders: React.FC = () => {
 
         <div className="admin-controls">
           <div className="tabs">
-            {["all", "pending", "processing", "shipped", "delivered", "cancelled"].map((tab) => (
+            {[
+              { key: "all", label: "All" },
+              { key: "pending", label: "Pending" },
+              { key: "confirmed", label: "Confirmed" }, // ✅ processing = confirmed
+              { key: "shipped", label: "Shipped" },
+              { key: "delivered", label: "Delivered" },
+              { key: "cancelled", label: "Cancelled" },
+            ].map((t) => (
               <button
-                key={tab}
-                className={`tab-item ${activeTab === tab ? "active" : ""}`}
-                onClick={() => setActiveTab(tab)}
+                key={t.key}
+                className={`tab-item ${activeTab === t.key ? "active" : ""}`}
+                onClick={() => setActiveTab(t.key)}
               >
-                {tab.charAt(0).toUpperCase() + tab.slice(1)}
+                {t.label}
               </button>
             ))}
           </div>
@@ -563,7 +582,7 @@ const AdminOrders: React.FC = () => {
                     <div className="card-top">
                       <span className="order-id">#{o.orderNumber || o._id.slice(-6)}</span>
                       <div style={{ display: "flex", flexDirection: "column", alignItems: "flex-end" }}>
-                        <span className={`badge ${o.status}`}>{o.status}</span>
+                        <span className={`badge ${o.status}`}>{statusLabel(o.status)}</span>
                         {o.status === "cancelled" && (
                           <div
                             style={{
@@ -637,6 +656,12 @@ const AdminOrders: React.FC = () => {
                       <button className="btn-icon" onClick={() => setViewing(o)}>
                         👁️ View
                       </button>
+
+                      {/* ✅ IMPORTANT:
+                          Dropdown me SHIPPED option remove kiya.
+                          Shipped sirf "Ship" button se hoga (tracking/courier modal).
+                          Confirm = processing dropdown se hoga, tracking nahi maangega.
+                      */}
                       <select
                         className="status-select"
                         value={o.status}
@@ -644,11 +669,11 @@ const AdminOrders: React.FC = () => {
                         onChange={(e) => updateStatus(o._id, e.target.value as OrderStatus)}
                       >
                         <option value="pending">Pending</option>
-                        <option value="processing">Processing</option>
-                        <option value="shipped">Shipped</option>
+                        <option value="processing">Confirmed</option>
                         <option value="delivered">Delivered</option>
                         <option value="cancelled">Cancelled</option>
                       </select>
+
                       <button
                         className={`btn-ship ${o.isShipped ? "shipped" : ""}`}
                         disabled={actOn === o._id}
@@ -670,7 +695,9 @@ const AdminOrders: React.FC = () => {
         <div className="modal-backdrop" onClick={() => setViewing(null)}>
           <div className="modal-content" onClick={(e) => e.stopPropagation()}>
             <div className="modal-header">
-              <h3>Order #{viewing.orderNumber}</h3>
+              <h3>
+                Order #{viewing.orderNumber} <span style={{ fontSize: 12, opacity: 0.7 }}>({statusLabel(viewing.status)})</span>
+              </h3>
               <button className="close-btn" onClick={() => setViewing(null)}>
                 &times;
               </button>
@@ -773,6 +800,7 @@ const AdminOrders: React.FC = () => {
                 &times;
               </button>
             </div>
+
             <div style={{ padding: "16px" }}>
               <label style={{ display: "block", marginBottom: "6px", fontWeight: 600 }}>Courier</label>
               <select
@@ -794,6 +822,7 @@ const AdminOrders: React.FC = () => {
                 placeholder="Enter ID"
                 style={{ width: "100%", padding: "10px", borderRadius: "8px", border: "1px solid #ddd" }}
               />
+
               {shipErr && <p style={{ color: "red", marginTop: "10px" }}>{shipErr}</p>}
 
               <div style={{ display: "flex", gap: "10px", justifyContent: "flex-end", marginTop: "20px" }}>

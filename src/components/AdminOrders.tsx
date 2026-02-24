@@ -657,11 +657,6 @@ const AdminOrders: React.FC = () => {
                         👁️ View
                       </button>
 
-                      {/* ✅ IMPORTANT:
-                          Dropdown me SHIPPED option remove kiya.
-                          Shipped sirf "Ship" button se hoga (tracking/courier modal).
-                          Confirm = processing dropdown se hoga, tracking nahi maangega.
-                      */}
                       <select
                         className="status-select"
                         value={o.status}
@@ -670,6 +665,8 @@ const AdminOrders: React.FC = () => {
                       >
                         <option value="pending">Pending</option>
                         <option value="processing">Confirmed</option>
+                        {/* ✅ FIX: Shipped option add kar diya! */}
+                        <option value="shipped">Shipped</option>
                         <option value="delivered">Delivered</option>
                         <option value="cancelled">Cancelled</option>
                       </select>

@@ -73,6 +73,14 @@ type Order = {
   trackingToken?: string;
 
   cancelledBy?: string;
+  
+  // ✅ Added WA Type
+  wa?: {
+    orderConfirmedSent?: boolean;
+    trackingSent?: boolean;
+    lastError?: string;
+    lastSentAt?: string;
+  };
 };
 
 /* --- Axios helpers --- */
@@ -375,6 +383,7 @@ const AdminOrders: React.FC = () => {
                 isShipped: data.isShipped,
                 trackingId: data.trackingId,
                 courierName: data.courierName,
+                wa: data.wa, // ✅ WA Status update
               }
             : o
         )
@@ -391,6 +400,7 @@ const AdminOrders: React.FC = () => {
                 isShipped: data.isShipped,
                 trackingId: data.trackingId,
                 courierName: data.courierName,
+                wa: data.wa,
               }
             : v
         );
@@ -465,6 +475,7 @@ const AdminOrders: React.FC = () => {
                 trackingId: data.trackingId,
                 courierName: data.courierName,
                 status: data.status,
+                wa: data.wa, // ✅ WA Status update
               }
             : o
         )
@@ -479,6 +490,7 @@ const AdminOrders: React.FC = () => {
                 trackingId: data.trackingId,
                 courierName: data.courierName,
                 status: data.status,
+                wa: data.wa,
               }
             : null
         );
@@ -583,6 +595,25 @@ const AdminOrders: React.FC = () => {
                       <span className="order-id">#{o.orderNumber || o._id.slice(-6)}</span>
                       <div style={{ display: "flex", flexDirection: "column", alignItems: "flex-end" }}>
                         <span className={`badge ${o.status}`}>{statusLabel(o.status)}</span>
+                        
+                        {/* ✅ WhatsApp Status Badge (NEW) */}
+                        {o.wa?.orderConfirmedSent && (
+                          <div style={{
+                            fontSize: "10px",
+                            color: "#16a34a",
+                            fontWeight: "bold",
+                            background: "#dcfce7",
+                            padding: "2px 6px",
+                            borderRadius: "4px",
+                            marginTop: "4px",
+                            display: "flex",
+                            alignItems: "center",
+                            gap: "3px"
+                          }}>
+                            ✓ WA Sent
+                          </div>
+                        )}
+
                         {o.status === "cancelled" && (
                           <div
                             style={{

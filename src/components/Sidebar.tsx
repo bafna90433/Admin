@@ -5,21 +5,19 @@ import {
   FiBox,
   FiPlus,
   FiUsers,
-  FiMessageSquare, // Used for Reviews & WhatsApp
+  FiMessageSquare,
   FiLogOut,
   FiX,
   FiImage,
-  FiUploadCloud,
   FiCreditCard,
   FiChevronRight,
   FiSearch,
   FiActivity,
-  FiBarChart2,
   FiCornerUpLeft,
   FiTrendingUp,
   FiGrid,
   FiSettings,
-  FiStar, // ✅ New Icon for Reviews
+  FiStar,
 } from "react-icons/fi";
 import { MdOutlineSpaceDashboard } from "react-icons/md";
 import { TbCategory } from "react-icons/tb";
@@ -195,18 +193,12 @@ const Sidebar: React.FC<SidebarProps> = ({ sidebarOpen, closeSidebar }) => {
               gradient="orange"
             />
 
+            {/* ✅ UPDATED: Single Banner Management Link */}
             <NavItem
               to="/admin/banners"
               icon={FiImage}
-              label="Banner Manager"
+              label="Banner Management"
               gradient="teal"
-            />
-
-            <NavItem
-              to="/admin/banners/upload"
-              icon={FiUploadCloud}
-              label="Upload Media"
-              gradient="cyan"
             />
 
             <NavItem
@@ -226,7 +218,6 @@ const Sidebar: React.FC<SidebarProps> = ({ sidebarOpen, closeSidebar }) => {
               gradient="indigo"
             />
 
-            {/* ✅ ADDED: Reviews Link */}
             <NavItem
               to="/admin/reviews"
               icon={FiStar}

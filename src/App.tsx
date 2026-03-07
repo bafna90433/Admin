@@ -1,4 +1,4 @@
-// src/App.tsx  ✅ FINAL (Reviews Route Added)
+// src/App.tsx  ✅ FINAL (Reviews & Unified Banners Route Added)
 import React from "react";
 import {
   BrowserRouter as Router,
@@ -13,8 +13,10 @@ import ProductList from "./components/ProductList";
 import ProductForm from "./components/ProductForm";
 import CategoryList from "./components/CategoryList";
 import CategoryForm from "./components/CategoryForm";
-import BannerList from "./components/BannerList";
-import AddBanner from "./components/AddBanner";
+
+// ✅ UNIFIED: Banner Management (Replaces BannerList and AddBanner)
+import BannerManagement from "./components/BannerManagement";
+
 import AdminDashboard from "./components/AdminDashboard"; // Customer Database
 import AdminOrders from "./components/AdminOrders";
 import WhatsAppSettings from "./components/WhatsAppSettings";
@@ -86,9 +88,8 @@ const App: React.FC = () => {
           <Route path="categories/new" element={<CategoryForm />} />
           <Route path="categories/edit/:id" element={<CategoryForm />} />
 
-          {/* Banners */}
-          <Route path="banners" element={<BannerList />} />
-          <Route path="banners/upload" element={<AddBanner />} />
+          {/* ✅ UPDATED: Single Unified Banner Management Route */}
+          <Route path="banners" element={<BannerManagement />} />
 
           {/* ✅ NEW: Home Builder */}
           <Route path="home-builder" element={<AdminHomeBuilder />} />

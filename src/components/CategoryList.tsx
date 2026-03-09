@@ -9,10 +9,9 @@ import {
   FiArrowDown,
   FiImage,
 } from "react-icons/fi";
-import axios from "axios"; // ✅ Changed: Import axios directly
+import axios from "axios";
 import "../styles/CategoryList.css";
 
-// --- ✅ CONFIGURATION (Live URL Fix) ---
 const API_BASE =
   process.env.VITE_API_URL ||
   process.env.REACT_APP_API_URL ||
@@ -23,6 +22,7 @@ interface Category {
   name: string;
   image: string;
   imageId: string;
+  link?: string; // 👇 Interface me link add kiya
   order?: number;
 }
 
@@ -38,12 +38,14 @@ const CategoryList: React.FC = () => {
   
   // Create Form States
   const [newCategory, setNewCategory] = useState("");
+  const [newLink, setNewLink] = useState(""); // 👇 Naya state for create link
   const [newImage, setNewImage] = useState<File | null>(null);
   const [preview, setPreview] = useState<string | null>(null);
 
   // Edit States
   const [editId, setEditId] = useState<string | null>(null);
   const [editName, setEditName] = useState("");
+  const [editLink, setEditLink] = useState(""); // 👇 Naya state for edit link
   const [editImage, setEditImage] = useState<File | null>(null);
   const [editPreview, setEditPreview] = useState<string | null>(null);
 
@@ -55,7 +57,6 @@ const CategoryList: React.FC = () => {
   // eslint-disable-next-line @typescript-eslint/no-unused-vars
   const [viewMode, setViewMode] = useState<"list" | "grid">("list");
 
-  // ✅ Responsive view mode
   useEffect(() => {
     const checkScreen = () => {
       setViewMode(window.innerWidth < 768 ? "grid" : "list");
@@ -65,11 +66,9 @@ const CategoryList: React.FC = () => {
     return () => window.removeEventListener("resize", checkScreen);
   }, []);
 
-  // ✅ Fetch categories
   const fetchCategories = async () => {
     setLoading(true);
     try {
-      // ✅ Changed: Using axios with API_BASE
       const { data } = await axios.get(`${API_BASE}/categories`);
       const sorted = [...data].sort((a: any, b: any) => (a.order || 0) - (b.order || 0));
       setCategories(sorted);
@@ -80,10 +79,8 @@ const CategoryList: React.FC = () => {
     setLoading(false);
   };
 
-  // ✅ Fetch products (for count)
   const fetchProducts = async () => {
     try {
-      // ✅ Changed: Using axios with API_BASE
       const { data } = await axios.get(`${API_BASE}/products`);
       const counts: Record<string, number> = {};
       data.forEach((prod: Product) => {
@@ -101,7 +98,6 @@ const CategoryList: React.FC = () => {
     fetchProducts();
   }, []);
 
-  // ✅ Helper: Handle File Selection (Create & Edit)
   const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>, isEdit = false) => {
     const file = e.target.files?.[0];
     if (file) {
@@ -123,14 +119,15 @@ const CategoryList: React.FC = () => {
     setLoading(true);
     const formData = new FormData();
     formData.append("name", newCategory);
+    formData.append("link", newLink); // 👇 Backend ko link bhejo
     formData.append("image", newImage);
 
     try {
-      // ✅ Changed: Using axios with API_BASE
       await axios.post(`${API_BASE}/categories`, formData, {
         headers: { "Content-Type": "multipart/form-data" },
       });
       setNewCategory("");
+      setNewLink(""); // 👇 State clear karo
       setNewImage(null);
       setPreview(null);
       setIsCreating(false);
@@ -145,6 +142,7 @@ const CategoryList: React.FC = () => {
   const handleEdit = (cat: Category) => {
     setEditId(cat._id);
     setEditName(cat.name);
+    setEditLink(cat.link || ""); // 👇 Edit mode start hote hi link set karo
     setEditImage(null);
     setEditPreview(null);
   };
@@ -153,6 +151,7 @@ const CategoryList: React.FC = () => {
   const handleCancelEdit = () => {
     setEditId(null);
     setEditName("");
+    setEditLink(""); // 👇 Clear state on cancel
     setEditImage(null);
     setEditPreview(null);
   };
@@ -164,13 +163,13 @@ const CategoryList: React.FC = () => {
     setLoading(true);
     const formData = new FormData();
     formData.append("name", editName);
+    formData.append("link", editLink); // 👇 Update karte time link bhejo
     
     if (editImage) {
       formData.append("image", editImage);
     }
 
     try {
-      // ✅ Changed: Using axios with API_BASE
       await axios.put(`${API_BASE}/categories/${id}`, formData, {
         headers: { "Content-Type": "multipart/form-data" },
       });
@@ -182,12 +181,10 @@ const CategoryList: React.FC = () => {
     setLoading(false);
   };
 
-  // ✅ Delete & Move Functions
   const handleDelete = async (id: string) => {
     if (!window.confirm("Are you sure? This will delete the category and its image.")) return;
     setLoading(true);
     try {
-      // ✅ Changed: Using axios with API_BASE
       await axios.delete(`${API_BASE}/categories/${id}`);
       await fetchCategories();
       await fetchProducts();
@@ -197,7 +194,6 @@ const CategoryList: React.FC = () => {
 
   const handleMove = async (id: string, direction: "up" | "down") => {
     try {
-      // ✅ Changed: Using axios with API_BASE
       await axios.put(`${API_BASE}/categories/${id}/move`, { direction });
       await fetchCategories();
     } catch { setError("Failed to move category"); }
@@ -232,6 +228,19 @@ const CategoryList: React.FC = () => {
               <label className="form-label">Category Name *</label>
               <input type="text" value={newCategory} onChange={(e) => setNewCategory(e.target.value)} className="form-input" autoFocus />
             </div>
+
+            {/* 👇 Custom Link Input for Add */}
+            <div className="form-group">
+              <label className="form-label">Custom Link (Optional)</label>
+              <input 
+                type="text" 
+                value={newLink} 
+                onChange={(e) => setNewLink(e.target.value)} 
+                className="form-input" 
+                placeholder="e.g. /custom-page or https://..." 
+              />
+            </div>
+
             <div className="form-group">
               <label className="form-label">Category Image *</label>
               <input type="file" accept="image/*" onChange={(e) => handleFileChange(e, false)} className="form-input" />
@@ -254,6 +263,7 @@ const CategoryList: React.FC = () => {
                 <th>#</th>
                 <th>Image</th>
                 <th>Category Name</th>
+                <th>Link</th> {/* 👇 New Table Column */}
                 <th>Products</th>
                 <th>Move</th>
                 <th>Actions</th>
@@ -299,6 +309,23 @@ const CategoryList: React.FC = () => {
                     )}
                   </td>
 
+                  {/* 👇 Display ya Edit Custom Link Field */}
+                  <td>
+                    {editId === cat._id ? (
+                      <input
+                        type="text"
+                        value={editLink}
+                        onChange={(e) => setEditLink(e.target.value)}
+                        className="edit-input"
+                        placeholder="/page-link"
+                      />
+                    ) : (
+                      <span style={{ fontSize: "12px", color: cat.link ? "#007bff" : "#aaa" }}>
+                        {cat.link ? cat.link : "-"}
+                      </span>
+                    )}
+                  </td>
+
                   <td><span className="product-count">{categoryCounts[cat._id] || 0}</span></td>
 
                   <td>
@@ -325,7 +352,7 @@ const CategoryList: React.FC = () => {
                   </td>
                 </tr>
               ))}
-              {categories.length === 0 && !loading && <tr><td colSpan={6} className="empty-state">No categories found.</td></tr>}
+              {categories.length === 0 && !loading && <tr><td colSpan={7} className="empty-state">No categories found.</td></tr>}
             </tbody>
           </table>
         </div>

@@ -1,8 +1,8 @@
 import React, { useState } from "react";
-import { FiSave, FiX } from "react-icons/fi";
+import { FiSave, FiX, FiImage } from "react-icons/fi";
 import axios from "axios";
 
-// --- ✅ CONFIGURATION (Live URL Fix) ---
+// --- ✅ CONFIGURATION ---
 const API_BASE =
   process.env.VITE_API_URL ||
   process.env.REACT_APP_API_URL ||
@@ -11,13 +11,36 @@ const API_BASE =
 interface Props {
   onSuccess?: () => void;
   onClose?: () => void;
-  initialName?: string;
+  categoryId?: string;   // 👇 ID for editing (e.g., "65e...")
+  initialName?: string;  // 👇 Name of category
+  initialLink?: string;  // 👇 Custom Link
+  initialImage?: string; // 👇 Existing image URL
 }
 
-const CategoryForm: React.FC<Props> = ({ onSuccess, onClose, initialName = "" }) => {
+const CategoryForm: React.FC<Props> = ({ 
+  onSuccess, 
+  onClose, 
+  categoryId, 
+  initialName = "", 
+  initialLink = "",
+  initialImage = ""
+}) => {
   const [name, setName] = useState(initialName);
+  const [link, setLink] = useState(initialLink);
+  const [image, setImage] = useState<File | null>(null);
+  const [preview, setPreview] = useState<string | null>(initialImage || null);
+  
   const [error, setError] = useState("");
   const [loading, setLoading] = useState(false);
+
+  // ✅ Image select handle karega
+  const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (file) {
+      setImage(file);
+      setPreview(URL.createObjectURL(file));
+    }
+  };
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -25,18 +48,30 @@ const CategoryForm: React.FC<Props> = ({ onSuccess, onClose, initialName = "" })
     setError("");
 
     try {
-      if (!name.trim()) {
-        throw new Error("Category name is required");
-      }
+      if (!name.trim()) throw new Error("Category name is required");
+      // Agar create kar rahe hain (ID nahi hai), toh image mandatory hai
+      if (!categoryId && !image) throw new Error("Category image is required");
 
-      // ✅ Changed: Use API_BASE instead of localhost
-      const url = initialName 
-        ? `${API_BASE}/categories/${initialName}` 
+      const url = categoryId 
+        ? `${API_BASE}/categories/${categoryId}` 
         : `${API_BASE}/categories`;
       
-      const method = initialName ? "put" : "post";
+      const method = categoryId ? "put" : "post";
       
-      await axios[method](url, { name });
+      // ✅ Image bhejne ke liye FormData zaroori hai
+      const formData = new FormData();
+      formData.append("name", name);
+      formData.append("link", link);
+      if (image) {
+        formData.append("image", image);
+      }
+
+      await axios({
+        method: method,
+        url: url,
+        data: formData,
+        headers: { "Content-Type": "multipart/form-data" },
+      });
 
       if (onSuccess) onSuccess();
       if (onClose) onClose();
@@ -52,9 +87,9 @@ const CategoryForm: React.FC<Props> = ({ onSuccess, onClose, initialName = "" })
       <div className="category-form-card">
         <div className="form-header">
           <div className="header-content">
-            <h2>{initialName ? "Edit Category" : "Create Category"}</h2>
+            <h2>{categoryId ? "Edit Category" : "Create Category"}</h2>
             <p className="header-description">
-              {initialName ? "Update your category details" : "Add a new product category"}
+              {categoryId ? "Update your category details" : "Add a new product category"}
             </p>
           </div>
           {onClose && (
@@ -75,6 +110,7 @@ const CategoryForm: React.FC<Props> = ({ onSuccess, onClose, initialName = "" })
           )}
 
           <form onSubmit={handleSubmit}>
+            {/* Category Name */}
             <div className="form-group">
               <label htmlFor="category-name" className="form-label">
                 Category Name <span className="required">*</span>
@@ -89,6 +125,46 @@ const CategoryForm: React.FC<Props> = ({ onSuccess, onClose, initialName = "" })
                 disabled={loading}
                 required
               />
+            </div>
+
+            {/* Custom Link (Optional) */}
+            <div className="form-group">
+              <label htmlFor="category-link" className="form-label">
+                Custom Link (Optional)
+              </label>
+              <input
+                id="category-link"
+                type="text"
+                value={link}
+                onChange={(e) => setLink(e.target.value)}
+                placeholder="/custom-page or https://..."
+                className="form-input"
+                disabled={loading}
+              />
+            </div>
+
+            {/* Category Image */}
+            <div className="form-group">
+              <label className="form-label">
+                Category Image {!categoryId && <span className="required">*</span>}
+              </label>
+              <input 
+                type="file" 
+                accept="image/*" 
+                onChange={handleFileChange} 
+                className="form-input" 
+                disabled={loading}
+                required={!categoryId} // Only required when creating new
+              />
+              {preview && (
+                <div style={{ marginTop: '10px' }}>
+                  <img 
+                    src={preview} 
+                    alt="Preview" 
+                    style={{ width: '80px', height: '80px', objectFit: 'cover', borderRadius: '8px', border: '1px solid #ddd' }} 
+                  />
+                </div>
+              )}
             </div>
 
             <div className="form-actions">
@@ -112,7 +188,7 @@ const CategoryForm: React.FC<Props> = ({ onSuccess, onClose, initialName = "" })
                 ) : (
                   <>
                     <FiSave size={16} />
-                    {initialName ? "Update Category" : "Create Category"}
+                    {categoryId ? "Update Category" : "Create Category"}
                   </>
                 )}
               </button>

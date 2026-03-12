@@ -3,7 +3,7 @@ import axios from "axios";
 import Swal from "sweetalert2";
 import { 
   FiTrash2, FiSearch, FiFilter, FiStar, FiMessageSquare, 
-  FiPlus, FiX, FiEdit2, FiBox, FiChevronDown // ✅ FiBox and FiChevronDown added
+  FiPlus, FiX, FiEdit2, FiBox, FiChevronDown, FiCalendar
 } from "react-icons/fi";
 import "../styles/AdminReviews.css";
 
@@ -24,7 +24,7 @@ const getImageUrl = (url: string) =>
 interface Product {
   _id: string;
   name: string;
-  images?: string[]; // ✅ ADDED: Dropdown mein image ke liye
+  images?: string[]; 
 }
 
 interface Review {
@@ -52,14 +52,19 @@ const AdminReviews: React.FC = () => {
   const [isEditing, setIsEditing] = useState(false);
   const [editId, setEditId] = useState<string | null>(null);
 
-  // ✅ NEW: Custom Dropdown state
   const [isDropdownOpen, setIsDropdownOpen] = useState(false);
+
+  const getTodayDate = () => {
+    const today = new Date();
+    return today.toISOString().split('T')[0];
+  };
 
   const [newReview, setNewReview] = useState({
     productId: "",
     shopName: "",
     rating: 5,
-    comment: ""
+    comment: "",
+    createdAt: getTodayDate()
   });
 
   useEffect(() => {
@@ -113,11 +118,15 @@ const AdminReviews: React.FC = () => {
   const handleEditClick = (review: Review) => {
     setIsEditing(true);
     setEditId(review._id);
+    
+    const formattedDate = review.createdAt ? new Date(review.createdAt).toISOString().split('T')[0] : getTodayDate();
+
     setNewReview({
       productId: review.productId?._id || "",
       shopName: review.shopName || "",
       rating: review.rating,
-      comment: review.comment
+      comment: review.comment,
+      createdAt: formattedDate 
     });
     setShowAddForm(true);
     window.scrollTo({ top: 0, behavior: 'smooth' });
@@ -139,11 +148,11 @@ const AdminReviews: React.FC = () => {
         Swal.fire("Success", "Review added successfully!", "success");
       }
       
-      setNewReview({ productId: "", shopName: "", rating: 5, comment: "" });
+      setNewReview({ productId: "", shopName: "", rating: 5, comment: "", createdAt: getTodayDate() });
       setShowAddForm(false);
       setIsEditing(false);
       setEditId(null);
-      setIsDropdownOpen(false); // Close dropdown on submit
+      setIsDropdownOpen(false); 
       
       fetchReviews();
     } catch (error) {
@@ -157,7 +166,7 @@ const AdminReviews: React.FC = () => {
     setIsEditing(false);
     setEditId(null);
     setIsDropdownOpen(false);
-    setNewReview({ productId: "", shopName: "", rating: 5, comment: "" });
+    setNewReview({ productId: "", shopName: "", rating: 5, comment: "", createdAt: getTodayDate() });
   };
 
   const handleViewComment = (comment: string, author: string) => {
@@ -220,7 +229,6 @@ const AdminReviews: React.FC = () => {
               
               <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '15px' }}>
                 
-                {/* ✅ FIX: CUSTOM DROPDOWN WITH IMAGES */}
                 <div>
                   <label style={{ display: 'block', fontSize: '0.9rem', marginBottom: '5px' }}>Select Product</label>
                   <div style={{ position: 'relative' }}>
@@ -272,15 +280,31 @@ const AdminReviews: React.FC = () => {
                 </div>
               </div>
 
-              <div>
-                <label style={{ display: 'block', fontSize: '0.9rem', marginBottom: '5px' }}>Rating (1-5)</label>
-                <select value={newReview.rating} onChange={(e) => setNewReview({...newReview, rating: Number(e.target.value)})} style={{ width: '100%', padding: '10px', border: '1px solid #ccc', borderRadius: '6px' }}>
-                  <option value="5">5 - Excellent</option>
-                  <option value="4">4 - Good</option>
-                  <option value="3">3 - Average</option>
-                  <option value="2">2 - Poor</option>
-                  <option value="1">1 - Bad</option>
-                </select>
+              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '15px' }}>
+                <div>
+                  {/* ✅ FIX APPLIED HERE: Only one 'display: flex' */}
+                  <label style={{ display: 'flex', fontSize: '0.9rem', marginBottom: '5px', alignItems: 'center', gap: '4px' }}>
+                    <FiCalendar /> Review Date
+                  </label>
+                  <input 
+                    type="date" 
+                    required 
+                    value={newReview.createdAt} 
+                    onChange={(e) => setNewReview({...newReview, createdAt: e.target.value})} 
+                    style={{ width: '100%', padding: '10px', border: '1px solid #ccc', borderRadius: '6px', fontFamily: 'inherit' }} 
+                  />
+                </div>
+
+                <div>
+                  <label style={{ display: 'block', fontSize: '0.9rem', marginBottom: '5px' }}>Rating (1-5)</label>
+                  <select value={newReview.rating} onChange={(e) => setNewReview({...newReview, rating: Number(e.target.value)})} style={{ width: '100%', padding: '10px', border: '1px solid #ccc', borderRadius: '6px' }}>
+                    <option value="5">5 - Excellent</option>
+                    <option value="4">4 - Good</option>
+                    <option value="3">3 - Average</option>
+                    <option value="2">2 - Poor</option>
+                    <option value="1">1 - Bad</option>
+                  </select>
+                </div>
               </div>
 
               <div>
@@ -288,7 +312,7 @@ const AdminReviews: React.FC = () => {
                 <textarea required value={newReview.comment} onChange={(e) => setNewReview({...newReview, comment: e.target.value})} style={{ width: '100%', padding: '10px', border: '1px solid #ccc', borderRadius: '6px', minHeight: '80px' }} placeholder="Write a nice review..."></textarea>
               </div>
 
-              <button type="submit" style={{ backgroundColor: isEditing ? '#3b82f6' : '#10b981', color: 'white', padding: '12px', borderRadius: '6px', border: 'none', cursor: 'pointer', fontWeight: 'bold' }}>
+              <button type="submit" style={{ backgroundColor: isEditing ? '#3b82f6' : '#10b981', color: 'white', padding: '12px', borderRadius: '6px', border: 'none', cursor: 'pointer', fontWeight: 'bold', fontSize: '15px' }}>
                 {isEditing ? "Update Review" : "Submit Review"}
               </button>
             </form>
@@ -359,7 +383,6 @@ const AdminReviews: React.FC = () => {
                         </div>
                       </td>
                       
-                      {/* TABLE IMAGE Rendering */}
                       <td>
                         <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
                           {review.productId?.images?.[0] ? (
@@ -401,7 +424,7 @@ const AdminReviews: React.FC = () => {
 
                       <td>
                         {new Date(review.createdAt).toLocaleDateString('en-IN', {
-                            day: '2-digit', month: 'short'
+                            day: '2-digit', month: 'short', year: 'numeric'
                         })}
                       </td>
 

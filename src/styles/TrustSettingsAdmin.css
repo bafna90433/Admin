@@ -1,152 +1,181 @@
-/* Container & Headers */
-.trust-settings-container {
+/* src/styles/TrustSettingsAdmin.css */
+
+.ts-admin-wrapper {
   padding: 24px;
-  max-width: 1200px;
-  margin: 0 auto;
-  font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
-  color: #333;
-}
-
-.trust-settings-header {
-  text-align: center;
-  margin-bottom: 32px;
-  font-size: 28px;
-  color: #2c3e50;
-}
-
-.trust-section-title {
-  margin-top: 40px;
-  margin-bottom: 20px;
-  font-size: 20px;
-  color: #34495e;
-  border-bottom: 2px solid #ecf0f1;
-  padding-bottom: 8px;
-}
-
-/* Grid Layouts */
-.grid-2-cols {
-  display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
-  gap: 24px;
-}
-
-.grid-3-cols {
-  display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
-  gap: 24px;
-}
-
-/* Cards */
-.settings-card {
   background: #ffffff;
-  border: 1px solid #e0e0e0;
-  border-radius: 8px;
-  padding: 20px;
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  text-align: center;
-  box-shadow: 0 4px 6px rgba(0, 0, 0, 0.04);
-  transition: transform 0.2s ease, box-shadow 0.2s ease;
+  border-radius: 12px;
+  box-shadow: 0 4px 20px rgba(0, 0, 0, 0.08);
+  max-width: 900px;
+  margin: 0 auto 40px auto;
+  font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
 }
 
-.settings-card:hover {
-  transform: translateY(-4px);
-  box-shadow: 0 8px 15px rgba(0, 0, 0, 0.1);
+.ts-header {
+  border-bottom: 2px solid #ff2a75;
+  padding-bottom: 12px;
+  margin-bottom: 24px;
+  color: #111827;
+  font-size: 24px;
 }
 
-.settings-card h4 {
-  margin-top: 0;
-  margin-bottom: 16px;
-  font-size: 16px;
-  color: #555;
-  width: 100%;
-}
-
-/* Card Color Accents */
-.card-yellow {
-  border-top: 4px solid #f1c40f;
-}
-
-.card-green {
-  border-top: 4px solid #2ecc71;
-}
-
-.card-blue {
-  border-top: 4px solid #3498db;
-}
-
-/* Image Previews */
-.preview-image {
-  max-width: 100%;
-  height: 120px;
-  object-fit: contain;
-  margin-bottom: 16px;
-  border-radius: 4px;
-  border: 1px dashed #bdc3c7;
-  padding: 4px;
-  background-color: #f9f9f9;
-}
-
-/* Specific Image Fits */
-.preview-image.cover {
-  height: 160px;
-  width: 100%;
-  object-fit: cover;
-}
-
-.preview-image.banner {
-  height: 240px;
-  width: 100%;
-  object-fit: cover;
-}
-
-/* Inputs */
-.file-input {
-  width: 100%;
-  margin-top: auto; /* Pushes the input to the bottom if image heights vary */
-  padding: 8px 0;
-  font-size: 14px;
-  cursor: pointer;
-}
-
-.file-input::file-selector-button {
-  background-color: #ecf0f1;
-  border: 1px solid #bdc3c7;
-  border-radius: 4px;
-  padding: 6px 12px;
-  cursor: pointer;
-  margin-right: 12px;
-  transition: background-color 0.2s;
-}
-
-.file-input::file-selector-button:hover {
-  background-color: #e0e0e0;
-}
-
-/* Action Button */
-.save-btn {
-  display: block;
-  width: 100%;
-  max-width: 300px;
-  margin: 50px auto 20px;
-  padding: 14px 24px;
-  background-color: #27ae60;
-  color: #ffffff;
-  border: none;
-  border-radius: 6px;
+.ts-section-title {
+  margin-top: 20px;
+  margin-bottom: 15px;
+  color: #1f2937;
   font-size: 18px;
   font-weight: 600;
+}
+
+.ts-card {
+  padding: 20px;
+  border-radius: 8px;
+  margin-bottom: 20px;
+  border: 1px solid #e5e7eb;
+}
+
+.ts-bg-blue { background: #eff6ff; border-color: #bfdbfe; }
+.ts-bg-yellow { background: #fffbeb; border-color: #fde68a; }
+.ts-bg-green { background: #f0fdf4; border-color: #bbf7d0; }
+.ts-bg-purple { background: #faf5ff; border-color: #e9d5ff; }
+.ts-bg-gray { background: #f3f4f6; border-color: #d1d5db; }
+
+.ts-grid-3 { display: grid; grid-template-columns: repeat(3, 1fr); gap: 20px; }
+.ts-grid-2 { display: grid; grid-template-columns: repeat(2, 1fr); gap: 20px; }
+
+@media (max-width: 768px) {
+  .ts-grid-3, .ts-grid-2 { grid-template-columns: 1fr; }
+}
+
+.ts-input-group { margin-bottom: 15px; }
+.ts-input-group h4 { margin: 0 0 8px 0; font-size: 14px; color: #374151; }
+.ts-label { font-size: 12px; font-weight: 600; margin-bottom: 4px; display: block; color: #4b5563; }
+
+.ts-input, .ts-textarea {
+  width: 100%;
+  padding: 10px;
+  border: 1px solid #d1d5db;
+  border-radius: 6px;
+  box-sizing: border-box;
+  font-size: 14px;
+  transition: border-color 0.2s;
+}
+
+.ts-input:focus, .ts-textarea:focus { outline: none; border-color: #ff2a75; }
+.ts-textarea { height: 80px; resize: vertical; }
+
+/* ✅ Image Preview Styles */
+.ts-preview-box {
+  position: relative;
+  width: 100%;
+  height: 120px;
+  border: 2px dashed #cbd5e1;
+  border-radius: 8px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: #f8fafc;
+  overflow: hidden;
+  margin-top: 8px;
+}
+
+.ts-preview-img {
+  width: 100%;
+  height: 100%;
+  object-fit: contain;
+  background: #fff;
+}
+
+.ts-remove-btn {
+  position: absolute;
+  top: 5px;
+  right: 5px;
+  background: #ef4444;
+  color: white;
+  border: none;
+  border-radius: 50%;
+  width: 24px;
+  height: 24px;
+  font-size: 12px;
+  font-weight: bold;
   cursor: pointer;
-  transition: background-color 0.2s;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  box-shadow: 0 2px 5px rgba(0,0,0,0.2);
 }
 
-.save-btn:hover:not(:disabled) {
-  background-color: #2ecc71;
+.ts-remove-btn:hover { background: #dc2626; }
+
+.ts-file-input {
+  width: 100%;
+  font-size: 12px;
+  padding: 8px 0;
 }
 
-.save-btn:disabled {
-  background-color: #95a5a6;
-  cursor: not-allowed;
-  opacity: 0.7;
+/* Slider Preview Gallery */
+.ts-slider-gallery {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+  margin-top: 15px;
 }
+.ts-slider-thumb {
+  position: relative;
+  width: 80px;
+  height: 80px;
+  border-radius: 6px;
+  overflow: hidden;
+  border: 1px solid #ddd;
+}
+.ts-slider-thumb img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+
+/* Buttons */
+.ts-btn-primary {
+  padding: 14px 24px;
+  background: #ff2a75;
+  color: white;
+  border: none;
+  border-radius: 8px;
+  cursor: pointer;
+  font-size: 16px;
+  font-weight: bold;
+  margin-top: 20px;
+  width: 100%;
+  transition: background 0.2s;
+}
+.ts-btn-primary:hover { background: #e01b5e; }
+.ts-btn-primary:disabled { background: #fca5a5; cursor: not-allowed; }
+
+.ts-btn-add {
+  background: #8b5cf6;
+  color: white;
+  border: none;
+  padding: 8px 16px;
+  border-radius: 6px;
+  cursor: pointer;
+  font-size: 14px;
+  font-weight: bold;
+}
+.ts-btn-add:hover { background: #7c3aed; }
+
+.ts-btn-danger {
+  background: #ef4444;
+  color: white;
+  border: none;
+  padding: 4px 10px;
+  border-radius: 4px;
+  cursor: pointer;
+  font-size: 12px;
+}
+
+.ts-review-row {
+  margin-bottom: 20px;
+  padding-bottom: 20px;
+  border-bottom: 1px dashed #d8b4fe;
+}
+.ts-review-row:last-child { border-bottom: none; margin-bottom: 0; padding-bottom: 0; }
+.ts-review-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 12px; }

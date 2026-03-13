@@ -18,6 +18,7 @@ import {
   FiGrid,
   FiSettings,
   FiStar,
+  FiShield, // ✅ Naya icon add kiya hai Trust Settings ke liye
 } from "react-icons/fi";
 import { MdOutlineSpaceDashboard } from "react-icons/md";
 import { TbCategory } from "react-icons/tb";
@@ -193,12 +194,19 @@ const Sidebar: React.FC<SidebarProps> = ({ sidebarOpen, closeSidebar }) => {
               gradient="orange"
             />
 
-            {/* ✅ UPDATED: Single Banner Management Link */}
             <NavItem
               to="/admin/banners"
               icon={FiImage}
               label="Banner Management"
               gradient="teal"
+            />
+
+            {/* ✅ NAYA ROUTE ADD KIYA HAI YAHAN */}
+            <NavItem
+              to="/admin/trust-settings"
+              icon={FiShield}
+              label="Trust & Factory Banners"
+              gradient="blue"
             />
 
             <NavItem

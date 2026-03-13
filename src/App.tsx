@@ -17,6 +17,9 @@ import CategoryForm from "./components/CategoryForm";
 // ✅ UNIFIED: Banner Management (Replaces BannerList and AddBanner)
 import BannerManagement from "./components/BannerManagement";
 
+// ✅ NEW: Trust Settings Management
+import TrustSettingsAdmin from "./components/TrustSettingsAdmin";
+
 import AdminDashboard from "./components/AdminDashboard"; // Customer Database
 import AdminOrders from "./components/AdminOrders";
 import WhatsAppSettings from "./components/WhatsAppSettings";
@@ -90,6 +93,9 @@ const App: React.FC = () => {
 
           {/* ✅ UPDATED: Single Unified Banner Management Route */}
           <Route path="banners" element={<BannerManagement />} />
+
+          {/* ✅ NAYA ROUTE ADD KIYA HAI YAHAN */}
+          <Route path="trust-settings" element={<TrustSettingsAdmin />} />
 
           {/* ✅ NEW: Home Builder */}
           <Route path="home-builder" element={<AdminHomeBuilder />} />

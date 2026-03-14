@@ -1,11 +1,10 @@
-import React, { useEffect, useState, ChangeEvent, FormEvent } from "react";
+import React, { useEffect, useState, useRef, ChangeEvent, FormEvent } from "react"; // ✅ useRef added
 import { useNavigate, useParams } from "react-router-dom";
 import Swal from "sweetalert2"; 
-import { FiX, FiUpload, FiSave, FiSearch, FiPlus, FiList, FiImage, FiTrash, FiBox, FiLink, FiPackage } from "react-icons/fi";
-import axios from "axios"; // ✅ Changed: Import axios directly
+import { FiX, FiUpload, FiSave, FiSearch, FiPlus, FiList, FiImage, FiTrash, FiBox, FiLink, FiPackage, FiStar, FiMove } from "react-icons/fi"; // ✅ FiMove added for drag icon
+import axios from "axios"; 
 import "../styles/ProductForm.css";
 
-// --- ✅ CONFIGURATION (Live URL Fix) ---
 const API_BASE =
   process.env.VITE_API_URL ||
   process.env.REACT_APP_API_URL ||
@@ -87,11 +86,14 @@ const ProductForm: React.FC = () => {
   const [searchResults, setSearchResults] = useState<ProductOption[]>([]);
   const [showResults, setShowResults] = useState(false);
 
+  // ✅ Drag and Drop Refs
+  const dragItem = useRef<number | null>(null);
+  const dragOverItem = useRef<number | null>(null);
+
   // Load Data
   useEffect(() => {
     const fetchData = async () => {
       try {
-        // ✅ Changed: Using axios with API_BASE
         const categoriesRes = await axios.get(`${API_BASE}/categories`);
         setCategories(categoriesRes.data);
 
@@ -128,7 +130,6 @@ const ProductForm: React.FC = () => {
              })));
           }
         } else {
-            // Reset Form
             setForm({
                 name: "", sku: "", mrp: "", price: "", stock: "", unit: "", 
                 description: "", tagline: "", packSize: "", category: "",
@@ -147,13 +148,11 @@ const ProductForm: React.FC = () => {
     fetchData();
   }, [editMode, id]);
 
-  // --- Main Toolbar Search Logic ---
   const handleSearch = async (e: ChangeEvent<HTMLInputElement>) => {
     const query = e.target.value;
     setSearchQuery(query);
     if (query.length > 1) {
       try {
-        // ✅ Changed: Using axios with API_BASE
         const res = await axios.get(`${API_BASE}/products/search/all?query=${query}`);
         setSearchResults(res.data);
         setShowResults(true);
@@ -170,14 +169,12 @@ const ProductForm: React.FC = () => {
     navigate(`/admin/products/edit/${prodId}`);
   };
 
-  // --- Related Products Search Logic ---
   const handleRelatedSearch = async (e: ChangeEvent<HTMLInputElement>) => {
     const query = e.target.value;
     setRelatedQuery(query);
     
     if (query.length > 1) {
         try {
-            // ✅ Changed: Using axios with API_BASE
             const res = await axios.get(`${API_BASE}/products/search/all?query=${query}`);
             const filtered = res.data.filter((p: ProductOption) => 
                 p._id !== id && !relatedDisplay.some(r => r._id === p._id)
@@ -204,7 +201,6 @@ const ProductForm: React.FC = () => {
     setRelatedDisplay(prev => prev.filter(p => p._id !== prodId));
   };
 
-  // --- Form Handlers ---
   const handleAddNew = () => navigate("/admin/products/new");
 
   const handleDelete = async () => {
@@ -223,7 +219,6 @@ const ProductForm: React.FC = () => {
       try {
         setLoading(true);
         Swal.fire({ title: 'Deleting...', didOpen: () => Swal.showLoading() });
-        // ✅ Changed: Using axios with API_BASE
         await axios.delete(`${API_BASE}/products/${id}`);
         await Swal.fire({ icon: 'success', title: 'Deleted!', timer: 1500, showConfirmButton: false });
         navigate("/admin/products/new");
@@ -258,6 +253,30 @@ const ProductForm: React.FC = () => {
     setGallery((g) => g.filter((_, i) => i !== idx));
   };
 
+  const setMainImage = (idx: number) => {
+    if (idx === 0) return; 
+    setGallery((prev) => {
+      const updatedGallery = [...prev];
+      const [selectedImg] = updatedGallery.splice(idx, 1);
+      updatedGallery.unshift(selectedImg); 
+      return updatedGallery;
+    });
+  };
+
+  // ✅ NEW FUNCTION: Handle Drag and Drop Sorting
+  const handleSort = () => {
+    if (dragItem.current !== null && dragOverItem.current !== null) {
+      const _gallery = [...gallery];
+      // Dragged item ko nikalna aur nayi jagah par insert karna
+      const draggedItemContent = _gallery.splice(dragItem.current, 1)[0];
+      _gallery.splice(dragOverItem.current, 0, draggedItemContent);
+      setGallery(_gallery);
+    }
+    // Reset Refs
+    dragItem.current = null;
+    dragOverItem.current = null;
+  };
+
   const handleSubmit = async (e: FormEvent) => {
     e.preventDefault();
     setLoading(true);
@@ -274,9 +293,20 @@ const ProductForm: React.FC = () => {
       if (newImages.length) {
         const formData = new FormData();
         newImages.forEach((g) => g.file && formData.append("images", g.file));
-        // ✅ Changed: Using axios with API_BASE
         const res = await axios.post(`${API_BASE}/upload`, formData, { headers: { "Content-Type": "multipart/form-data" } });
         uploadedUrls = res.data.urls;
+      }
+
+      const finalImagesOrder: string[] = [];
+      let uploadIndex = 0;
+      
+      for (const img of gallery) {
+        if (img.isExisting) {
+            finalImagesOrder.push(img.url);
+        } else {
+            finalImagesOrder.push(uploadedUrls[uploadIndex]);
+            uploadIndex++;
+        }
       }
 
       const payload: ProductPayload = {
@@ -290,16 +320,14 @@ const ProductForm: React.FC = () => {
         tagline: form.tagline.trim() || undefined,
         packSize: form.packSize.trim() || undefined,
         category: form.category,
-        images: [...gallery.filter((g) => g.isExisting).map((g) => g.url), ...uploadedUrls],
+        images: finalImagesOrder, 
         relatedProducts: relatedDisplay.map(p => p._id),
       };
 
       if (editMode && id) {
-        // ✅ Changed: Using axios with API_BASE
         await axios.put(`${API_BASE}/products/${id}`, payload);
         await Swal.fire({ icon: 'success', title: 'Updated!', timer: 1500, showConfirmButton: false });
       } else {
-        // ✅ Changed: Using axios with API_BASE
         const res = await axios.post(`${API_BASE}/products`, payload);
         await Swal.fire({ icon: 'success', title: 'Created!', timer: 1500, showConfirmButton: false });
         const newId = res.data._id || res.data.id || res.data.product?._id; 
@@ -376,7 +404,6 @@ const ProductForm: React.FC = () => {
                 </div>
             </div>
 
-            {/* ✅ Pricing, Stock & Unit Section */}
             <div className="pricing-row" style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr 1fr', gap: '15px' }}>
               <div className="form-group">
                 <label>MRP (₹)</label>
@@ -391,7 +418,6 @@ const ProductForm: React.FC = () => {
                 <input type="number" name="stock" value={form.stock} onChange={handleChange} placeholder="Qty" />
               </div>
               
-              {/* ✅ NEW UNIT FIELD (Text Input for manual entry) */}
               <div className="form-group">
                 <label style={{ display: 'flex', alignItems: 'center', gap: '5px' }}><FiPackage /> Unit</label>
                 <input 
@@ -413,18 +439,54 @@ const ProductForm: React.FC = () => {
           <div className="side-column">
             {/* Image Upload */}
             <div className="form-card secondary">
-                <h2 className="section-title">Images</h2>
+                <h2 className="section-title">Images (Drag to Sort)</h2> {/* ✅ Added context to title */}
                 <div className="file-upload">
                 <label>
                     <FiUpload /> Click to upload
                     <input type="file" multiple accept="image/*" onChange={handleGalleryFiles} style={{ display: "none" }} />
                 </label>
                 </div>
+                
                 <div className="image-preview-grid">
                 {gallery.map((img, idx) => (
-                    <div key={idx} className="image-preview">
-                    <img src={img.url} alt="Preview" />
-                    <button type="button" onClick={() => removeImage(idx)} className="remove-btn"><FiX /></button>
+                    <div 
+                      key={idx} 
+                      className="image-preview" 
+                      draggable // ✅ Make it draggable
+                      onDragStart={() => (dragItem.current = idx)} // ✅ When drag starts
+                      onDragEnter={() => (dragOverItem.current = idx)} // ✅ When dragged over another item
+                      onDragEnd={handleSort} // ✅ When drop is completed
+                      onDragOver={(e) => e.preventDefault()} // ✅ Required to allow dropping
+                      style={{ 
+                        position: 'relative', 
+                        overflow: 'hidden', 
+                        border: idx === 0 ? '2px solid #3b82f6' : '1px solid #ddd',
+                        cursor: 'grab' // ✅ Show grab cursor
+                      }}
+                    >
+                    
+                    <img src={img.url} alt="Preview" style={{ pointerEvents: 'none' }} /> {/* Disable pointer events on img so drag works smoothly */}
+                    
+                    {/* Badge for Main Image */}
+                    {idx === 0 && (
+                        <div style={{ position: 'absolute', top: '4px', left: '4px', background: '#3b82f6', color: 'white', fontSize: '10px', padding: '2px 6px', borderRadius: '4px', display: 'flex', alignItems: 'center', gap: '3px', pointerEvents: 'none' }}>
+                           <FiStar size={10} /> Main
+                        </div>
+                    )}
+
+                    {/* Drag Icon Indicator */}
+                    <div style={{ position: 'absolute', top: '4px', right: '30px', color: 'white', background: 'rgba(0,0,0,0.5)', borderRadius: '50%', padding: '4px', display: 'flex', pointerEvents: 'none' }}>
+                       <FiMove size={12} />
+                    </div>
+                    
+                    {/* Button to Make Main (shown only on gallery images) */}
+                    {idx !== 0 && (
+                        <button type="button" onClick={() => setMainImage(idx)} style={{ position: 'absolute', bottom: '4px', left: '4px', background: 'rgba(0,0,0,0.6)', color: 'white', border: 'none', fontSize: '10px', padding: '4px 6px', borderRadius: '4px', cursor: 'pointer' }}>
+                            Set Main
+                        </button>
+                    )}
+
+                    <button type="button" onClick={() => removeImage(idx)} className="remove-btn" style={{ zIndex: 10 }}><FiX /></button>
                     </div>
                 ))}
                 </div>

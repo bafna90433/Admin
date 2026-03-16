@@ -12,9 +12,9 @@ import {
   FiPlus,
   FiTrash2,
   FiLayers,
-  FiMessageSquare, // New Icon for Reviews
-  FiCheckCircle,   // New Icon for Active state
-  FiXCircle        // New Icon for Inactive state
+  FiMessageSquare,
+  FiCheckCircle,
+  FiXCircle
 } from "react-icons/fi";
 import "../styles/PaymentShipping.css";
 
@@ -30,7 +30,7 @@ interface DiscountRule {
 }
 
 const PaymentShippingSettings: React.FC = () => {
-  // --- Existing States ---
+  // --- States ---
   const [shippingCharge, setShippingCharge] = useState<number>(0);
   const [freeLimit, setFreeLimit] = useState<number>(0);
   const [advanceAmount, setAdvanceAmount] = useState<number>(0);
@@ -38,8 +38,9 @@ const PaymentShippingSettings: React.FC = () => {
     { minAmount: 1000, discountPercentage: 5 },
   ]);
 
-  // --- ✅ NEW: Review State ---
+  // --- Toggles State ---
   const [enableReviews, setEnableReviews] = useState<boolean>(true);
+  const [enableCOD, setEnableCOD] = useState<boolean>(true); // ✅ NEW COD STATE
 
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
@@ -57,7 +58,7 @@ const PaymentShippingSettings: React.FC = () => {
         axios.get(`${API_BASE}/shipping-rules`),
         axios.get(`${API_BASE}/settings/cod`),
         axios.get(`${API_BASE}/discount-rules`),
-        axios.get(`${API_BASE}/settings/reviews`), // ✅ Fetch Review Settings
+        axios.get(`${API_BASE}/settings/reviews`),
       ]);
 
       // 1. Shipping
@@ -69,6 +70,7 @@ const PaymentShippingSettings: React.FC = () => {
       // 2. COD
       if (codRes.status === "fulfilled" && codRes.value.data) {
         setAdvanceAmount(codRes.value.data.advanceAmount || 0);
+        setEnableCOD(codRes.value.data.enabled !== false); // ✅ Fetch COD Status
       }
 
       // 3. Discount Rules
@@ -82,9 +84,8 @@ const PaymentShippingSettings: React.FC = () => {
         setDiscountRules([{ minAmount: 1000, discountPercentage: 5 }]);
       }
 
-      // 4. ✅ Reviews
+      // 4. Reviews
       if (reviewRes.status === "fulfilled" && reviewRes.value.data) {
-        // Default to true if undefined
         setEnableReviews(reviewRes.value.data.enabled !== false);
       }
     } catch (err) {
@@ -105,7 +106,6 @@ const PaymentShippingSettings: React.FC = () => {
 
   const handleRemoveRule = (index: number) => {
     setDiscountRules((prev) => {
-      // ✅ keep at least 1 rule
       if (prev.length <= 1) return prev;
       return prev.filter((_, i) => i !== index);
     });
@@ -127,7 +127,7 @@ const PaymentShippingSettings: React.FC = () => {
   const handleSaveAll = async () => {
     setSaving(true);
     try {
-      // ✅ validate discounts
+      // Validate discounts
       const validRules = discountRules
         .filter((r) => r.minAmount > 0 && r.discountPercentage > 0)
         .map((r) => ({
@@ -149,9 +149,9 @@ const PaymentShippingSettings: React.FC = () => {
         }),
         axios.put(`${API_BASE}/settings/cod`, {
           advanceAmount: Number(advanceAmount),
+          enabled: enableCOD, // ✅ Save COD Status
         }),
         axios.put(`${API_BASE}/discount-rules`, { rules: validRules }),
-        // ✅ Save Review Settings
         axios.put(`${API_BASE}/settings/reviews`, { enabled: enableReviews }),
       ]);
 
@@ -374,7 +374,71 @@ const PaymentShippingSettings: React.FC = () => {
                 </div>
               </div>
 
-              <div className="form-group">
+              {/* ✅ NEW: COD Toggle Switch */}
+              <div className="form-group" style={{ marginBottom: "15px" }}>
+                <div 
+                  className="toggle-container"
+                  style={{
+                    display: "flex",
+                    alignItems: "center",
+                    justifyContent: "space-between",
+                    padding: "15px",
+                    background: enableCOD ? "#fff7ed" : "#f3f4f6",
+                    borderRadius: "10px",
+                    border: `1px solid ${enableCOD ? "#f97316" : "#e5e7eb"}`,
+                    transition: "all 0.3s ease"
+                  }}
+                >
+                  <div style={{ display: "flex", alignItems: "center", gap: "10px" }}>
+                    {enableCOD ? (
+                      <FiCheckCircle style={{ color: "#f97316", fontSize: "1.2rem" }} />
+                    ) : (
+                      <FiXCircle style={{ color: "#9ca3af", fontSize: "1.2rem" }} />
+                    )}
+                    <span style={{ 
+                      fontWeight: 600, 
+                      color: enableCOD ? "#9a3412" : "#6b7280" 
+                    }}>
+                      {enableCOD ? "Cash on Delivery Enabled" : "Cash on Delivery Disabled"}
+                    </span>
+                  </div>
+
+                  <label className="switch" style={{ position: "relative", display: "inline-block", width: "50px", height: "26px" }}>
+                    <input 
+                      type="checkbox" 
+                      checked={enableCOD} 
+                      onChange={(e) => setEnableCOD(e.target.checked)}
+                      style={{ opacity: 0, width: 0, height: 0 }}
+                    />
+                    <span 
+                      className="slider round" 
+                      style={{
+                        position: "absolute",
+                        cursor: "pointer",
+                        top: 0, left: 0, right: 0, bottom: 0,
+                        backgroundColor: enableCOD ? "#f97316" : "#ccc",
+                        transition: ".4s",
+                        borderRadius: "34px"
+                      }}
+                    >
+                      <span style={{
+                        position: "absolute",
+                        content: '""',
+                        height: "18px",
+                        width: "18px",
+                        left: enableCOD ? "26px" : "4px",
+                        bottom: "4px",
+                        backgroundColor: "white",
+                        transition: ".4s",
+                        borderRadius: "50%"
+                      }}/>
+                    </span>
+                  </label>
+                </div>
+              </div>
+
+              {/* ✅ Advance Amount (Fades out when COD is OFF) */}
+              <div className="form-group" style={{ opacity: enableCOD ? 1 : 0.5, pointerEvents: enableCOD ? "auto" : "none", transition: "0.3s" }}>
                 <label>Required Advance Amount</label>
                 <div className="input-wrapper">
                   <span className="currency-symbol">₹</span>
@@ -382,6 +446,7 @@ const PaymentShippingSettings: React.FC = () => {
                     type="number"
                     value={advanceAmount}
                     onChange={(e) => setAdvanceAmount(Number(e.target.value))}
+                    disabled={!enableCOD}
                   />
                   <FiCreditCard className="input-icon-right" />
                 </div>
@@ -392,9 +457,9 @@ const PaymentShippingSettings: React.FC = () => {
             </div>
           </div>
 
-          {/* 4) ✅ NEW: REVIEW SETTINGS */}
+          {/* 4) REVIEWS */}
           <div className="ps-card">
-            <div className="card-top-bar" style={{ backgroundColor: "#059669" }} /> {/* Green */}
+            <div className="card-top-bar" style={{ backgroundColor: "#059669" }} />
             <div className="card-content">
               <div className="card-header">
                 <div className="icon-circle" style={{ backgroundColor: "#d1fae5", color: "#059669" }}>

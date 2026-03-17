@@ -3,11 +3,10 @@ import React, { useEffect, useMemo, useState, useCallback } from "react";
 import axios from "axios";
 import "../styles/AdminOrdersModern.css";
 
-// Excel export
 import * as XLSX from "xlsx";
 import { saveAs } from "file-saver";
 
-/* ================= CONFIG (Same style as CustomerSales) ================= */
+/* ================= CONFIG ================= */
 const API_BASE =
   (import.meta as any).env?.VITE_API_URL ||
   (process as any).env?.VITE_API_URL ||
@@ -52,7 +51,12 @@ type ShippingAddress = {
   isDefault?: boolean;
 };
 
-type OrderStatus = "pending" | "processing" | "shipped" | "delivered" | "cancelled";
+type OrderStatus =
+  | "pending"
+  | "processing"
+  | "shipped"
+  | "delivered"
+  | "cancelled";
 type PaymentMode = "COD" | "ONLINE";
 
 type Order = {
@@ -62,19 +66,14 @@ type Order = {
   customerId?: CustomerLite;
   items: OrderItem[];
   total: number;
-
   paymentMode?: PaymentMode;
   status: OrderStatus;
   shippingAddress?: ShippingAddress;
-
   isShipped?: boolean;
   trackingId?: string;
   courierName?: string;
   trackingToken?: string;
-
   cancelledBy?: string;
-  
-  // ✅ Added WA Type
   wa?: {
     orderConfirmedSent?: boolean;
     trackingSent?: boolean;
@@ -93,7 +92,8 @@ const authHeaders = () => {
 const resolveImage = (img?: string): string => {
   if (!img) return "";
   if (img.startsWith("http")) return img;
-  if (img.startsWith("/uploads") || img.startsWith("/images")) return `${MEDIA_BASE}${img}`;
+  if (img.startsWith("/uploads") || img.startsWith("/images"))
+    return `${MEDIA_BASE}${img}`;
   return `${MEDIA_BASE}/uploads/${encodeURIComponent(img)}`;
 };
 
@@ -108,7 +108,8 @@ const toInners = (it: OrderItem): number => {
   return Math.ceil((it.qty || 0) / perInner);
 };
 
-const norm = (v?: string | number) => (v ?? "").toString().toLowerCase().trim();
+const norm = (v?: string | number) =>
+  (v ?? "").toString().toLowerCase().trim();
 
 const formatExcelDate = (iso?: string): string =>
   iso
@@ -121,28 +122,32 @@ const formatExcelDate = (iso?: string): string =>
       })
     : "-";
 
-const paymentLabel = (mode?: PaymentMode) => (mode === "ONLINE" ? "Paid (Online)" : "Cash on Delivery");
+const paymentLabel = (mode?: PaymentMode) =>
+  mode === "ONLINE" ? "Paid (Online)" : "Cash on Delivery";
 
-/* ✅ WhatsApp normalize: show as 91XXXXXXXXXX */
 const normalizeWhatsApp91 = (raw?: string) => {
   const digits = String(raw || "").replace(/\D/g, "");
   if (!digits) return "";
   const without91 = digits.startsWith("91") ? digits.slice(2) : digits;
-  const last10 = without91.length > 10 ? without91.slice(-10) : without91;
+  const last10 =
+    without91.length > 10 ? without91.slice(-10) : without91;
   if (last10.length !== 10) return "";
   return `91${last10}`;
 };
 
-/* ✅ Smart Tracking link for admin view only */
 const getExternalTrackingLink = (courier?: string) => {
   const cName = norm(courier);
-  if (cName.includes("delhivery")) return "https://www.delhivery.com/tracking";
-  if (cName.includes("vxpress") || cName.includes("v-xpress") || cName.includes("v xpress"))
+  if (cName.includes("delhivery"))
+    return "https://www.delhivery.com/tracking";
+  if (
+    cName.includes("vxpress") ||
+    cName.includes("v-xpress") ||
+    cName.includes("v xpress")
+  )
     return "https://vxpress.in/track-result/";
   return null;
 };
 
-/* ✅ Status label: processing ko CONFIRM dikhana hai */
 const statusLabel = (s: OrderStatus) => {
   if (s === "processing") return "Confirmed";
   return s.charAt(0).toUpperCase() + s.slice(1);
@@ -151,10 +156,16 @@ const statusLabel = (s: OrderStatus) => {
 /* --- Export Functions --- */
 const exportAllOrders = (orders: Order[]) => {
   const rows = orders.map((o) => {
-    const wa = normalizeWhatsApp91(o.customerId?.whatsapp || o.customerId?.otpMobile);
+    const wa = normalizeWhatsApp91(
+      o.customerId?.whatsapp || o.customerId?.otpMobile
+    );
     return {
       OrderNumber: o.orderNumber || o._id.slice(-6),
-      Status: statusLabel(o.status as OrderStatus) + (o.status === "cancelled" && o.cancelledBy ? ` (${o.cancelledBy})` : ""),
+      Status:
+        statusLabel(o.status as OrderStatus) +
+        (o.status === "cancelled" && o.cancelledBy
+          ? ` (${o.cancelledBy})`
+          : ""),
       Total: o.total,
       Payment_Mode: paymentLabel(o.paymentMode),
       CreatedAt: formatExcelDate(o.createdAt),
@@ -163,7 +174,9 @@ const exportAllOrders = (orders: Order[]) => {
       WhatsApp: wa || "",
       ShippingName: o.shippingAddress?.fullName || "",
       ShippingPhone: o.shippingAddress?.phone || "",
-      ShippingAddress: `${o.shippingAddress?.street || ""}, ${o.shippingAddress?.area || ""}`,
+      ShippingAddress: `${o.shippingAddress?.street || ""}, ${
+        o.shippingAddress?.area || ""
+      }`,
       ShippingCity: o.shippingAddress?.city || "",
       ShippingState: o.shippingAddress?.state || "",
       ShippingPincode: o.shippingAddress?.pincode || "",
@@ -172,18 +185,21 @@ const exportAllOrders = (orders: Order[]) => {
       Courier: o.courierName || "-",
     };
   });
-
   const ws = XLSX.utils.json_to_sheet(rows);
   const wb = XLSX.utils.book_new();
   XLSX.utils.book_append_sheet(wb, ws, "Orders");
   const buf = XLSX.write(wb, { bookType: "xlsx", type: "array" });
-  saveAs(new Blob([buf], { type: "application/octet-stream" }), "all_orders.xlsx");
+  saveAs(
+    new Blob([buf], { type: "application/octet-stream" }),
+    "all_orders.xlsx"
+  );
 };
 
 const exportSingleOrder = (order: Order) => {
   const createdAt = formatExcelDate(order.createdAt);
-  const wa = normalizeWhatsApp91(order.customerId?.whatsapp || order.customerId?.otpMobile);
-
+  const wa = normalizeWhatsApp91(
+    order.customerId?.whatsapp || order.customerId?.otpMobile
+  );
   const rows = order.items.map((it) => ({
     OrderNumber: order.orderNumber || order._id.slice(-6),
     Status: statusLabel(order.status),
@@ -192,7 +208,9 @@ const exportSingleOrder = (order: Order) => {
     Phone: order.customerId?.otpMobile || "",
     WhatsApp: wa || "",
     ShippingName: order.shippingAddress?.fullName || "",
-    ShippingAddress: `${order.shippingAddress?.street || ""}, ${order.shippingAddress?.area || ""}`,
+    ShippingAddress: `${order.shippingAddress?.street || ""}, ${
+      order.shippingAddress?.area || ""
+    }`,
     Item: it.name,
     Qty: it.qty,
     Price: it.price,
@@ -202,32 +220,35 @@ const exportSingleOrder = (order: Order) => {
     TrackingID: order.trackingId || "-",
     Courier: order.courierName || "-",
   }));
-
   const ws = XLSX.utils.json_to_sheet(rows);
   const wb = XLSX.utils.book_new();
   XLSX.utils.book_append_sheet(wb, ws, "Order");
   const buf = XLSX.write(wb, { bookType: "xlsx", type: "array" });
-  saveAs(new Blob([buf], { type: "application/octet-stream" }), `order_${order.orderNumber || order._id.slice(-6)}.xlsx`);
+  saveAs(
+    new Blob([buf], { type: "application/octet-stream" }),
+    `order_${order.orderNumber || order._id.slice(-6)}.xlsx`
+  );
 };
 
 /* --- Invoice Generator --- */
 const generateInvoice = (order: Order) => {
   const printWindow = window.open("", "_blank");
   if (!printWindow) return;
-
   const currentDate = new Date().toLocaleDateString("en-IN", {
     year: "numeric",
     month: "long",
     day: "numeric",
   });
-
   const shippingAddr = order.shippingAddress;
-  const wa = normalizeWhatsApp91(order.customerId?.whatsapp || order.customerId?.otpMobile);
-
+  const wa = normalizeWhatsApp91(
+    order.customerId?.whatsapp || order.customerId?.otpMobile
+  );
   let shippingHtml = "No shipping address provided";
   if (shippingAddr) {
     shippingHtml = [
-      shippingAddr.fullName ? `<strong>${shippingAddr.fullName}</strong>` : "",
+      shippingAddr.fullName
+        ? `<strong>${shippingAddr.fullName}</strong>`
+        : "",
       shippingAddr.street,
       shippingAddr.area,
       `${shippingAddr.city}, ${shippingAddr.state}`,
@@ -237,93 +258,45 @@ const generateInvoice = (order: Order) => {
       .filter(Boolean)
       .join("<br>");
   }
-
   const paymentText = paymentLabel(order.paymentMode);
-
-  const content = `
-    <!DOCTYPE html>
-    <html>
-    <head>
-      <title>Invoice - ${order.orderNumber || order._id.slice(-6)}</title>
-      <style>
-        body { font-family: 'Segoe UI', Arial, sans-serif; padding: 20px; background: #fff; color: #333; }
-        .invoice-container { max-width: 850px; margin: 0 auto; border: 1px solid #ddd; padding: 30px; }
-        .header { text-align: center; margin-bottom: 25px; border-bottom: 3px solid #2c5aa0; padding-bottom: 15px; }
-        .header img { max-height: 70px; }
-        .invoice-details { display: flex; justify-content: space-between; gap: 14px; margin-bottom: 25px; }
-        .detail-section { width: 32%; }
-        .detail-section h3 { font-size: 15px; color: #2c5aa0; border-bottom: 1px solid #ddd; margin-bottom: 5px; }
-        table { width: 100%; border-collapse: collapse; margin: 20px 0; font-size: 14px; }
-        th { background: #2c5aa0; color: #fff; padding: 10px; text-align: left; }
-        td { padding: 10px; border-bottom: 1px solid #eee; }
-        .footer { margin-top: 40px; text-align: center; font-size: 12px; color: #777; }
-        @media print { .btn-hide { display: none; } }
-      </style>
-    </head>
-    <body>
-      <div class="invoice-container">
-        <div class="header">
-          <img src="https://res.cloudinary.com/dpdecxqb9/image/upload/v1758783697/bafnatoys/lwccljc9kkosfv9wnnrq.png" alt="BafnaToys" />
-          <p>1-12, Sundapalayam Rd, Coimbatore, Tamil Nadu 641007 <br> +91 9043347300 | bafnatoysphotos@gmail.com</p>
-          <h2>PRO FORMA INVOICE</h2>
-        </div>
-
-        <div class="invoice-details">
-          <div class="detail-section">
-            <h3>Bill To</h3>
-            <p>
-              <strong>${order.customerId?.shopName || "-"}</strong><br>
-              Mobile: ${order.customerId?.otpMobile || "-"}<br>
-              WhatsApp: ${wa || "-"}
-            </p>
-          </div>
-          <div class="detail-section">
-            <h3>Ship To</h3>
-            <p>${shippingHtml}</p>
-          </div>
-          <div class="detail-section">
-             <h3>Order Details</h3>
-             <p>
-              Invoice: ${order.orderNumber}<br>
-              Date: ${currentDate}<br>
-              Payment: ${paymentText}<br>
-              ${order.trackingId ? `AWB: ${order.trackingId}` : ""}
-             </p>
-          </div>
-        </div>
-
-        <table>
-          <thead><tr><th>Product</th><th>Qty</th><th>Rate</th><th>Amount</th></tr></thead>
-          <tbody>
-            ${order.items
-              .map((it) => `<tr><td>${it.name}</td><td>${it.qty}</td><td>₹${it.price}</td><td>₹${it.qty * it.price}</td></tr>`)
-              .join("")}
-          </tbody>
-          <tfoot>
-            <tr><td colspan="3" align="right"><strong>Total</strong></td><td><strong>₹${order.total}</strong></td></tr>
-          </tfoot>
-        </table>
-
-        <div class="footer"><p>Thank you for choosing BafnaToys!</p></div>
-      </div>
-
-      <div style="text-align:center; margin-top:20px;" class="btn-hide">
-        <button onclick="window.print()" style="padding:10px 20px; background:#2c5aa0; color:white; border:none; cursor:pointer;">Print Invoice</button>
-      </div>
-    </body>
-    </html>`;
-
+  const content = `<!DOCTYPE html><html><head><title>Invoice - ${
+    order.orderNumber || order._id.slice(-6)
+  }</title><style>body{font-family:'Segoe UI',Arial,sans-serif;padding:20px;background:#fff;color:#333}.invoice-container{max-width:850px;margin:0 auto;border:1px solid #ddd;padding:30px}.header{text-align:center;margin-bottom:25px;border-bottom:3px solid #2c5aa0;padding-bottom:15px}.header img{max-height:70px}.invoice-details{display:flex;justify-content:space-between;gap:14px;margin-bottom:25px}.detail-section{width:32%}.detail-section h3{font-size:15px;color:#2c5aa0;border-bottom:1px solid #ddd;margin-bottom:5px}table{width:100%;border-collapse:collapse;margin:20px 0;font-size:14px}th{background:#2c5aa0;color:#fff;padding:10px;text-align:left}td{padding:10px;border-bottom:1px solid #eee}.footer{margin-top:40px;text-align:center;font-size:12px;color:#777}@media print{.btn-hide{display:none}}</style></head><body><div class="invoice-container"><div class="header"><img src="https://res.cloudinary.com/dpdecxqb9/image/upload/v1758783697/bafnatoys/lwccljc9kkosfv9wnnrq.png" alt="BafnaToys"/><p>1-12, Sundapalayam Rd, Coimbatore, Tamil Nadu 641007<br>+91 9043347300 | bafnatoysphotos@gmail.com</p><h2>PRO FORMA INVOICE</h2></div><div class="invoice-details"><div class="detail-section"><h3>Bill To</h3><p><strong>${
+    order.customerId?.shopName || "-"
+  }</strong><br>Mobile: ${
+    order.customerId?.otpMobile || "-"
+  }<br>WhatsApp: ${
+    wa || "-"
+  }</p></div><div class="detail-section"><h3>Ship To</h3><p>${shippingHtml}</p></div><div class="detail-section"><h3>Order Details</h3><p>Invoice: ${
+    order.orderNumber
+  }<br>Date: ${currentDate}<br>Payment: ${paymentText}<br>${
+    order.trackingId ? `AWB: ${order.trackingId}` : ""
+  }</p></div></div><table><thead><tr><th>Product</th><th>Qty</th><th>Rate</th><th>Amount</th></tr></thead><tbody>${order.items
+    .map(
+      (it) =>
+        `<tr><td>${it.name}</td><td>${it.qty}</td><td>₹${it.price}</td><td>₹${
+          it.qty * it.price
+        }</td></tr>`
+    )
+    .join(
+      ""
+    )}</tbody><tfoot><tr><td colspan="3" align="right"><strong>Total</strong></td><td><strong>₹${
+    order.total
+  }</strong></td></tr></tfoot></table><div class="footer"><p>Thank you for choosing BafnaToys!</p></div></div><div style="text-align:center;margin-top:20px" class="btn-hide"><button onclick="window.print()" style="padding:10px 20px;background:#2c5aa0;color:white;border:none;cursor:pointer">Print Invoice</button></div></body></html>`;
   printWindow.document.write(content);
   printWindow.document.close();
 };
 
-/* ===================== Courier Options ===================== */
-/* ✅ ONLY 2 couriers */
+/* --- Courier Options --- */
 const COURIERS = ["Delhivery", "V-Xpress"] as const;
 
+/* --- Per-page Options --- */
+const PER_PAGE_OPTIONS = [10, 20, 50, 100, 200];
+
 const AdminOrders: React.FC = () => {
-  const [orders, setOrders] = useState<Order[]>([]);
+  const [allOrders, setAllOrders] = useState<Order[]>([]);
   const [loading, setLoading] = useState(true);
+  const [loadingMore, setLoadingMore] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [viewing, setViewing] = useState<Order | null>(null);
   const [actOn, setActOn] = useState<string | null>(null);
@@ -331,31 +304,126 @@ const AdminOrders: React.FC = () => {
   const [activeTab, setActiveTab] = useState<string>("all");
   const [debounced, setDebounced] = useState("");
 
-  // ✅ Ship modal state
+  // Pagination
+  const [currentPage, setCurrentPage] = useState(1);
+  const [perPage, setPerPage] = useState(20);
+
+  // View mode
+  const [viewMode, setViewMode] = useState<"card" | "table">("card");
+
+  // Server pagination tracking
+  const [serverPage, setServerPage] = useState(1);
+  const [hasMore, setHasMore] = useState(true);
+  const [totalFromServer, setTotalFromServer] = useState(0);
+  const SERVER_LIMIT = 200; // fetch 200 at a time
+
+  // Ship modal
   const [shipOpen, setShipOpen] = useState(false);
   const [shipOrder, setShipOrder] = useState<Order | null>(null);
   const [shipCourier, setShipCourier] = useState<string>(COURIERS[0]);
   const [shipTracking, setShipTracking] = useState<string>("");
   const [shipErr, setShipErr] = useState<string>("");
 
-  const fetchOrders = useCallback(async () => {
-    try {
-      setLoading(true);
-      const { data } = await axios.get<Order[]>(`${API_BASE}/orders?populate=shippingAddress`, {
-        headers: authHeaders(),
-      });
-      const list = Array.isArray(data) ? data : (data as any)?.orders || [];
-      setOrders(list || []);
-      setError(null);
-    } catch (err: any) {
-      setError(err?.response?.data?.message || "Unable to fetch orders");
-    } finally {
-      setLoading(false);
+  /* ===== FETCH with server pagination ===== */
+  const fetchOrders = useCallback(
+    async (page = 1, append = false) => {
+      try {
+        if (page === 1) setLoading(true);
+        else setLoadingMore(true);
+
+        const { data } = await axios.get(
+          `${API_BASE}/orders?populate=shippingAddress&page=${page}&limit=${SERVER_LIMIT}`,
+          { headers: authHeaders() }
+        );
+
+        // Handle both array response and paginated object response
+        let list: Order[] = [];
+        let total = 0;
+
+        if (Array.isArray(data)) {
+          list = data;
+          total = data.length;
+          setHasMore(false); // backend returned all
+        } else if (data?.orders) {
+          list = data.orders;
+          total = data.total || data.totalCount || list.length;
+          setHasMore(list.length === SERVER_LIMIT);
+        } else {
+          list = [];
+          total = 0;
+          setHasMore(false);
+        }
+
+        setTotalFromServer(total);
+
+        if (append) {
+          setAllOrders((prev) => {
+            const ids = new Set(prev.map((o) => o._id));
+            const newOnes = list.filter((o) => !ids.has(o._id));
+            return [...prev, ...newOnes];
+          });
+        } else {
+          setAllOrders(list);
+        }
+
+        setServerPage(page);
+        setError(null);
+      } catch (err: any) {
+        setError(
+          err?.response?.data?.message || "Unable to fetch orders"
+        );
+      } finally {
+        setLoading(false);
+        setLoadingMore(false);
+      }
+    },
+    []
+  );
+
+  const loadMoreFromServer = () => {
+    if (hasMore && !loadingMore) {
+      fetchOrders(serverPage + 1, true);
     }
-  }, []);
+  };
+
+  const loadAllFromServer = async () => {
+    // Fetch all remaining pages
+    let page = serverPage + 1;
+    setLoadingMore(true);
+    try {
+      while (true) {
+        const { data } = await axios.get(
+          `${API_BASE}/orders?populate=shippingAddress&page=${page}&limit=${SERVER_LIMIT}`,
+          { headers: authHeaders() }
+        );
+        let list: Order[] = [];
+        if (Array.isArray(data)) {
+          list = data;
+        } else if (data?.orders) {
+          list = data.orders;
+        }
+        if (list.length === 0) break;
+
+        setAllOrders((prev) => {
+          const ids = new Set(prev.map((o) => o._id));
+          const newOnes = list.filter((o) => !ids.has(o._id));
+          return [...prev, ...newOnes];
+        });
+
+        if (list.length < SERVER_LIMIT) break;
+        page++;
+      }
+      setHasMore(false);
+      setServerPage(page);
+    } catch (e) {
+      console.error("Load all failed", e);
+    } finally {
+      setLoadingMore(false);
+    }
+  };
 
   useEffect(() => {
-    fetchOrders();
+    fetchOrders(1);
   }, [fetchOrders]);
 
   useEffect(() => {
@@ -363,16 +431,27 @@ const AdminOrders: React.FC = () => {
     return () => clearTimeout(t);
   }, [search]);
 
+  // Reset page when filters change
+  useEffect(() => {
+    setCurrentPage(1);
+  }, [debounced, activeTab, perPage]);
+
+  /* ===== Status Update ===== */
   const updateStatus = async (id: string, status: OrderStatus) => {
     try {
       setActOn(id);
-      const payload = status === "cancelled" ? { status, cancelledBy: "Admin" } : { status };
+      const payload =
+        status === "cancelled"
+          ? { status, cancelledBy: "Admin" }
+          : { status };
 
-      const { data } = await axios.patch<Order>(`${API_BASE}/orders/${id}/status`, payload, {
-        headers: authHeaders(),
-      });
+      const { data } = await axios.patch<Order>(
+        `${API_BASE}/orders/${id}/status`,
+        payload,
+        { headers: authHeaders() }
+      );
 
-      setOrders((prev) =>
+      setAllOrders((prev) =>
         prev.map((o) =>
           o._id === id
             ? {
@@ -383,7 +462,7 @@ const AdminOrders: React.FC = () => {
                 isShipped: data.isShipped,
                 trackingId: data.trackingId,
                 courierName: data.courierName,
-                wa: data.wa, // ✅ WA Status update
+                wa: data.wa,
               }
             : o
         )
@@ -415,19 +494,20 @@ const AdminOrders: React.FC = () => {
   const deleteOrder = async (id: string) => {
     if (!window.confirm("Delete this order?")) return;
     try {
-      await axios.delete(`${API_BASE}/orders/${id}`, { headers: authHeaders() });
-
-      setOrders((prev) => prev.filter((o) => o._id !== id));
+      await axios.delete(`${API_BASE}/orders/${id}`, {
+        headers: authHeaders(),
+      });
+      setAllOrders((prev) => prev.filter((o) => o._id !== id));
       if (viewing?._id === id) setViewing(null);
     } catch (e: any) {
       alert(e?.response?.data?.message || "Delete failed");
     }
   };
 
+  /* ===== Ship Modal ===== */
   const openShipModal = (o: Order) => {
     setShipOrder(o);
     setShipErr("");
-
     const existing = (o.courierName || "").trim();
     const normalized = existing.toLowerCase();
     const isAllowed =
@@ -435,7 +515,6 @@ const AdminOrders: React.FC = () => {
       normalized.includes("vxpress") ||
       normalized.includes("v-xpress") ||
       normalized.includes("v xpress");
-
     setShipCourier(isAllowed && existing ? existing : COURIERS[0]);
     setShipTracking(o.trackingId?.trim() || "");
     setShipOpen(true);
@@ -449,24 +528,26 @@ const AdminOrders: React.FC = () => {
 
   const submitShip = async () => {
     if (!shipOrder) return;
-
     const courier = shipCourier.trim();
     const tracking = shipTracking.trim();
-
     if (!courier) return setShipErr("Courier select karo.");
-    if (!tracking) return setShipErr("Tracking / AWB number required.");
+    if (!tracking)
+      return setShipErr("Tracking / AWB number required.");
 
     try {
       setShipErr("");
       setActOn(shipOrder._id);
-
       const { data } = await axios.patch<Order>(
         `${API_BASE}/orders/${shipOrder._id}/status`,
-        { status: "shipped", courierName: courier, trackingId: tracking },
+        {
+          status: "shipped",
+          courierName: courier,
+          trackingId: tracking,
+        },
         { headers: authHeaders() }
       );
 
-      setOrders((prev) =>
+      setAllOrders((prev) =>
         prev.map((o) =>
           o._id === shipOrder._id
             ? {
@@ -475,7 +556,7 @@ const AdminOrders: React.FC = () => {
                 trackingId: data.trackingId,
                 courierName: data.courierName,
                 status: data.status,
-                wa: data.wa, // ✅ WA Status update
+                wa: data.wa,
               }
             : o
         )
@@ -497,66 +578,141 @@ const AdminOrders: React.FC = () => {
       }
 
       closeShipModal();
-      alert("✅ Shipped updated. WhatsApp customer ko backend se send ho jayega.");
+      alert("✅ Shipped! WhatsApp will be sent from backend.");
     } catch (e: any) {
-      setShipErr(e?.response?.data?.message || "Shipping update failed");
+      setShipErr(
+        e?.response?.data?.message || "Shipping update failed"
+      );
     } finally {
       setActOn(null);
     }
   };
 
+  /* ===== Filtered & Paginated ===== */
   const filteredOrders = useMemo(() => {
-    let list = orders;
+    let list = allOrders;
 
     if (activeTab !== "all") {
-      // ✅ UI me "confirmed" tab dikhana hai but backend me status "processing" hi rahega
-      const mapped = activeTab === "confirmed" ? "processing" : activeTab;
+      const mapped =
+        activeTab === "confirmed" ? "processing" : activeTab;
       list = list.filter((o) => o.status === mapped);
     }
 
     const q = debounced.trim().toLowerCase();
-    if (!q) return list;
+    if (q) {
+      list = list.filter((o) => {
+        const inOrderNum = norm(o.orderNumber || o._id).includes(q);
+        const inCustomer =
+          norm(o.customerId?.shopName).includes(q) ||
+          norm(o.customerId?.otpMobile).includes(q) ||
+          norm(o.customerId?.whatsapp).includes(q);
+        const inShipping =
+          norm(o.shippingAddress?.city).includes(q) ||
+          norm(o.shippingAddress?.fullName).includes(q);
+        const inPayment = norm(o.paymentMode).includes(q);
+        return inOrderNum || inCustomer || inShipping || inPayment;
+      });
+    }
 
-    return list.filter((o) => {
-      const inOrderNum = norm(o.orderNumber || o._id).includes(q);
-      const inCustomer =
-        norm(o.customerId?.shopName).includes(q) ||
-        norm(o.customerId?.otpMobile).includes(q) ||
-        norm(o.customerId?.whatsapp).includes(q);
-      const inShipping = norm(o.shippingAddress?.city).includes(q) || norm(o.shippingAddress?.fullName).includes(q);
-      const inPayment = norm(o.paymentMode).includes(q);
-      return inOrderNum || inCustomer || inShipping || inPayment;
+    return list;
+  }, [allOrders, debounced, activeTab]);
+
+  const totalPages = Math.max(
+    1,
+    Math.ceil(filteredOrders.length / perPage)
+  );
+  const safePage = Math.min(currentPage, totalPages);
+
+  const paginatedOrders = useMemo(() => {
+    const start = (safePage - 1) * perPage;
+    return filteredOrders.slice(start, start + perPage);
+  }, [filteredOrders, safePage, perPage]);
+
+  /* ===== Stats ===== */
+  const stats = useMemo(() => {
+    const s = { pending: 0, processing: 0, shipped: 0, delivered: 0, cancelled: 0, total: allOrders.length };
+    allOrders.forEach((o) => {
+      if (o.status in s) (s as any)[o.status]++;
     });
-  }, [orders, debounced, activeTab]);
+    return s;
+  }, [allOrders]);
+
+  /* ===== Page range for pagination ===== */
+  const getPageRange = () => {
+    const range: number[] = [];
+    const maxVisible = 7;
+    let start = Math.max(1, safePage - 3);
+    let end = Math.min(totalPages, start + maxVisible - 1);
+    if (end - start < maxVisible - 1) {
+      start = Math.max(1, end - maxVisible + 1);
+    }
+    for (let i = start; i <= end; i++) range.push(i);
+    return range;
+  };
 
   return (
-    <div className="admin-wrapper">
-      <div className="admin-container">
-        <header className="admin-header">
-          <div className="header-title">
-            <h2>Order Dashboard</h2>
-            <p>Manage sales, shipping and invoices</p>
-            {error && <small style={{ color: "#ef4444" }}>{error}</small>}
+    <div className="ao-wrapper">
+      <div className="ao-container">
+        {/* ===== Header ===== */}
+        <header className="ao-header">
+          <div className="ao-header-left">
+            <h2 className="ao-title">📦 Order Dashboard</h2>
+            <p className="ao-subtitle">
+              {allOrders.length} orders loaded
+              {hasMore && " (more available on server)"}
+            </p>
+            {error && <p className="ao-error">{error}</p>}
           </div>
-
-          <button className="btn-primary" onClick={() => exportAllOrders(filteredOrders)}>
-            <span>📥</span> Export Report
-          </button>
+          <div className="ao-header-actions">
+            <button
+              className="ao-btn ao-btn-primary"
+              onClick={() => exportAllOrders(filteredOrders)}
+            >
+              📥 Export
+            </button>
+            <button
+              className="ao-btn ao-btn-outline"
+              onClick={() => fetchOrders(1)}
+              disabled={loading}
+            >
+              🔄 Refresh
+            </button>
+          </div>
         </header>
 
-        <div className="admin-controls">
-          <div className="tabs">
+        {/* ===== Stats Row ===== */}
+        <div className="ao-stats-row">
+          {[
+            { label: "Total", value: stats.total, color: "#2563eb" },
+            { label: "Pending", value: stats.pending, color: "#ca8a04" },
+            { label: "Confirmed", value: stats.processing, color: "#2563eb" },
+            { label: "Shipped", value: stats.shipped, color: "#16a34a" },
+            { label: "Delivered", value: stats.delivered, color: "#059669" },
+            { label: "Cancelled", value: stats.cancelled, color: "#dc2626" },
+          ].map((s) => (
+            <div className="ao-stat-card" key={s.label}>
+              <span className="ao-stat-value" style={{ color: s.color }}>
+                {s.value}
+              </span>
+              <span className="ao-stat-label">{s.label}</span>
+            </div>
+          ))}
+        </div>
+
+        {/* ===== Controls ===== */}
+        <div className="ao-controls">
+          <div className="ao-tabs">
             {[
               { key: "all", label: "All" },
               { key: "pending", label: "Pending" },
-              { key: "confirmed", label: "Confirmed" }, // ✅ processing = confirmed
+              { key: "confirmed", label: "Confirmed" },
               { key: "shipped", label: "Shipped" },
               { key: "delivered", label: "Delivered" },
               { key: "cancelled", label: "Cancelled" },
             ].map((t) => (
               <button
                 key={t.key}
-                className={`tab-item ${activeTab === t.key ? "active" : ""}`}
+                className={`ao-tab ${activeTab === t.key ? "active" : ""}`}
                 onClick={() => setActiveTab(t.key)}
               >
                 {t.label}
@@ -564,277 +720,605 @@ const AdminOrders: React.FC = () => {
             ))}
           </div>
 
-          <div className="search-box">
-            <span className="search-icon">🔍</span>
-            <input
-              type="text"
-              placeholder="Search ID, Shop, City, Payment..."
-              value={search}
-              onChange={(e) => setSearch(e.target.value)}
-            />
-            {search && (
-              <button className="clear-btn" onClick={() => setSearch("")}>
-                ×
+          <div className="ao-controls-right">
+            <div className="ao-search">
+              <span className="ao-search-icon">🔍</span>
+              <input
+                type="text"
+                placeholder="Search orders..."
+                value={search}
+                onChange={(e) => setSearch(e.target.value)}
+              />
+              {search && (
+                <button
+                  className="ao-search-clear"
+                  onClick={() => setSearch("")}
+                >
+                  ×
+                </button>
+              )}
+            </div>
+
+            <div className="ao-view-toggle">
+              <button
+                className={`ao-vt-btn ${viewMode === "card" ? "active" : ""}`}
+                onClick={() => setViewMode("card")}
+                title="Card View"
+              >
+                ▦
               </button>
-            )}
+              <button
+                className={`ao-vt-btn ${viewMode === "table" ? "active" : ""}`}
+                onClick={() => setViewMode("table")}
+                title="Table View"
+              >
+                ☰
+              </button>
+            </div>
+
+            <select
+              className="ao-per-page"
+              value={perPage}
+              onChange={(e) => setPerPage(Number(e.target.value))}
+            >
+              {PER_PAGE_OPTIONS.map((n) => (
+                <option key={n} value={n}>
+                  {n}/page
+                </option>
+              ))}
+            </select>
           </div>
         </div>
 
+        {/* ===== Showing Info ===== */}
+        <div className="ao-showing">
+          Showing {(safePage - 1) * perPage + 1}–
+          {Math.min(safePage * perPage, filteredOrders.length)} of{" "}
+          {filteredOrders.length} orders
+          {hasMore && (
+            <>
+              {" "}
+              ·{" "}
+              <button
+                className="ao-link-btn"
+                onClick={loadMoreFromServer}
+                disabled={loadingMore}
+              >
+                {loadingMore ? "Loading..." : "Load More"}
+              </button>{" "}
+              ·{" "}
+              <button
+                className="ao-link-btn"
+                onClick={loadAllFromServer}
+                disabled={loadingMore}
+              >
+                Load All
+              </button>
+            </>
+          )}
+        </div>
+
+        {/* ===== Content ===== */}
         {loading ? (
-          <div className="loader">Loading Orders...</div>
-        ) : (
-          <div className="orders-grid">
-            {filteredOrders.length === 0 ? (
-              <div className="empty-state">No orders found.</div>
-            ) : (
-              filteredOrders.map((o) => {
-                const wa = normalizeWhatsApp91(o.customerId?.whatsapp || o.customerId?.otpMobile);
-                return (
-                  <div className={`order-card status-${o.status}`} key={o._id}>
-                    <div className="card-top">
-                      <span className="order-id">#{o.orderNumber || o._id.slice(-6)}</span>
-                      <div style={{ display: "flex", flexDirection: "column", alignItems: "flex-end" }}>
-                        <span className={`badge ${o.status}`}>{statusLabel(o.status)}</span>
-                        
-                        {/* ✅ WhatsApp Status Badge (NEW) */}
-                        {o.wa?.orderConfirmedSent && (
-                          <div style={{
-                            fontSize: "10px",
-                            color: "#16a34a",
-                            fontWeight: "bold",
-                            background: "#dcfce7",
-                            padding: "2px 6px",
-                            borderRadius: "4px",
-                            marginTop: "4px",
-                            display: "flex",
-                            alignItems: "center",
-                            gap: "3px"
-                          }}>
-                            ✓ WA Sent
-                          </div>
+          <div className="ao-loader">
+            <div className="ao-spinner" />
+            <p>Loading orders...</p>
+          </div>
+        ) : paginatedOrders.length === 0 ? (
+          <div className="ao-empty">
+            <p>📭 No orders found</p>
+          </div>
+        ) : viewMode === "table" ? (
+          /* ===== TABLE VIEW ===== */
+          <div className="ao-table-wrap">
+            <table className="ao-table">
+              <thead>
+                <tr>
+                  <th>Order #</th>
+                  <th>Date</th>
+                  <th>Customer</th>
+                  <th>City</th>
+                  <th>Items</th>
+                  <th>Total</th>
+                  <th>Payment</th>
+                  <th>Status</th>
+                  <th>Tracking</th>
+                  <th>Actions</th>
+                </tr>
+              </thead>
+              <tbody>
+                {paginatedOrders.map((o) => {
+                  const wa = normalizeWhatsApp91(
+                    o.customerId?.whatsapp || o.customerId?.otpMobile
+                  );
+                  return (
+                    <tr key={o._id} className={`ao-tr-${o.status}`}>
+                      <td className="ao-td-mono">
+                        #{o.orderNumber || o._id.slice(-6)}
+                      </td>
+                      <td>
+                        {new Date(o.createdAt).toLocaleDateString(
+                          "en-IN",
+                          { day: "2-digit", month: "short" }
                         )}
-
-                        {o.status === "cancelled" && (
-                          <div
-                            style={{
-                              fontSize: "10px",
-                              color: "#d9534f",
-                              fontWeight: "bold",
-                              marginTop: "3px",
-                              background: "#fff",
-                              padding: "2px 5px",
-                              borderRadius: "4px",
-                              border: "1px solid #d9534f",
-                            }}
-                          >
-                            🚫 {o.cancelledBy || "Cancelled"}
-                          </div>
-                        )}
-                      </div>
-                    </div>
-
-                    <div className="card-body">
-                      <div className="info-row">
-                        <div className="info-cell">
-                          <label>Customer</label>
-                          <strong>{o.customerId?.shopName || "Guest"}</strong>
-                          <small>📞 {o.customerId?.otpMobile || "-"}</small>
-                          <small>💬 {wa || "-"}</small>
+                      </td>
+                      <td>
+                        <div className="ao-td-customer">
+                          <strong>
+                            {o.customerId?.shopName || "Guest"}
+                          </strong>
+                          <small>
+                            {o.customerId?.otpMobile || ""}
+                          </small>
                         </div>
-                        <div className="info-cell align-right">
-                          <label>Total</label>
-                          <span className="price">₹{o.total.toLocaleString()}</span>
-                        </div>
-                      </div>
-
-                      <div className="info-row">
-                        <div className="info-cell">
-                          <label>Location</label>
-                          <span>{o.shippingAddress?.city || "N/A"}</span>
-                        </div>
-                        <div className="info-cell align-right">
-                          <label>Payment</label>
-                          <span style={{ fontWeight: 800, color: o.paymentMode === "ONLINE" ? "#16a34a" : "#f97316" }}>
-                            {paymentLabel(o.paymentMode)}
+                      </td>
+                      <td>{o.shippingAddress?.city || "-"}</td>
+                      <td>{o.items?.length || 0}</td>
+                      <td className="ao-td-price">
+                        ₹{o.total.toLocaleString()}
+                      </td>
+                      <td>
+                        <span
+                          className={`ao-pay-badge ${
+                            o.paymentMode === "ONLINE"
+                              ? "online"
+                              : "cod"
+                          }`}
+                        >
+                          {o.paymentMode === "ONLINE"
+                            ? "Online"
+                            : "COD"}
+                        </span>
+                      </td>
+                      <td>
+                        <select
+                          className="ao-status-sel"
+                          value={o.status}
+                          disabled={actOn === o._id}
+                          onChange={(e) =>
+                            updateStatus(
+                              o._id,
+                              e.target.value as OrderStatus
+                            )
+                          }
+                        >
+                          <option value="pending">Pending</option>
+                          <option value="processing">
+                            Confirmed
+                          </option>
+                          <option value="shipped">Shipped</option>
+                          <option value="delivered">
+                            Delivered
+                          </option>
+                          <option value="cancelled">
+                            Cancelled
+                          </option>
+                        </select>
+                      </td>
+                      <td>
+                        {o.trackingId ? (
+                          <span className="ao-tracking-mini">
+                            {o.courierName}: {o.trackingId}
                           </span>
+                        ) : (
+                          "-"
+                        )}
+                      </td>
+                      <td>
+                        <div className="ao-td-actions">
+                          <button
+                            className="ao-act-btn"
+                            onClick={() => setViewing(o)}
+                            title="View"
+                          >
+                            👁
+                          </button>
+                          <button
+                            className="ao-act-btn"
+                            onClick={() => openShipModal(o)}
+                            title="Ship"
+                          >
+                            🚚
+                          </button>
+                          <button
+                            className="ao-act-btn danger"
+                            onClick={() => deleteOrder(o._id)}
+                            title="Delete"
+                          >
+                            🗑
+                          </button>
                         </div>
-                      </div>
-
-                      <div className="info-row">
-                        <div className="info-cell">
-                          <label>Date</label>
-                          <span>{new Date(o.createdAt).toLocaleDateString()}</span>
-                        </div>
-                        <div className="info-cell align-right">
-                          <label>Items</label>
-                          <span>{o.items?.length || 0}</span>
-                        </div>
-                      </div>
-
-                      {o.isShipped && o.trackingId && (
-                        <div className="info-row" style={{ marginTop: 8 }}>
-                          <div className="info-cell">
-                            <label>Tracking</label>
-                            <span>
-                              🚚 {o.courierName || "Courier"}: <b>{o.trackingId}</b>
-                            </span>
-                          </div>
-                        </div>
+                      </td>
+                    </tr>
+                  );
+                })}
+              </tbody>
+            </table>
+          </div>
+        ) : (
+          /* ===== CARD VIEW ===== */
+          <div className="ao-grid">
+            {paginatedOrders.map((o) => {
+              const wa = normalizeWhatsApp91(
+                o.customerId?.whatsapp || o.customerId?.otpMobile
+              );
+              return (
+                <div
+                  className={`ao-card ao-status-${o.status}`}
+                  key={o._id}
+                >
+                  <div className="ao-card-top">
+                    <span className="ao-order-id">
+                      #{o.orderNumber || o._id.slice(-6)}
+                    </span>
+                    <div className="ao-card-badges">
+                      <span className={`ao-badge ${o.status}`}>
+                        {statusLabel(o.status)}
+                      </span>
+                      {o.wa?.orderConfirmedSent && (
+                        <span className="ao-wa-badge">✓ WA</span>
+                      )}
+                      {o.status === "cancelled" && (
+                        <span className="ao-cancel-badge">
+                          🚫 {o.cancelledBy || "Cancelled"}
+                        </span>
                       )}
                     </div>
-
-                    <div className="card-actions">
-                      <button className="btn-icon" onClick={() => setViewing(o)}>
-                        👁️ View
-                      </button>
-
-                      <select
-                        className="status-select"
-                        value={o.status}
-                        disabled={actOn === o._id}
-                        onChange={(e) => updateStatus(o._id, e.target.value as OrderStatus)}
-                      >
-                        <option value="pending">Pending</option>
-                        <option value="processing">Confirmed</option>
-                        {/* ✅ FIX: Shipped option add kar diya! */}
-                        <option value="shipped">Shipped</option>
-                        <option value="delivered">Delivered</option>
-                        <option value="cancelled">Cancelled</option>
-                      </select>
-
-                      <button
-                        className={`btn-ship ${o.isShipped ? "shipped" : ""}`}
-                        disabled={actOn === o._id}
-                        onClick={() => openShipModal(o)}
-                      >
-                        {o.isShipped ? "✏️ Update" : "🚚 Ship"}
-                      </button>
-                    </div>
                   </div>
-                );
-              })
-            )}
+
+                  <div className="ao-card-body">
+                    <div className="ao-info-row">
+                      <div className="ao-info">
+                        <label>Customer</label>
+                        <strong>
+                          {o.customerId?.shopName || "Guest"}
+                        </strong>
+                        <small>
+                          📞 {o.customerId?.otpMobile || "-"}
+                        </small>
+                        <small>💬 {wa || "-"}</small>
+                      </div>
+                      <div className="ao-info ao-right">
+                        <label>Total</label>
+                        <span className="ao-price">
+                          ₹{o.total.toLocaleString()}
+                        </span>
+                      </div>
+                    </div>
+
+                    <div className="ao-info-row">
+                      <div className="ao-info">
+                        <label>Location</label>
+                        <span>
+                          {o.shippingAddress?.city || "N/A"}
+                        </span>
+                      </div>
+                      <div className="ao-info ao-right">
+                        <label>Payment</label>
+                        <span
+                          className={`ao-pay-label ${
+                            o.paymentMode === "ONLINE"
+                              ? "online"
+                              : "cod"
+                          }`}
+                        >
+                          {paymentLabel(o.paymentMode)}
+                        </span>
+                      </div>
+                    </div>
+
+                    <div className="ao-info-row">
+                      <div className="ao-info">
+                        <label>Date</label>
+                        <span>
+                          {new Date(
+                            o.createdAt
+                          ).toLocaleDateString()}
+                        </span>
+                      </div>
+                      <div className="ao-info ao-right">
+                        <label>Items</label>
+                        <span>{o.items?.length || 0}</span>
+                      </div>
+                    </div>
+
+                    {o.isShipped && o.trackingId && (
+                      <div className="ao-tracking-row">
+                        🚚 {o.courierName || "Courier"}:{" "}
+                        <b>{o.trackingId}</b>
+                      </div>
+                    )}
+                  </div>
+
+                  <div className="ao-card-actions">
+                    <button
+                      className="ao-act-btn"
+                      onClick={() => setViewing(o)}
+                    >
+                      👁️ View
+                    </button>
+                    <select
+                      className="ao-status-sel"
+                      value={o.status}
+                      disabled={actOn === o._id}
+                      onChange={(e) =>
+                        updateStatus(
+                          o._id,
+                          e.target.value as OrderStatus
+                        )
+                      }
+                    >
+                      <option value="pending">Pending</option>
+                      <option value="processing">Confirmed</option>
+                      <option value="shipped">Shipped</option>
+                      <option value="delivered">Delivered</option>
+                      <option value="cancelled">Cancelled</option>
+                    </select>
+                    <button
+                      className={`ao-ship-btn ${
+                        o.isShipped ? "shipped" : ""
+                      }`}
+                      disabled={actOn === o._id}
+                      onClick={() => openShipModal(o)}
+                    >
+                      {o.isShipped ? "✏️ Update" : "🚚 Ship"}
+                    </button>
+                  </div>
+                </div>
+              );
+            })}
+          </div>
+        )}
+
+        {/* ===== Pagination ===== */}
+        {totalPages > 1 && (
+          <div className="ao-pagination">
+            <button
+              className="ao-pg-btn"
+              disabled={safePage <= 1}
+              onClick={() => setCurrentPage(1)}
+            >
+              ⟪
+            </button>
+            <button
+              className="ao-pg-btn"
+              disabled={safePage <= 1}
+              onClick={() =>
+                setCurrentPage((p) => Math.max(1, p - 1))
+              }
+            >
+              ‹
+            </button>
+
+            {getPageRange().map((p) => (
+              <button
+                key={p}
+                className={`ao-pg-btn ${
+                  p === safePage ? "active" : ""
+                }`}
+                onClick={() => setCurrentPage(p)}
+              >
+                {p}
+              </button>
+            ))}
+
+            <button
+              className="ao-pg-btn"
+              disabled={safePage >= totalPages}
+              onClick={() =>
+                setCurrentPage((p) =>
+                  Math.min(totalPages, p + 1)
+                )
+              }
+            >
+              ›
+            </button>
+            <button
+              className="ao-pg-btn"
+              disabled={safePage >= totalPages}
+              onClick={() => setCurrentPage(totalPages)}
+            >
+              ⟫
+            </button>
+
+            <span className="ao-pg-info">
+              Page {safePage} of {totalPages}
+            </span>
+          </div>
+        )}
+
+        {/* ===== Load More Bar ===== */}
+        {hasMore && (
+          <div className="ao-load-more-bar">
+            <button
+              className="ao-btn ao-btn-outline"
+              onClick={loadMoreFromServer}
+              disabled={loadingMore}
+            >
+              {loadingMore
+                ? "⏳ Loading..."
+                : `📥 Load Next ${SERVER_LIMIT} Orders`}
+            </button>
+            <button
+              className="ao-btn ao-btn-outline"
+              onClick={loadAllFromServer}
+              disabled={loadingMore}
+            >
+              📦 Load All Orders
+            </button>
           </div>
         )}
       </div>
 
-      {/* --- Detailed Modal --- */}
+      {/* ===== Detail Modal ===== */}
       {viewing && (
-        <div className="modal-backdrop" onClick={() => setViewing(null)}>
-          <div className="modal-content" onClick={(e) => e.stopPropagation()}>
-            <div className="modal-header">
+        <div
+          className="ao-modal-backdrop"
+          onClick={() => setViewing(null)}
+        >
+          <div
+            className="ao-modal"
+            onClick={(e) => e.stopPropagation()}
+          >
+            <div className="ao-modal-header">
               <h3>
-                Order #{viewing.orderNumber} <span style={{ fontSize: 12, opacity: 0.7 }}>({statusLabel(viewing.status)})</span>
+                Order #{viewing.orderNumber}{" "}
+                <span className="ao-modal-status">
+                  ({statusLabel(viewing.status)})
+                </span>
               </h3>
-              <button className="close-btn" onClick={() => setViewing(null)}>
-                &times;
+              <button
+                className="ao-close"
+                onClick={() => setViewing(null)}
+              >
+                ×
               </button>
             </div>
 
-            <div className="modal-toolbar">
-              <button className="btn-secondary" onClick={() => exportSingleOrder(viewing)}>
+            <div className="ao-modal-toolbar">
+              <button
+                className="ao-btn ao-btn-outline"
+                onClick={() => exportSingleOrder(viewing)}
+              >
                 ⬇ Excel
               </button>
-              <button className="btn-secondary" onClick={() => generateInvoice(viewing)}>
+              <button
+                className="ao-btn ao-btn-outline"
+                onClick={() => generateInvoice(viewing)}
+              >
                 📄 Invoice
               </button>
-              <button className="btn-danger" onClick={() => deleteOrder(viewing._id)}>
+              <button
+                className="ao-btn ao-btn-danger"
+                onClick={() => deleteOrder(viewing._id)}
+              >
                 🗑 Delete
               </button>
             </div>
 
-            <div className="modal-grid">
-              <div className="modal-section">
+            <div className="ao-modal-grid">
+              <div className="ao-modal-section">
                 <h4>Customer</h4>
                 <p>
-                  <strong>{viewing.customerId?.shopName}</strong>
+                  <strong>
+                    {viewing.customerId?.shopName}
+                  </strong>
                 </p>
                 <p>📞 {viewing.customerId?.otpMobile}</p>
-                <p>💬 {normalizeWhatsApp91(viewing.customerId?.whatsapp || viewing.customerId?.otpMobile)}</p>
+                <p>
+                  💬{" "}
+                  {normalizeWhatsApp91(
+                    viewing.customerId?.whatsapp ||
+                      viewing.customerId?.otpMobile
+                  )}
+                </p>
               </div>
-              <div className="modal-section">
-                <h4>Shipping Details</h4>
+              <div className="ao-modal-section">
+                <h4>Shipping</h4>
                 {viewing.shippingAddress ? (
                   <>
                     <p>
-                      <strong>{viewing.shippingAddress.fullName}</strong>
+                      <strong>
+                        {viewing.shippingAddress.fullName}
+                      </strong>
                     </p>
                     <p>
-                      {viewing.shippingAddress.street}, {viewing.shippingAddress.city}
+                      {viewing.shippingAddress.street},{" "}
+                      {viewing.shippingAddress.city}
                     </p>
                     <p>
-                      {viewing.shippingAddress.state} - {viewing.shippingAddress.pincode}
+                      {viewing.shippingAddress.state} -{" "}
+                      {viewing.shippingAddress.pincode}
                     </p>
                   </>
                 ) : (
-                  <p>No address provided</p>
+                  <p className="ao-muted">
+                    No address provided
+                  </p>
                 )}
               </div>
             </div>
 
-            {/* ✅ Smart Tracking Link Section */}
             {viewing.isShipped && viewing.trackingId && (
-              <div style={{ background: "#f0f4f8", padding: "15px", borderRadius: "10px", marginBottom: "20px" }}>
-                <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
-                  <span>
-                    🚚 <b>{viewing.courierName}</b>: {viewing.trackingId}
-                  </span>
-                  {getExternalTrackingLink(viewing.courierName) && (
-                    <a
-                      href={getExternalTrackingLink(viewing.courierName)!}
-                      target="_blank"
-                      rel="noreferrer"
-                      style={{ color: "#2c5aa0", fontWeight: "bold" }}
-                    >
-                      🌐 Track Live
-                    </a>
-                  )}
-                </div>
+              <div className="ao-modal-tracking">
+                <span>
+                  🚚 <b>{viewing.courierName}</b>:{" "}
+                  {viewing.trackingId}
+                </span>
+                {getExternalTrackingLink(
+                  viewing.courierName
+                ) && (
+                  <a
+                    href={
+                      getExternalTrackingLink(
+                        viewing.courierName
+                      )!
+                    }
+                    target="_blank"
+                    rel="noreferrer"
+                  >
+                    🌐 Track Live
+                  </a>
+                )}
               </div>
             )}
 
-            <div className="items-list">
+            <div className="ao-modal-items">
               <h4>Items ({viewing.items.length})</h4>
               {viewing.items.map((it, i) => (
-                <div
-                  key={i}
-                  className="item-row"
-                  style={{ display: "flex", justifyContent: "space-between", padding: "8px 0", borderBottom: "1px solid #eee" }}
-                >
-                  <div style={{ display: "flex", gap: "10px", alignItems: "center" }}>
-                    {it.image && <img src={resolveImage(it.image)} alt="" style={{ width: "40px", height: "40px", borderRadius: "4px" }} />}
+                <div key={i} className="ao-modal-item">
+                  <div className="ao-modal-item-left">
+                    {it.image && (
+                      <img
+                        src={resolveImage(it.image)}
+                        alt=""
+                      />
+                    )}
                     <span>
                       {it.name} (x{it.qty})
                     </span>
                   </div>
-                  <span>₹{(it.price * it.qty).toFixed(2)}</span>
+                  <span className="ao-modal-item-price">
+                    ₹{(it.price * it.qty).toFixed(2)}
+                  </span>
                 </div>
               ))}
-              <div style={{ textAlign: "right", marginTop: "15px", fontSize: "1.1rem" }}>
-                <strong>Grand Total: ₹{viewing.total}</strong>
+              <div className="ao-modal-total">
+                Grand Total: ₹{viewing.total}
               </div>
             </div>
           </div>
         </div>
       )}
 
-      {/* --- Ship Modal --- */}
+      {/* ===== Ship Modal ===== */}
       {shipOpen && shipOrder && (
-        <div className="modal-backdrop" onClick={closeShipModal}>
-          <div className="modal-content" onClick={(e) => e.stopPropagation()} style={{ maxWidth: "400px" }}>
-            <div className="modal-header">
-              <h3>🚚 Ship Order #{shipOrder.orderNumber}</h3>
-              <button className="close-btn" onClick={closeShipModal}>
-                &times;
+        <div
+          className="ao-modal-backdrop"
+          onClick={closeShipModal}
+        >
+          <div
+            className="ao-modal ao-modal-sm"
+            onClick={(e) => e.stopPropagation()}
+          >
+            <div className="ao-modal-header">
+              <h3>
+                🚚 Ship #{shipOrder.orderNumber}
+              </h3>
+              <button
+                className="ao-close"
+                onClick={closeShipModal}
+              >
+                ×
               </button>
             </div>
-
-            <div style={{ padding: "16px" }}>
-              <label style={{ display: "block", marginBottom: "6px", fontWeight: 600 }}>Courier</label>
+            <div className="ao-ship-form">
+              <label>Courier</label>
               <select
                 value={shipCourier}
-                onChange={(e) => setShipCourier(e.target.value)}
-                style={{ width: "100%", padding: "10px", borderRadius: "8px", border: "1px solid #ddd", marginBottom: "16px" }}
+                onChange={(e) =>
+                  setShipCourier(e.target.value)
+                }
               >
                 {COURIERS.map((c) => (
                   <option key={c} value={c}>
@@ -843,22 +1327,34 @@ const AdminOrders: React.FC = () => {
                 ))}
               </select>
 
-              <label style={{ display: "block", marginBottom: "6px", fontWeight: 600 }}>AWB / Tracking Number</label>
+              <label>AWB / Tracking Number</label>
               <input
                 value={shipTracking}
-                onChange={(e) => setShipTracking(e.target.value)}
-                placeholder="Enter ID"
-                style={{ width: "100%", padding: "10px", borderRadius: "8px", border: "1px solid #ddd" }}
+                onChange={(e) =>
+                  setShipTracking(e.target.value)
+                }
+                placeholder="Enter tracking ID"
               />
 
-              {shipErr && <p style={{ color: "red", marginTop: "10px" }}>{shipErr}</p>}
+              {shipErr && (
+                <p className="ao-ship-error">{shipErr}</p>
+              )}
 
-              <div style={{ display: "flex", gap: "10px", justifyContent: "flex-end", marginTop: "20px" }}>
-                <button onClick={closeShipModal} className="btn-secondary">
+              <div className="ao-ship-actions">
+                <button
+                  className="ao-btn ao-btn-outline"
+                  onClick={closeShipModal}
+                >
                   Cancel
                 </button>
-                <button onClick={submitShip} disabled={actOn === shipOrder._id} className="btn-primary">
-                  {actOn === shipOrder._id ? "Saving..." : "Save & Ship"}
+                <button
+                  className="ao-btn ao-btn-primary"
+                  onClick={submitShip}
+                  disabled={actOn === shipOrder._id}
+                >
+                  {actOn === shipOrder._id
+                    ? "Saving..."
+                    : "Save & Ship"}
                 </button>
               </div>
             </div>

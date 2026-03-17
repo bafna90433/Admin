@@ -1,11 +1,10 @@
 import React, { useState } from "react";
 import { useNavigate } from "react-router-dom";
-import axios from "axios"; // ✅ Changed: Import axios directly
+import axios from "axios";
 import "../styles/AdminLogin.css";
 
-// --- ✅ CONFIGURATION (Live URL Fix) ---
+// --- ✅ CONFIGURATION (Webpack / CRA Fix) ---
 const API_BASE =
-  process.env.VITE_API_URL ||
   process.env.REACT_APP_API_URL ||
   "https://bafnatoys-backend-production.up.railway.app/api";
 
@@ -28,7 +27,7 @@ const AdminLogin: React.FC = () => {
 
     try {
       setLoading(true);
-      // ✅ Changed: Using axios with API_BASE
+      // ✅ Using axios with API_BASE
       const { data } = await axios.post(`${API_BASE}/admin/login`, {
         username: username.trim(),
         password: password.trim(),

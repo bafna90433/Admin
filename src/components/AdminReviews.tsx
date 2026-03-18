@@ -1,21 +1,27 @@
-import React, { useEffect, useState, useMemo } from "react";
+import React, { useEffect, useState, useMemo, useCallback, useRef } from "react";
 import axios from "axios";
-import Swal from "sweetalert2";
-import { 
-  FiTrash2, FiSearch, FiFilter, FiStar, FiMessageSquare, 
-  FiPlus, FiX, FiEdit2, FiBox, FiChevronDown, FiCalendar
+import toast, { Toaster } from "react-hot-toast";
+import { format, formatDistanceToNow } from "date-fns";
+import {
+  FiTrash2, FiSearch, FiFilter, FiStar, FiMessageSquare,
+  FiPlus, FiX, FiEdit2, FiBox, FiChevronDown, FiCalendar,
+  FiRefreshCw, FiGrid, FiList, FiSliders, FiHash, FiUser,
+  FiEye, FiShield, FiKey, FiCheck, FiSave, FiImage,
+  FiMaximize2, FiMinimize2, FiCopy, FiArrowUp, FiArrowDown,
+  FiAlertCircle, FiCheckCircle, FiPackage
 } from "react-icons/fi";
 import "../styles/AdminReviews.css";
 
-// CONFIGURATION
 const API_BASE =
-  process.env.VITE_API_URL ||
-  process.env.REACT_APP_API_URL ||
+  (import.meta as any).env?.VITE_API_URL ||
+  (process as any).env?.VITE_API_URL ||
+  (process as any).env?.REACT_APP_API_URL ||
   "https://bafnatoys-backend-production.up.railway.app/api";
 
 const MEDIA_BASE =
-  process.env.VITE_MEDIA_URL ||
-  process.env.REACT_APP_MEDIA_URL ||
+  (import.meta as any).env?.VITE_MEDIA_URL ||
+  (process as any).env?.VITE_MEDIA_URL ||
+  (process as any).env?.REACT_APP_MEDIA_URL ||
   "https://bafnatoys-backend-production.up.railway.app";
 
 const getImageUrl = (url: string) =>
@@ -24,428 +30,620 @@ const getImageUrl = (url: string) =>
 interface Product {
   _id: string;
   name: string;
-  images?: string[]; 
+  images?: string[];
 }
 
 interface Review {
   _id: string;
-  productId?: {
-    _id: string;
-    name: string;
-    images?: string[]; 
-  };
+  productId?: { _id: string; name: string; images?: string[]; };
   shopName?: string;
   rating: number;
   comment: string;
   createdAt: string;
 }
 
+type RatingFilter = "all" | 1 | 2 | 3 | 4 | 5;
+
+const getTodayDate = () => new Date().toISOString().split("T")[0];
+
+const STAR_LABELS: Record<number, string> = {
+  5: "Excellent",
+  4: "Good",
+  3: "Average",
+  2: "Poor",
+  1: "Bad",
+};
+
 const AdminReviews: React.FC = () => {
   const [reviews, setReviews] = useState<Review[]>([]);
-  const [loading, setLoading] = useState<boolean>(true);
-  
   const [productsList, setProductsList] = useState<Product[]>([]);
-  const [searchTerm, setSearchTerm] = useState("");
-  const [filterRating, setFilterRating] = useState<number | "all">("all");
+  const [loading, setLoading] = useState(true);
 
-  const [showAddForm, setShowAddForm] = useState(false);
+  const [search, setSearch] = useState("");
+  const [debounced, setDebounced] = useState("");
+  const [filterRating, setFilterRating] = useState<RatingFilter>("all");
+  const [view, setView] = useState<"table" | "card">("table");
+  const [showFilters, setShowFilters] = useState(false);
+
+  const [showForm, setShowForm] = useState(false);
   const [isEditing, setIsEditing] = useState(false);
   const [editId, setEditId] = useState<string | null>(null);
+  const [productDropdown, setProductDropdown] = useState(false);
+  const [productSearch, setProductSearch] = useState("");
+  const [saving, setSaving] = useState(false);
 
-  const [isDropdownOpen, setIsDropdownOpen] = useState(false);
-
-  const getTodayDate = () => {
-    const today = new Date();
-    return today.toISOString().split('T')[0];
-  };
-
-  const [newReview, setNewReview] = useState({
+  const [formData, setFormData] = useState({
     productId: "",
     shopName: "",
     rating: 5,
     comment: "",
-    createdAt: getTodayDate()
+    createdAt: getTodayDate(),
   });
 
+  const [delId, setDelId] = useState<string | null>(null);
+  const [delPwd, setDelPwd] = useState("");
+  const [deleting, setDeleting] = useState(false);
+
+  const [commentModal, setCommentModal] = useState<{ text: string; author: string } | null>(null);
+
+  const topRef = useRef<HTMLDivElement>(null);
+  const searchRef = useRef<HTMLInputElement>(null);
+  const dropdownRef = useRef<HTMLDivElement>(null);
+
+  // Auto card on mobile
   useEffect(() => {
-    fetchReviews();
-    fetchProductsForDropdown();
+    const mq = window.matchMedia("(max-width: 768px)");
+    const handler = (e: MediaQueryListEvent | MediaQueryList) => {
+      if (e.matches) setView("card");
+    };
+    handler(mq);
+    mq.addEventListener("change", handler);
+    return () => mq.removeEventListener("change", handler);
   }, []);
 
-  const fetchReviews = async () => {
+  // Debounce
+  useEffect(() => {
+    const t = setTimeout(() => setDebounced(search), 300);
+    return () => clearTimeout(t);
+  }, [search]);
+
+  // Close dropdown on outside click
+  useEffect(() => {
+    const handler = (e: MouseEvent) => {
+      if (dropdownRef.current && !dropdownRef.current.contains(e.target as Node)) {
+        setProductDropdown(false);
+      }
+    };
+    document.addEventListener("mousedown", handler);
+    return () => document.removeEventListener("mousedown", handler);
+  }, []);
+
+  // Fetch
+  const fetchReviews = useCallback(async () => {
     try {
       setLoading(true);
       const res = await axios.get(`${API_BASE}/reviews/all/list`);
       setReviews(res.data);
-    } catch (error) {
-      console.error("Error:", error);
-      Swal.fire("Error", "Could not load reviews.", "error");
+    } catch {
+      toast.error("Could not load reviews");
     } finally {
       setLoading(false);
     }
-  };
+  }, []);
 
-  const fetchProductsForDropdown = async () => {
+  const fetchProducts = useCallback(async () => {
     try {
-      const res = await axios.get(`${API_BASE}/products`); 
+      const res = await axios.get(`${API_BASE}/products`);
       setProductsList(res.data);
-    } catch (error) {
-      console.error("Error fetching products:", error);
-    }
-  };
+    } catch { /* ignore */ }
+  }, []);
 
-  const handleDelete = async (id: string) => {
-    const result = await Swal.fire({
-      title: "Delete Review?",
-      text: "This action cannot be undone.",
-      icon: "warning",
-      showCancelButton: true,
-      confirmButtonColor: "#ef4444",
-      confirmButtonText: "Yes, Delete",
+  useEffect(() => { fetchReviews(); fetchProducts(); }, [fetchReviews, fetchProducts]);
+
+  // Stats
+  const stats = useMemo(() => {
+    const s = { total: reviews.length, avg: 0, five: 0, four: 0, three: 0, two: 0, one: 0 };
+    if (reviews.length === 0) return s;
+    let sum = 0;
+    reviews.forEach((r) => {
+      sum += r.rating;
+      const floor = Math.floor(r.rating);
+      if (floor === 5) s.five++;
+      else if (floor === 4) s.four++;
+      else if (floor === 3) s.three++;
+      else if (floor === 2) s.two++;
+      else s.one++;
     });
+    s.avg = Math.round((sum / reviews.length) * 10) / 10;
+    return s;
+  }, [reviews]);
 
-    if (result.isConfirmed) {
-      try {
-        await axios.delete(`${API_BASE}/reviews/${id}`);
-        Swal.fire("Deleted", "Review removed.", "success");
-        setReviews((prev) => prev.filter((r) => r._id !== id));
-      } catch (error) {
-        Swal.fire("Error", "Failed to delete.", "error");
-      }
-    }
+  // Filtered
+  const filtered = useMemo(() => {
+    const q = debounced.toLowerCase();
+    return reviews.filter((r) => {
+      const matchRating = filterRating === "all" || Math.floor(r.rating) === filterRating;
+      if (!matchRating) return false;
+      if (!q) return true;
+      const shop = (r.shopName || "").toLowerCase();
+      const product = (r.productId?.name || "").toLowerCase();
+      const comment = r.comment.toLowerCase();
+      return shop.includes(q) || product.includes(q) || comment.includes(q);
+    });
+  }, [reviews, debounced, filterRating]);
+
+  const hasActiveFilters = search || filterRating !== "all";
+  const clearFilters = () => { setSearch(""); setFilterRating("all"); };
+
+  // Product dropdown filtered
+  const filteredProducts = useMemo(() => {
+    if (!productSearch) return productsList;
+    const q = productSearch.toLowerCase();
+    return productsList.filter((p) => p.name.toLowerCase().includes(q));
+  }, [productsList, productSearch]);
+
+  const selectedProduct = productsList.find((p) => p._id === formData.productId);
+
+  // Form
+  const resetForm = () => {
+    setFormData({ productId: "", shopName: "", rating: 5, comment: "", createdAt: getTodayDate() });
+    setShowForm(false);
+    setIsEditing(false);
+    setEditId(null);
+    setProductDropdown(false);
+    setProductSearch("");
   };
 
   const handleEditClick = (review: Review) => {
     setIsEditing(true);
     setEditId(review._id);
-    
-    const formattedDate = review.createdAt ? new Date(review.createdAt).toISOString().split('T')[0] : getTodayDate();
-
-    setNewReview({
+    setFormData({
       productId: review.productId?._id || "",
       shopName: review.shopName || "",
       rating: review.rating,
       comment: review.comment,
-      createdAt: formattedDate 
+      createdAt: review.createdAt ? new Date(review.createdAt).toISOString().split("T")[0] : getTodayDate(),
     });
-    setShowAddForm(true);
-    window.scrollTo({ top: 0, behavior: 'smooth' });
+    setShowForm(true);
+    topRef.current?.scrollIntoView({ behavior: "smooth" });
   };
 
-  const handleAdminSubmit = async (e: React.FormEvent) => {
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!newReview.productId) {
-      Swal.fire("Warning", "Please select a product first!", "warning");
-      return;
-    }
+    if (!formData.productId) return toast.error("Please select a product");
+    if (!formData.shopName.trim()) return toast.error("Shop name is required");
+    if (!formData.comment.trim()) return toast.error("Comment is required");
 
+    setSaving(true);
     try {
       if (isEditing && editId) {
-        await axios.put(`${API_BASE}/reviews/${editId}`, newReview);
-        Swal.fire("Success", "Review updated successfully!", "success");
+        await axios.put(`${API_BASE}/reviews/${editId}`, formData);
+        toast.success("Review updated!", { icon: "✅", style: { borderRadius: "12px", background: "#1e293b", color: "#fff" } });
       } else {
-        await axios.post(`${API_BASE}/reviews/add`, newReview);
-        Swal.fire("Success", "Review added successfully!", "success");
+        await axios.post(`${API_BASE}/reviews/add`, formData);
+        toast.success("Review added!", { icon: "🎉", style: { borderRadius: "12px", background: "#1e293b", color: "#fff" } });
       }
-      
-      setNewReview({ productId: "", shopName: "", rating: 5, comment: "", createdAt: getTodayDate() });
-      setShowAddForm(false);
-      setIsEditing(false);
-      setEditId(null);
-      setIsDropdownOpen(false); 
-      
+      resetForm();
       fetchReviews();
-    } catch (error) {
-      console.error(error);
-      Swal.fire("Error", `Failed to ${isEditing ? 'update' : 'add'} review.`, "error");
+    } catch {
+      toast.error(`Failed to ${isEditing ? "update" : "add"} review`);
+    } finally {
+      setSaving(false);
     }
   };
 
-  const handleCancelForm = () => {
-    setShowAddForm(false);
-    setIsEditing(false);
-    setEditId(null);
-    setIsDropdownOpen(false);
-    setNewReview({ productId: "", shopName: "", rating: 5, comment: "", createdAt: getTodayDate() });
+  // Delete
+  const confirmDelete = async () => {
+    if (delPwd !== "bafnatoys") return toast.error("Wrong password");
+    if (!delId) return;
+    setDeleting(true);
+    try {
+      await axios.delete(`${API_BASE}/reviews/${delId}`);
+      setReviews((prev) => prev.filter((r) => r._id !== delId));
+      toast.success("Review deleted!", { icon: "🗑️", style: { borderRadius: "12px", background: "#1e293b", color: "#fff" } });
+    } catch {
+      toast.error("Failed to delete");
+    } finally {
+      setDeleting(false);
+      setDelId(null);
+      setDelPwd("");
+    }
   };
 
-  const handleViewComment = (comment: string, author: string) => {
-    Swal.fire({
-      title: `Review from ${author}`,
-      text: comment,
-      icon: "info",
-      confirmButtonText: "Close",
-      confirmButtonColor: "#4f46e5",
-      customClass: { popup: 'comment-popup' }
-    });
+  const getStarColor = (rating: number) => {
+    if (rating >= 4) return "green";
+    if (rating === 3) return "amber";
+    return "red";
   };
 
-  const getShopName = (review: Review) => {
-    return review.shopName || "Unknown Shop";
+  const renderStars = (rating: number, size = 12) => {
+    return (
+      <div className="rv-stars">
+        {[1, 2, 3, 4, 5].map((i) => (
+          <FiStar
+            key={i}
+            size={size}
+            className={`rv-star ${i <= Math.floor(rating) ? `rv-star-filled rv-star-${getStarColor(rating)}` : "rv-star-empty"}`}
+          />
+        ))}
+      </div>
+    );
   };
-
-  const filteredReviews = useMemo(() => {
-    return reviews.filter((review) => {
-      const shopName = getShopName(review).toLowerCase();
-      const productName = review.productId?.name?.toLowerCase() || "";
-      const comment = review.comment.toLowerCase();
-      const matchSearch = shopName.includes(searchTerm.toLowerCase()) || 
-                          productName.includes(searchTerm.toLowerCase()) ||
-                          comment.includes(searchTerm.toLowerCase());
-      const matchRating = filterRating === "all" ? true : Math.floor(review.rating) === filterRating;
-      return matchSearch && matchRating;
-    });
-  }, [reviews, searchTerm, filterRating]);
 
   return (
-    <div className="admin-reviews-page">
-      <div className="ar-container">
-        
-        <header className="ar-header">
-          <div className="ar-header-content">
-            <h1><FiMessageSquare className="ar-brand-icon" /> Feedback Center</h1>
-            <p>Manage, add, and update custom shop reviews efficiently.</p>
-          </div>
-          <div className="ar-stats-card flex gap-4">
-            <div>
-              <span className="stat-label">Total</span>
-              <span className="stat-value">{reviews.length}</span>
+    <div className="rv-root" ref={topRef}>
+      <Toaster position="top-center" toastOptions={{ style: { borderRadius: "14px", padding: "12px 20px", fontSize: "14px", fontWeight: 500 } }} />
+
+      {/* Comment Modal */}
+      {commentModal && (
+        <div className="rv-overlay" onClick={() => setCommentModal(null)}>
+          <div className="rv-comment-modal" onClick={(e) => e.stopPropagation()}>
+            <div className="rv-cm-header">
+              <div className="rv-cm-header-left"><FiMessageSquare size={16} /> <span>Review from {commentModal.author}</span></div>
+              <button className="rv-cm-close" onClick={() => setCommentModal(null)}><FiX size={18} /></button>
             </div>
-            <button 
-              onClick={showAddForm ? handleCancelForm : () => setShowAddForm(true)}
-              style={{ backgroundColor: showAddForm ? '#ef4444' : '#4f46e5', color: 'white', padding: '8px 16px', borderRadius: '8px', border: 'none', cursor: 'pointer', display: 'flex', alignItems: 'center', gap: '8px', fontWeight: 'bold' }}
+            <div className="rv-cm-body"><p>{commentModal.text}</p></div>
+          </div>
+        </div>
+      )}
+
+      {/* Delete Modal */}
+      {delId && (
+        <div className="rv-overlay" onClick={() => { setDelId(null); setDelPwd(""); }}>
+          <div className="rv-del-modal" onClick={(e) => e.stopPropagation()}>
+            <div className="rv-del-visual">
+              <div className="rv-del-circle"><div className="rv-del-circle-inner"><FiShield size={28} /></div></div>
+              <div className="rv-del-pulse" />
+            </div>
+            <h3>Delete Review</h3>
+            <p>This action is <strong>permanent</strong>. Enter admin password.</p>
+            <div className="rv-del-input-wrap">
+              <FiKey className="rv-del-input-icon" />
+              <input type="password" placeholder="Enter admin password…" value={delPwd} onChange={(e) => setDelPwd(e.target.value)} onKeyDown={(e) => e.key === "Enter" && confirmDelete()} autoFocus />
+            </div>
+            <div className="rv-del-btns">
+              <button className="rv-dbtn rv-dbtn-cancel" onClick={() => { setDelId(null); setDelPwd(""); }}>Cancel</button>
+              <button className="rv-dbtn rv-dbtn-danger" onClick={confirmDelete} disabled={deleting}><FiTrash2 size={14} /> {deleting ? "Deleting…" : "Delete"}</button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Top */}
+      <section className="rv-top">
+        <div className="rv-top-row">
+          <div className="rv-top-left">
+            <h1 className="rv-title">Reviews</h1>
+            <span className="rv-count">{stats.total} total</span>
+          </div>
+          <div className="rv-top-right">
+            <button className="rv-top-btn" onClick={fetchReviews} disabled={loading} title="Refresh">
+              <FiRefreshCw size={16} className={loading ? "rv-spinning" : ""} />
+            </button>
+            <button
+              className={`rv-top-btn ${showForm ? "rv-top-cancel" : "rv-top-add"}`}
+              onClick={showForm ? resetForm : () => setShowForm(true)}
             >
-              {showAddForm ? <><FiX /> Cancel</> : <><FiPlus /> Add Review</>}
+              {showForm ? <><FiX size={16} /><span>Cancel</span></> : <><FiPlus size={16} /><span>Add Review</span></>}
             </button>
           </div>
-        </header>
+        </div>
 
-        {showAddForm && (
-          <div style={{ backgroundColor: 'white', padding: '20px', borderRadius: '10px', marginBottom: '20px', boxShadow: '0 4px 6px rgba(0,0,0,0.1)', border: isEditing ? '2px solid #3b82f6' : 'none' }}>
-            <h3 style={{ marginBottom: '15px', fontSize: '1.2rem', fontWeight: 'bold', color: isEditing ? '#3b82f6' : '#000' }}>
-              {isEditing ? "✏️ Edit Review" : "Add Custom Review"}
-            </h3>
-            <form onSubmit={handleAdminSubmit} style={{ display: 'grid', gap: '15px' }}>
-              
-              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '15px' }}>
-                
-                <div>
-                  <label style={{ display: 'block', fontSize: '0.9rem', marginBottom: '5px' }}>Select Product</label>
-                  <div style={{ position: 'relative' }}>
-                    <div 
-                      onClick={() => setIsDropdownOpen(!isDropdownOpen)}
-                      style={{ width: '100%', padding: '8px 12px', border: '1px solid #ccc', borderRadius: '6px', backgroundColor: 'white', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'space-between', minHeight: '42px' }}
-                    >
-                      <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
-                        {newReview.productId ? (
-                           productsList.find(p => p._id === newReview.productId)?.images?.[0] ? 
-                             <img src={getImageUrl(productsList.find(p => p._id === newReview.productId)!.images![0])} style={{width: 24, height: 24, objectFit: 'cover', borderRadius: 4, border: '1px solid #e2e8f0'}} alt="thumb" /> 
-                             : <FiBox color="#94a3b8" />
+        <div className="rv-stats">
+          {[
+            { icon: <FiMessageSquare size={18} />, val: stats.total, lbl: "Total Reviews", color: "indigo" },
+            { icon: <FiStar size={18} />, val: stats.avg, lbl: "Avg Rating", color: "amber" },
+            { icon: <FiCheckCircle size={18} />, val: stats.five + stats.four, lbl: "Positive (4-5★)", color: "emerald" },
+            { icon: <FiAlertCircle size={18} />, val: stats.two + stats.one, lbl: "Negative (1-2★)", color: "red" },
+          ].map((s) => (
+            <div className={`rv-stat rv-stat-${s.color}`} key={s.lbl}>
+              <div className="rv-stat-top">
+                <div className="rv-stat-icon">{s.icon}</div>
+                <div className="rv-stat-num">{s.val}</div>
+              </div>
+              <div className="rv-stat-lbl">{s.lbl}</div>
+            </div>
+          ))}
+        </div>
+      </section>
+
+      {/* Add/Edit Form */}
+      {showForm && (
+        <section className="rv-form-section">
+          <div className={`rv-form-card ${isEditing ? "rv-form-editing" : ""}`}>
+            <div className="rv-form-header">
+              <div className="rv-form-header-left">
+                <div className={`rv-form-icon ${isEditing ? "editing" : ""}`}>
+                  {isEditing ? <FiEdit2 size={16} /> : <FiPlus size={16} />}
+                </div>
+                <h2>{isEditing ? "Edit Review" : "Add New Review"}</h2>
+              </div>
+              <button className="rv-form-close" onClick={resetForm}><FiX size={18} /></button>
+            </div>
+            <form className="rv-form-body" onSubmit={handleSubmit}>
+              <div className="rv-form-row">
+                {/* Product Selector */}
+                <div className="rv-field" ref={dropdownRef}>
+                  <label className="rv-label"><FiBox size={12} /> Product <span className="rv-req">*</span></label>
+                  <div className="rv-product-selector">
+                    <button type="button" className="rv-ps-trigger" onClick={() => setProductDropdown(!productDropdown)}>
+                      <div className="rv-ps-selected">
+                        {selectedProduct?.images?.[0] ? (
+                          <img src={getImageUrl(selectedProduct.images[0])} alt="" className="rv-ps-thumb" />
+                        ) : formData.productId ? (
+                          <div className="rv-ps-thumb rv-ps-thumb-empty"><FiBox size={14} /></div>
                         ) : null}
-                        <span style={{ color: newReview.productId ? '#0f172a' : '#94a3b8', fontSize: '14px' }}>
-                          {newReview.productId ? productsList.find(p => p._id === newReview.productId)?.name : "-- Select a Product --"}
+                        <span className={formData.productId ? "" : "rv-ps-placeholder"}>
+                          {selectedProduct?.name || "Select a product…"}
                         </span>
                       </div>
-                      <FiChevronDown style={{ color: '#94a3b8' }} />
-                    </div>
+                      <FiChevronDown size={16} className={`rv-ps-arrow ${productDropdown ? "open" : ""}`} />
+                    </button>
 
-                    {isDropdownOpen && (
-                      <div style={{ position: 'absolute', top: '100%', left: 0, right: 0, backgroundColor: 'white', border: '1px solid #ccc', borderRadius: '6px', maxHeight: '250px', overflowY: 'auto', zIndex: 50, boxShadow: '0 10px 25px -5px rgba(0,0,0,0.1), 0 8px 10px -6px rgba(0,0,0,0.1)', marginTop: '4px' }}>
-                        {productsList.map(prod => (
-                           <div 
-                             key={prod._id}
-                             onClick={() => { setNewReview({...newReview, productId: prod._id}); setIsDropdownOpen(false); }}
-                             style={{ padding: '10px 12px', display: 'flex', alignItems: 'center', gap: '12px', cursor: 'pointer', borderBottom: '1px solid #f8fafc' }}
-                             onMouseEnter={(e) => e.currentTarget.style.backgroundColor = '#f1f5f9'}
-                             onMouseLeave={(e) => e.currentTarget.style.backgroundColor = 'white'}
-                           >
-                             {prod.images?.[0] ? (
-                               <img src={getImageUrl(prod.images[0])} alt="img" style={{width: 32, height: 32, objectFit: 'cover', borderRadius: 4, border: '1px solid #e2e8f0'}} />
-                             ) : (
-                               <div style={{width: 32, height: 32, backgroundColor: '#f8fafc', borderRadius: 4, display: 'flex', alignItems: 'center', justifyContent: 'center', border: '1px solid #e2e8f0'}}>
-                                 <FiBox size={16} color="#94a3b8"/>
-                               </div>
-                             )}
-                             <span style={{ fontSize: '14px', color: '#334155', fontWeight: '500' }}>{prod.name}</span>
-                           </div>
-                        ))}
+                    {productDropdown && (
+                      <div className="rv-ps-dropdown">
+                        <div className="rv-ps-search">
+                          <FiSearch size={13} />
+                          <input type="text" placeholder="Search products…" value={productSearch} onChange={(e) => setProductSearch(e.target.value)} autoFocus />
+                        </div>
+                        <div className="rv-ps-list">
+                          {filteredProducts.length === 0 ? (
+                            <div className="rv-ps-empty">No products found</div>
+                          ) : (
+                            filteredProducts.map((p) => (
+                              <button
+                                type="button"
+                                key={p._id}
+                                className={`rv-ps-option ${formData.productId === p._id ? "selected" : ""}`}
+                                onClick={() => { setFormData({ ...formData, productId: p._id }); setProductDropdown(false); setProductSearch(""); }}
+                              >
+                                {p.images?.[0] ? (
+                                  <img src={getImageUrl(p.images[0])} alt="" className="rv-ps-opt-thumb" />
+                                ) : (
+                                  <div className="rv-ps-opt-thumb rv-ps-opt-empty"><FiBox size={14} /></div>
+                                )}
+                                <span>{p.name}</span>
+                                {formData.productId === p._id && <FiCheck size={14} className="rv-ps-check" />}
+                              </button>
+                            ))
+                          )}
+                        </div>
                       </div>
                     )}
                   </div>
                 </div>
 
-                <div>
-                  <label style={{ display: 'block', fontSize: '0.9rem', marginBottom: '5px' }}>Shop Name</label>
-                  <input type="text" required value={newReview.shopName} onChange={(e) => setNewReview({...newReview, shopName: e.target.value})} style={{ width: '100%', padding: '10px', border: '1px solid #ccc', borderRadius: '6px' }} placeholder="e.g. Ramesh Toys" />
+                {/* Shop Name */}
+                <div className="rv-field">
+                  <label className="rv-label"><FiUser size={12} /> Shop Name <span className="rv-req">*</span></label>
+                  <input type="text" required className="rv-input" value={formData.shopName} onChange={(e) => setFormData({ ...formData, shopName: e.target.value })} placeholder="e.g. Ramesh Toys" />
                 </div>
               </div>
 
-              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '15px' }}>
-                <div>
-                  {/* ✅ FIX APPLIED HERE: Only one 'display: flex' */}
-                  <label style={{ display: 'flex', fontSize: '0.9rem', marginBottom: '5px', alignItems: 'center', gap: '4px' }}>
-                    <FiCalendar /> Review Date
-                  </label>
-                  <input 
-                    type="date" 
-                    required 
-                    value={newReview.createdAt} 
-                    onChange={(e) => setNewReview({...newReview, createdAt: e.target.value})} 
-                    style={{ width: '100%', padding: '10px', border: '1px solid #ccc', borderRadius: '6px', fontFamily: 'inherit' }} 
-                  />
+              <div className="rv-form-row">
+                {/* Date */}
+                <div className="rv-field">
+                  <label className="rv-label"><FiCalendar size={12} /> Review Date</label>
+                  <input type="date" required className="rv-input" value={formData.createdAt} onChange={(e) => setFormData({ ...formData, createdAt: e.target.value })} />
                 </div>
 
-                <div>
-                  <label style={{ display: 'block', fontSize: '0.9rem', marginBottom: '5px' }}>Rating (1-5)</label>
-                  <select value={newReview.rating} onChange={(e) => setNewReview({...newReview, rating: Number(e.target.value)})} style={{ width: '100%', padding: '10px', border: '1px solid #ccc', borderRadius: '6px' }}>
-                    <option value="5">5 - Excellent</option>
-                    <option value="4">4 - Good</option>
-                    <option value="3">3 - Average</option>
-                    <option value="2">2 - Poor</option>
-                    <option value="1">1 - Bad</option>
-                  </select>
+                {/* Rating */}
+                <div className="rv-field">
+                  <label className="rv-label"><FiStar size={12} /> Rating <span className="rv-req">*</span></label>
+                  <div className="rv-rating-selector">
+                    {[5, 4, 3, 2, 1].map((r) => (
+                      <button
+                        type="button"
+                        key={r}
+                        className={`rv-rating-btn ${formData.rating === r ? "active" : ""} rv-rb-${getStarColor(r)}`}
+                        onClick={() => setFormData({ ...formData, rating: r })}
+                      >
+                        <FiStar size={13} /> {r} - {STAR_LABELS[r]}
+                      </button>
+                    ))}
+                  </div>
                 </div>
               </div>
 
-              <div>
-                <label style={{ display: 'block', fontSize: '0.9rem', marginBottom: '5px' }}>Comment</label>
-                <textarea required value={newReview.comment} onChange={(e) => setNewReview({...newReview, comment: e.target.value})} style={{ width: '100%', padding: '10px', border: '1px solid #ccc', borderRadius: '6px', minHeight: '80px' }} placeholder="Write a nice review..."></textarea>
+              {/* Comment */}
+              <div className="rv-field">
+                <label className="rv-label"><FiMessageSquare size={12} /> Comment <span className="rv-req">*</span></label>
+                <textarea required className="rv-input rv-textarea" value={formData.comment} onChange={(e) => setFormData({ ...formData, comment: e.target.value })} placeholder="Write a nice review…" rows={3} />
               </div>
 
-              <button type="submit" style={{ backgroundColor: isEditing ? '#3b82f6' : '#10b981', color: 'white', padding: '12px', borderRadius: '6px', border: 'none', cursor: 'pointer', fontWeight: 'bold', fontSize: '15px' }}>
-                {isEditing ? "Update Review" : "Submit Review"}
-              </button>
+              <div className="rv-form-actions">
+                <button type="button" className="rv-fbtn rv-fbtn-cancel" onClick={resetForm}>Cancel</button>
+                <button type="submit" className={`rv-fbtn ${isEditing ? "rv-fbtn-edit" : "rv-fbtn-save"}`} disabled={saving}>
+                  <FiSave size={14} /> {saving ? "Saving…" : isEditing ? "Update Review" : "Add Review"}
+                </button>
+              </div>
             </form>
           </div>
-        )}
+        </section>
+      )}
 
-        <div className="ar-controls">
-          <div className="search-box">
-            <FiSearch className="search-icon" />
-            <input 
-              type="text" 
-              placeholder="Search..." 
-              value={searchTerm}
-              onChange={(e) => setSearchTerm(e.target.value)}
-            />
+      {/* Toolbar */}
+      <section className="rv-toolbar-section">
+        <div className="rv-toolbar">
+          <div className="rv-toolbar-main">
+            <div className="rv-search">
+              <FiSearch className="rv-search-icon" />
+              <input ref={searchRef} placeholder="Search by shop, product, or comment…" value={search} onChange={(e) => setSearch(e.target.value)} />
+              {search && <button className="rv-search-clear" onClick={() => { setSearch(""); searchRef.current?.focus(); }}><FiX size={14} /></button>}
+            </div>
+            <div className="rv-toolbar-btns">
+              <button className={`rv-tbtn ${showFilters ? "active" : ""} ${hasActiveFilters ? "has-filters" : ""}`} onClick={() => setShowFilters(!showFilters)}>
+                <FiSliders size={15} /><span>Filters</span>
+                {hasActiveFilters && <span className="rv-filter-dot" />}
+              </button>
+              <div className="rv-view-toggle">
+                <button className={`rv-vt ${view === "table" ? "active" : ""}`} onClick={() => setView("table")}><FiList size={16} /></button>
+                <button className={`rv-vt ${view === "card" ? "active" : ""}`} onClick={() => setView("card")}><FiGrid size={16} /></button>
+              </div>
+            </div>
           </div>
-          <div className="filter-box">
-            <FiFilter className="filter-icon" />
-            <select 
-              value={filterRating} 
-              onChange={(e) => setFilterRating(e.target.value === "all" ? "all" : Number(e.target.value))}
-            >
-              <option value="all">All Ratings</option>
-              <option value="5">⭐⭐⭐⭐⭐</option>
-              <option value="4">⭐⭐⭐⭐</option>
-              <option value="3">⭐⭐⭐</option>
-              <option value="2">⭐⭐</option>
-              <option value="1">⭐</option>
-            </select>
+
+          <div className={`rv-filters ${showFilters ? "open" : ""}`}>
+            <div className="rv-filters-inner">
+              <div className="rv-filter-group">
+                <label><FiStar size={12} /> Rating</label>
+                <div className="rv-rating-pills">
+                  <button className={`rv-pill ${filterRating === "all" ? "active" : ""}`} onClick={() => setFilterRating("all")}>All</button>
+                  {[5, 4, 3, 2, 1].map((r) => (
+                    <button key={r} className={`rv-pill ${filterRating === r ? "active" : ""}`} onClick={() => setFilterRating(r as RatingFilter)}>
+                      {r}★
+                    </button>
+                  ))}
+                </div>
+              </div>
+              {hasActiveFilters && <button className="rv-clear-filters" onClick={clearFilters}><FiX size={13} /> Clear</button>}
+            </div>
+          </div>
+
+          <div className="rv-toolbar-info">
+            <span className="rv-showing"><span className="rv-showing-bold">{filtered.length}</span> reviews{hasActiveFilters && <span className="rv-showing-sub"> (filtered from {stats.total})</span>}</span>
           </div>
         </div>
+      </section>
 
-        <div className="ar-table-wrapper">
-          <table className="ar-table">
-            <thead>
-              <tr>
-                <th style={{ width: '20%' }}>Shop</th>
-                <th style={{ width: '25%' }}>Product</th>
-                <th style={{ width: '12%' }}>Rating</th>
-                <th style={{ width: '28%' }}>Comment</th> 
-                <th style={{ width: '10%' }}>Date</th>
-                <th style={{ width: '5%' }} className="text-right">Action</th>
-              </tr>
-            </thead>
-            <tbody>
-              {loading ? (
-                [...Array(5)].map((_, i) => (
-                  <tr key={i}><td colSpan={6}><div className="skeleton-bar"></div></td></tr>
-                ))
-              ) : filteredReviews.length === 0 ? (
-                <tr><td colSpan={6} className="ar-empty-state">No reviews found.</td></tr>
-              ) : (
-                filteredReviews.map((review) => {
-                  const shopName = getShopName(review);
-                  const isLongComment = review.comment.length > 60;
-                  const displayComment = isLongComment 
-                    ? review.comment.substring(0, 60) + "..." 
-                    : review.comment;
-
+      {/* Main */}
+      <main className="rv-main">
+        {loading ? (
+          <div className="rv-state">
+            <div className="rv-loader"><div className="rv-loader-ring" /><div className="rv-loader-ring" /><div className="rv-loader-ring" /></div>
+            <h3>Loading Reviews</h3><p>Please wait…</p>
+          </div>
+        ) : filtered.length === 0 ? (
+          <div className="rv-state rv-state-empty">
+            <div className="rv-state-icon"><FiSearch size={28} /></div>
+            <h3>No reviews found</h3>
+            <p>{hasActiveFilters ? "Try adjusting your filters" : "Add your first review"}</p>
+            {hasActiveFilters && <button className="rv-retry-btn" onClick={clearFilters}><FiX size={14} /> Clear Filters</button>}
+          </div>
+        ) : view === "table" ? (
+          /* TABLE */
+          <div className="rv-table-wrap">
+            <table className="rv-table">
+              <thead>
+                <tr>
+                  <th className="rv-th-num">#</th>
+                  <th>Shop</th>
+                  <th className="rv-th-hide-sm">Product</th>
+                  <th>Rating</th>
+                  <th className="rv-th-hide-md">Comment</th>
+                  <th className="rv-th-hide-sm">Date</th>
+                  <th className="rv-th-actions">Actions</th>
+                </tr>
+              </thead>
+              <tbody>
+                {filtered.map((review, idx) => {
+                  const shop = review.shopName || "Unknown";
+                  const isLong = review.comment.length > 60;
                   return (
-                    <tr key={review._id}>
+                    <tr key={review._id} className="rv-tr">
+                      <td className="rv-td-num">{idx + 1}</td>
                       <td>
-                        <div className="shop-profile">
-                          <div className="shop-avatar" style={{ backgroundColor: '#4f46e5' }}>
-                            {shopName.charAt(0).toUpperCase()}
+                        <div className="rv-td-shop">
+                          <div className="rv-avatar" style={{ background: `hsl(${(shop.charCodeAt(0) * 37) % 360}, 65%, 55%)` }}>
+                            {shop.charAt(0).toUpperCase()}
                           </div>
-                          <span className="shop-name">{shopName}</span>
+                          <span className="rv-shop-name">{shop}</span>
                         </div>
                       </td>
-                      
-                      <td>
-                        <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
+                      <td className="rv-th-hide-sm">
+                        <div className="rv-td-product">
                           {review.productId?.images?.[0] ? (
-                            <img 
-                              src={getImageUrl(review.productId.images[0])} 
-                              alt="product" 
-                              style={{ width: '36px', height: '36px', objectFit: 'cover', borderRadius: '6px', border: '1px solid #e2e8f0' }} 
-                            />
+                            <img src={getImageUrl(review.productId.images[0])} alt="" className="rv-prod-thumb" />
                           ) : (
-                            <div style={{ width: '36px', height: '36px', backgroundColor: '#f1f5f9', borderRadius: '6px', display: 'flex', alignItems: 'center', justifyContent: 'center', border: '1px solid #e2e8f0' }}>
-                              <FiBox style={{ color: '#cbd5e1' }} />
-                            </div>
+                            <div className="rv-prod-thumb rv-prod-thumb-empty"><FiBox size={14} /></div>
                           )}
-                          <span style={{ fontWeight: '500', color: '#334155' }}>
-                            {review.productId?.name || <span className="text-danger">Removed</span>}
-                          </span>
+                          <span className="rv-prod-name">{review.productId?.name || <em className="rv-removed">Removed</em>}</span>
                         </div>
                       </td>
-                      
                       <td>
-                        <div className="rating-badge" data-rating={Math.floor(review.rating)}>
-                          <span>{review.rating}</span> <FiStar className="star-filled" />
+                        <div className={`rv-rating-badge rv-rb-${getStarColor(review.rating)}`}>
+                          <span>{review.rating}</span>
+                          <FiStar size={11} className="rv-star-badge" />
                         </div>
                       </td>
-
-                      <td className="comment-cell">
-                        <p className="comment-text">
-                          {displayComment}
-                        </p>
-                        {isLongComment && (
-                          <button 
-                            className="read-more-link"
-                            onClick={() => handleViewComment(review.comment, shopName)}
-                          >
-                            Read More
-                          </button>
-                        )}
+                      <td className="rv-th-hide-md">
+                        <div className="rv-comment-cell">
+                          <p className="rv-comment-text">{isLong ? review.comment.slice(0, 60) + "…" : review.comment}</p>
+                          {isLong && (
+                            <button className="rv-read-more" onClick={() => setCommentModal({ text: review.comment, author: shop })}>Read More</button>
+                          )}
+                        </div>
                       </td>
-
+                      <td className="rv-th-hide-sm rv-td-date">{format(new Date(review.createdAt), "dd MMM yy")}</td>
                       <td>
-                        {new Date(review.createdAt).toLocaleDateString('en-IN', {
-                            day: '2-digit', month: 'short', year: 'numeric'
-                        })}
-                      </td>
-
-                      <td className="text-right">
-                        <div style={{ display: 'flex', gap: '8px', justifyContent: 'flex-end' }}>
-                          <button onClick={() => handleEditClick(review)} style={{ color: '#3b82f6', background: 'none', border: 'none', cursor: 'pointer', fontSize: '1.2rem', padding: '4px' }}>
-                            <FiEdit2 />
-                          </button>
-                          <button onClick={() => handleDelete(review._id)} style={{ color: '#ef4444', background: 'none', border: 'none', cursor: 'pointer', fontSize: '1.2rem', padding: '4px' }}>
-                            <FiTrash2 />
-                          </button>
+                        <div className="rv-td-actions">
+                          <button className="rv-act-btn rv-act-edit" onClick={() => handleEditClick(review)} title="Edit"><FiEdit2 size={14} /></button>
+                          <button className="rv-act-btn rv-act-del" onClick={() => setDelId(review._id)} title="Delete"><FiTrash2 size={14} /></button>
                         </div>
                       </td>
                     </tr>
                   );
-                })
-              )}
-            </tbody>
-          </table>
-        </div>
-      </div>
+                })}
+              </tbody>
+            </table>
+          </div>
+        ) : (
+          /* CARD VIEW */
+          <div className="rv-cards">
+            {filtered.map((review) => {
+              const shop = review.shopName || "Unknown";
+              const isLong = review.comment.length > 80;
+              return (
+                <div className="rv-card" key={review._id}>
+                  <div className="rv-card-top">
+                    <div className="rv-card-top-left">
+                      <div className="rv-avatar sm" style={{ background: `hsl(${(shop.charCodeAt(0) * 37) % 360}, 65%, 55%)` }}>
+                        {shop.charAt(0).toUpperCase()}
+                      </div>
+                      <div className="rv-card-author">
+                        <span className="rv-card-shop">{shop}</span>
+                        <span className="rv-card-date">{formatDistanceToNow(new Date(review.createdAt), { addSuffix: true })}</span>
+                      </div>
+                    </div>
+                    <div className={`rv-rating-badge rv-rb-${getStarColor(review.rating)} sm`}>
+                      <span>{review.rating}</span>
+                      <FiStar size={10} className="rv-star-badge" />
+                    </div>
+                  </div>
+
+                  <div className="rv-card-product">
+                    {review.productId?.images?.[0] ? (
+                      <img src={getImageUrl(review.productId.images[0])} alt="" className="rv-card-prod-img" />
+                    ) : (
+                      <div className="rv-card-prod-img rv-card-prod-empty"><FiBox size={14} /></div>
+                    )}
+                    <span>{review.productId?.name || <em className="rv-removed">Removed</em>}</span>
+                  </div>
+
+                  <div className="rv-card-body">
+                    <p className="rv-card-comment">{isLong ? review.comment.slice(0, 80) + "…" : review.comment}</p>
+                    {isLong && (
+                      <button className="rv-read-more" onClick={() => setCommentModal({ text: review.comment, author: shop })}>Read More</button>
+                    )}
+                  </div>
+
+                  {renderStars(review.rating, 13)}
+
+                  <div className="rv-card-foot">
+                    <span className="rv-card-foot-date"><FiCalendar size={11} /> {format(new Date(review.createdAt), "dd MMM yyyy")}</span>
+                    <div className="rv-card-foot-btns">
+                      <button className="rv-card-act rv-card-edit" onClick={() => handleEditClick(review)}><FiEdit2 size={14} /> Edit</button>
+                      <button className="rv-card-act rv-card-delete" onClick={() => setDelId(review._id)}><FiTrash2 size={14} /></button>
+                    </div>
+                  </div>
+                </div>
+              );
+            })}
+          </div>
+        )}
+      </main>
+
+      <footer className="rv-footer"><p>© {new Date().getFullYear()} BafnaToys Review Management</p></footer>
     </div>
   );
 };

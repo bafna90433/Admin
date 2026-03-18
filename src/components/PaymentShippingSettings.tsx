@@ -1,27 +1,19 @@
-import React, { useEffect, useState } from "react";
+import React, { useEffect, useState, useCallback, useRef } from "react";
 import axios from "axios";
-import Swal from "sweetalert2";
+import toast, { Toaster } from "react-hot-toast";
 import {
-  FiTruck,
-  FiDollarSign,
-  FiSave,
-  FiCreditCard,
-  FiPackage,
-  FiInfo,
-  FiPercent,
-  FiPlus,
-  FiTrash2,
-  FiLayers,
-  FiMessageSquare,
-  FiCheckCircle,
-  FiXCircle
+  FiTruck, FiSave, FiCreditCard, FiPackage, FiInfo, FiPercent,
+  FiPlus, FiTrash2, FiLayers, FiMessageSquare, FiCheckCircle,
+  FiXCircle, FiRefreshCw, FiSettings, FiShield, FiToggleLeft,
+  FiToggleRight, FiAlertTriangle, FiChevronDown, FiChevronUp,
+  FiZap, FiGift, FiDollarSign, FiTrendingUp, FiEdit3
 } from "react-icons/fi";
 import "../styles/PaymentShipping.css";
 
-// ✅ API Configuration (Webpack-safe)
 const API_BASE =
-  process.env.VITE_API_URL ||
-  process.env.REACT_APP_API_URL ||
+  (import.meta as any).env?.VITE_API_URL ||
+  (process as any).env?.VITE_API_URL ||
+  (process as any).env?.REACT_APP_API_URL ||
   "https://bafnatoys-backend-production.up.railway.app/api";
 
 interface DiscountRule {
@@ -30,30 +22,37 @@ interface DiscountRule {
 }
 
 const PaymentShippingSettings: React.FC = () => {
-  // --- States ---
   const [shippingCharge, setShippingCharge] = useState<number>(0);
   const [freeLimit, setFreeLimit] = useState<number>(0);
   const [advanceAmount, setAdvanceAmount] = useState<number>(0);
   const [discountRules, setDiscountRules] = useState<DiscountRule[]>([
     { minAmount: 1000, discountPercentage: 5 },
   ]);
-
-  // --- Toggles State ---
   const [enableReviews, setEnableReviews] = useState<boolean>(true);
-  const [enableCOD, setEnableCOD] = useState<boolean>(true); // ✅ NEW COD STATE
+  const [enableCOD, setEnableCOD] = useState<boolean>(true);
 
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
+  const [expandedSections, setExpandedSections] = useState<Record<string, boolean>>({
+    shipping: true,
+    cod: true,
+    discount: true,
+    reviews: true,
+  });
+  const [hasChanges, setHasChanges] = useState(false);
 
+  const topRef = useRef<HTMLDivElement>(null);
+  const initialLoad = useRef(true);
+
+  // Track changes
   useEffect(() => {
-    fetchAllSettings();
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []);
+    if (initialLoad.current) return;
+    setHasChanges(true);
+  }, [shippingCharge, freeLimit, advanceAmount, discountRules, enableReviews, enableCOD]);
 
-  const fetchAllSettings = async () => {
+  const fetchAllSettings = useCallback(async () => {
     try {
       setLoading(true);
-
       const [shippingRes, codRes, discountRes, reviewRes] = await Promise.allSettled([
         axios.get(`${API_BASE}/shipping-rules`),
         axios.get(`${API_BASE}/settings/cod`),
@@ -61,47 +60,41 @@ const PaymentShippingSettings: React.FC = () => {
         axios.get(`${API_BASE}/settings/reviews`),
       ]);
 
-      // 1. Shipping
       if (shippingRes.status === "fulfilled" && shippingRes.value.data) {
         setShippingCharge(shippingRes.value.data.shippingCharge || 0);
         setFreeLimit(shippingRes.value.data.freeShippingThreshold || 0);
       }
-
-      // 2. COD
       if (codRes.status === "fulfilled" && codRes.value.data) {
         setAdvanceAmount(codRes.value.data.advanceAmount || 0);
-        setEnableCOD(codRes.value.data.enabled !== false); // ✅ Fetch COD Status
+        setEnableCOD(codRes.value.data.enabled !== false);
       }
-
-      // 3. Discount Rules
-      if (
-        discountRes.status === "fulfilled" &&
-        Array.isArray(discountRes.value.data) &&
-        discountRes.value.data.length > 0
-      ) {
+      if (discountRes.status === "fulfilled" && Array.isArray(discountRes.value.data) && discountRes.value.data.length > 0) {
         setDiscountRules(discountRes.value.data);
       } else {
         setDiscountRules([{ minAmount: 1000, discountPercentage: 5 }]);
       }
-
-      // 4. Reviews
       if (reviewRes.status === "fulfilled" && reviewRes.value.data) {
         setEnableReviews(reviewRes.value.data.enabled !== false);
       }
-    } catch (err) {
-      console.error("Error fetching settings:", err);
-      Swal.fire("Error", "Could not load settings.", "error");
+
+      // Mark initial load complete
+      setTimeout(() => { initialLoad.current = false; }, 100);
+    } catch {
+      toast.error("Could not load settings");
     } finally {
       setLoading(false);
     }
+  }, []);
+
+  useEffect(() => { fetchAllSettings(); }, [fetchAllSettings]);
+
+  const toggleSection = (key: string) => {
+    setExpandedSections((prev) => ({ ...prev, [key]: !prev[key] }));
   };
 
-  // ---------------- Discount Rules Handlers ----------------
+  // Discount handlers
   const handleAddRule = () => {
-    setDiscountRules((prev) => [
-      ...prev,
-      { minAmount: 0, discountPercentage: 0 },
-    ]);
+    setDiscountRules((prev) => [...prev, { minAmount: 0, discountPercentage: 0 }]);
   };
 
   const handleRemoveRule = (index: number) => {
@@ -111,435 +104,376 @@ const PaymentShippingSettings: React.FC = () => {
     });
   };
 
-  const handleRuleChange = (
-    index: number,
-    field: keyof DiscountRule,
-    value: number
-  ) => {
+  const handleRuleChange = (index: number, field: keyof DiscountRule, value: number) => {
     setDiscountRules((prev) => {
       const next = [...prev];
       next[index] = { ...next[index], [field]: value };
       return next;
     });
   };
-  // --------------------------------------------------------
 
+  // Save
   const handleSaveAll = async () => {
     setSaving(true);
     try {
-      // Validate discounts
       const validRules = discountRules
         .filter((r) => r.minAmount > 0 && r.discountPercentage > 0)
-        .map((r) => ({
-          minAmount: Number(r.minAmount),
-          discountPercentage: Number(r.discountPercentage),
-        }))
+        .map((r) => ({ minAmount: Number(r.minAmount), discountPercentage: Number(r.discountPercentage) }))
         .sort((a, b) => a.minAmount - b.minAmount);
 
       if (validRules.length === 0) {
-        Swal.fire("Invalid Rules", "Please add at least 1 valid discount rule.", "warning");
+        toast.error("Add at least 1 valid discount rule");
         setSaving(false);
         return;
       }
 
       await Promise.all([
-        axios.put(`${API_BASE}/shipping-rules`, {
-          shippingCharge: Number(shippingCharge),
-          freeShippingThreshold: Number(freeLimit),
-        }),
-        axios.put(`${API_BASE}/settings/cod`, {
-          advanceAmount: Number(advanceAmount),
-          enabled: enableCOD, // ✅ Save COD Status
-        }),
+        axios.put(`${API_BASE}/shipping-rules`, { shippingCharge: Number(shippingCharge), freeShippingThreshold: Number(freeLimit) }),
+        axios.put(`${API_BASE}/settings/cod`, { advanceAmount: Number(advanceAmount), enabled: enableCOD }),
         axios.put(`${API_BASE}/discount-rules`, { rules: validRules }),
         axios.put(`${API_BASE}/settings/reviews`, { enabled: enableReviews }),
       ]);
 
-      Swal.fire({
-        icon: "success",
-        title: "Settings Saved",
-        text: "Configuration updated successfully.",
-        timer: 1500,
-        showConfirmButton: false,
-      });
-    } catch (err) {
-      console.error("Save error:", err);
-      Swal.fire("Save Failed", "Check console for details.", "error");
+      toast.success("All settings saved!", { icon: "✅", style: { borderRadius: "12px", background: "#1e293b", color: "#fff" } });
+      setHasChanges(false);
+    } catch {
+      toast.error("Failed to save settings");
     } finally {
       setSaving(false);
     }
   };
 
-  if (loading) return <div className="ps-loading">Loading Settings...</div>;
-
-  return (
-    <div className="ps-container">
-      <div className="ps-wrapper">
-        <div className="ps-header">
-          <div className="header-content">
-            <h1 className="ps-title">Store Configuration</h1>
-            <p className="ps-subtitle">
-              Manage delivery fees, COD, reviews, and discounts.
-            </p>
-          </div>
-
-          <button
-            className={`ps-save-btn ${saving ? "loading" : ""}`}
-            onClick={handleSaveAll}
-            disabled={saving}
-          >
-            {saving ? (
-              "Saving..."
-            ) : (
-              <>
-                <FiSave className="btn-icon" /> Save Changes
-              </>
-            )}
-          </button>
-        </div>
-
-        <div className="ps-grid">
-          {/* 1) SHIPPING */}
-          <div className="ps-card">
-            <div className="card-top-bar blue" />
-            <div className="card-content">
-              <div className="card-header">
-                <div className="icon-circle blue">
-                  <FiTruck />
-                </div>
-                <div>
-                  <h3>Delivery Settings</h3>
-                  <span>Standard shipping rates</span>
-                </div>
-              </div>
-
-              <div className="form-group">
-                <label>Standard Courier Charge</label>
-                <div className="input-wrapper">
-                  <span className="currency-symbol">₹</span>
-                  <input
-                    type="number"
-                    value={shippingCharge}
-                    onChange={(e) => setShippingCharge(Number(e.target.value))}
-                  />
-                  <FiPackage className="input-icon-right" />
-                </div>
-              </div>
-
-              <div className="form-divider" />
-
-              <div className="form-group">
-                <label>Free Shipping Above</label>
-                <div className="input-wrapper success-theme">
-                  <span className="currency-symbol">₹</span>
-                  <input
-                    type="number"
-                    value={freeLimit}
-                    onChange={(e) => setFreeLimit(Number(e.target.value))}
-                  />
-                  <FiDollarSign className="input-icon-right" />
-                </div>
-              </div>
-            </div>
-          </div>
-
-          {/* 2) DISCOUNTS (Large Card) */}
-          <div className="ps-card" style={{ gridRow: "span 2" }}>
-            <div
-              className="card-top-bar purple"
-              style={{ backgroundColor: "#8b5cf6" }}
-            />
-            <div className="card-content">
-              <div className="card-header">
-                <div
-                  className="icon-circle purple"
-                  style={{ backgroundColor: "#f3e8ff", color: "#8b5cf6" }}
-                >
-                  <FiLayers />
-                </div>
-                <div>
-                  <h3>Volume Discounts</h3>
-                  <span>Auto-discount based on cart value</span>
-                </div>
-              </div>
-
-              <div className="info-alert">
-                <FiInfo className="info-icon" />
-                <p>Add rules: e.g. Buy ₹5000 get 8% Off.</p>
-              </div>
-
-              <div
-                className="discount-rules-container"
-                style={{ display: "flex", flexDirection: "column", gap: "10px" }}
-              >
-                {discountRules.map((rule, index) => (
-                  <div
-                    key={index}
-                    style={{
-                      display: "flex",
-                      gap: "10px",
-                      alignItems: "flex-end",
-                    }}
-                  >
-                    <div className="form-group" style={{ flex: 1, marginBottom: 0 }}>
-                      <label style={{ fontSize: "12px" }}>Min Order (₹)</label>
-                      <div className="input-wrapper">
-                        <input
-                          type="number"
-                          value={rule.minAmount}
-                          onChange={(e) =>
-                            handleRuleChange(index, "minAmount", Number(e.target.value))
-                          }
-                          placeholder="Amount"
-                        />
-                      </div>
-                    </div>
-
-                    <div className="form-group" style={{ width: "110px", marginBottom: 0 }}>
-                      <label style={{ fontSize: "12px" }}>Disc (%)</label>
-                      <div className="input-wrapper">
-                        <input
-                          type="number"
-                          value={rule.discountPercentage}
-                          onChange={(e) =>
-                            handleRuleChange(
-                              index,
-                              "discountPercentage",
-                              Number(e.target.value)
-                            )
-                          }
-                          placeholder="%"
-                        />
-                        <FiPercent className="input-icon-right" style={{ fontSize: "12px" }} />
-                      </div>
-                    </div>
-
-                    <button
-                      onClick={() => handleRemoveRule(index)}
-                      disabled={discountRules.length <= 1}
-                      style={{
-                        height: "42px",
-                        width: "42px",
-                        background: discountRules.length <= 1 ? "#f3f4f6" : "#fee2e2",
-                        color: discountRules.length <= 1 ? "#9ca3af" : "#ef4444",
-                        border: "none",
-                        borderRadius: "8px",
-                        cursor: discountRules.length <= 1 ? "not-allowed" : "pointer",
-                        display: "flex",
-                        alignItems: "center",
-                        justifyContent: "center",
-                      }}
-                      title={discountRules.length <= 1 ? "At least 1 rule is required" : "Remove rule"}
-                    >
-                      <FiTrash2 />
-                    </button>
-                  </div>
-                ))}
-              </div>
-
-              <button
-                onClick={handleAddRule}
-                style={{
-                  marginTop: "15px",
-                  width: "100%",
-                  padding: "10px",
-                  border: "1px dashed #8b5cf6",
-                  background: "#f5f3ff",
-                  color: "#8b5cf6",
-                  borderRadius: "8px",
-                  cursor: "pointer",
-                  display: "flex",
-                  alignItems: "center",
-                  justifyContent: "center",
-                  gap: "8px",
-                  fontWeight: 500,
-                }}
-              >
-                <FiPlus /> Add Discount Rule
-              </button>
-            </div>
-          </div>
-
-          {/* 3) COD */}
-          <div className="ps-card">
-            <div className="card-top-bar orange" />
-            <div className="card-content">
-              <div className="card-header">
-                <div className="icon-circle orange">
-                  <FiCreditCard />
-                </div>
-                <div>
-                  <h3>COD Verification</h3>
-                  <span>Secure COD orders</span>
-                </div>
-              </div>
-
-              {/* ✅ NEW: COD Toggle Switch */}
-              <div className="form-group" style={{ marginBottom: "15px" }}>
-                <div 
-                  className="toggle-container"
-                  style={{
-                    display: "flex",
-                    alignItems: "center",
-                    justifyContent: "space-between",
-                    padding: "15px",
-                    background: enableCOD ? "#fff7ed" : "#f3f4f6",
-                    borderRadius: "10px",
-                    border: `1px solid ${enableCOD ? "#f97316" : "#e5e7eb"}`,
-                    transition: "all 0.3s ease"
-                  }}
-                >
-                  <div style={{ display: "flex", alignItems: "center", gap: "10px" }}>
-                    {enableCOD ? (
-                      <FiCheckCircle style={{ color: "#f97316", fontSize: "1.2rem" }} />
-                    ) : (
-                      <FiXCircle style={{ color: "#9ca3af", fontSize: "1.2rem" }} />
-                    )}
-                    <span style={{ 
-                      fontWeight: 600, 
-                      color: enableCOD ? "#9a3412" : "#6b7280" 
-                    }}>
-                      {enableCOD ? "Cash on Delivery Enabled" : "Cash on Delivery Disabled"}
-                    </span>
-                  </div>
-
-                  <label className="switch" style={{ position: "relative", display: "inline-block", width: "50px", height: "26px" }}>
-                    <input 
-                      type="checkbox" 
-                      checked={enableCOD} 
-                      onChange={(e) => setEnableCOD(e.target.checked)}
-                      style={{ opacity: 0, width: 0, height: 0 }}
-                    />
-                    <span 
-                      className="slider round" 
-                      style={{
-                        position: "absolute",
-                        cursor: "pointer",
-                        top: 0, left: 0, right: 0, bottom: 0,
-                        backgroundColor: enableCOD ? "#f97316" : "#ccc",
-                        transition: ".4s",
-                        borderRadius: "34px"
-                      }}
-                    >
-                      <span style={{
-                        position: "absolute",
-                        content: '""',
-                        height: "18px",
-                        width: "18px",
-                        left: enableCOD ? "26px" : "4px",
-                        bottom: "4px",
-                        backgroundColor: "white",
-                        transition: ".4s",
-                        borderRadius: "50%"
-                      }}/>
-                    </span>
-                  </label>
-                </div>
-              </div>
-
-              {/* ✅ Advance Amount (Fades out when COD is OFF) */}
-              <div className="form-group" style={{ opacity: enableCOD ? 1 : 0.5, pointerEvents: enableCOD ? "auto" : "none", transition: "0.3s" }}>
-                <label>Required Advance Amount</label>
-                <div className="input-wrapper">
-                  <span className="currency-symbol">₹</span>
-                  <input
-                    type="number"
-                    value={advanceAmount}
-                    onChange={(e) => setAdvanceAmount(Number(e.target.value))}
-                    disabled={!enableCOD}
-                  />
-                  <FiCreditCard className="input-icon-right" />
-                </div>
-                <p className="help-text">
-                  Customer pays this online to confirm COD.
-                </p>
-              </div>
-            </div>
-          </div>
-
-          {/* 4) REVIEWS */}
-          <div className="ps-card">
-            <div className="card-top-bar" style={{ backgroundColor: "#059669" }} />
-            <div className="card-content">
-              <div className="card-header">
-                <div className="icon-circle" style={{ backgroundColor: "#d1fae5", color: "#059669" }}>
-                  <FiMessageSquare />
-                </div>
-                <div>
-                  <h3>Product Reviews</h3>
-                  <span>Enable/Disable user reviews</span>
-                </div>
-              </div>
-
-              <div className="form-group" style={{ marginBottom: "0", marginTop: "10px" }}>
-                <div 
-                  className="toggle-container"
-                  style={{
-                    display: "flex",
-                    alignItems: "center",
-                    justifyContent: "space-between",
-                    padding: "15px",
-                    background: enableReviews ? "#ecfdf5" : "#f3f4f6",
-                    borderRadius: "10px",
-                    border: `1px solid ${enableReviews ? "#10b981" : "#e5e7eb"}`,
-                    transition: "all 0.3s ease"
-                  }}
-                >
-                  <div style={{ display: "flex", alignItems: "center", gap: "10px" }}>
-                    {enableReviews ? (
-                      <FiCheckCircle style={{ color: "#10b981", fontSize: "1.2rem" }} />
-                    ) : (
-                      <FiXCircle style={{ color: "#9ca3af", fontSize: "1.2rem" }} />
-                    )}
-                    <span style={{ 
-                      fontWeight: 600, 
-                      color: enableReviews ? "#065f46" : "#6b7280" 
-                    }}>
-                      {enableReviews ? "Reviews Enabled" : "Reviews Disabled"}
-                    </span>
-                  </div>
-
-                  <label className="switch" style={{ position: "relative", display: "inline-block", width: "50px", height: "26px" }}>
-                    <input 
-                      type="checkbox" 
-                      checked={enableReviews} 
-                      onChange={(e) => setEnableReviews(e.target.checked)}
-                      style={{ opacity: 0, width: 0, height: 0 }}
-                    />
-                    <span 
-                      className="slider round" 
-                      style={{
-                        position: "absolute",
-                        cursor: "pointer",
-                        top: 0, left: 0, right: 0, bottom: 0,
-                        backgroundColor: enableReviews ? "#10b981" : "#ccc",
-                        transition: ".4s",
-                        borderRadius: "34px"
-                      }}
-                    >
-                      <span style={{
-                        position: "absolute",
-                        content: '""',
-                        height: "18px",
-                        width: "18px",
-                        left: enableReviews ? "26px" : "4px",
-                        bottom: "4px",
-                        backgroundColor: "white",
-                        transition: ".4s",
-                        borderRadius: "50%"
-                      }}/>
-                    </span>
-                  </label>
-                </div>
-                <p className="help-text" style={{ marginTop: "10px" }}>
-                  When disabled, the review form and list will be hidden on all product pages.
-                </p>
-              </div>
-            </div>
-          </div>
-
+  if (loading) {
+    return (
+      <div className="ps-root">
+        <div className="ps-state">
+          <div className="ps-loader"><div className="ps-loader-ring" /><div className="ps-loader-ring" /><div className="ps-loader-ring" /></div>
+          <h3>Loading Settings</h3><p>Please wait…</p>
         </div>
       </div>
+    );
+  }
+
+  return (
+    <div className="ps-root" ref={topRef}>
+      <Toaster position="top-center" toastOptions={{ style: { borderRadius: "14px", padding: "12px 20px", fontSize: "14px", fontWeight: 500 } }} />
+
+      {/* Top */}
+      <section className="ps-top">
+        <div className="ps-top-row">
+          <div className="ps-top-left">
+            <h1 className="ps-title">Store Settings</h1>
+            <p className="ps-subtitle">Manage shipping, payments, discounts & reviews</p>
+          </div>
+          <div className="ps-top-right">
+            <button className="ps-top-btn" onClick={fetchAllSettings} disabled={loading} title="Reload">
+              <FiRefreshCw size={16} className={loading ? "ps-spinning" : ""} />
+            </button>
+            <button className={`ps-save-main ${hasChanges ? "ps-has-changes" : ""}`} onClick={handleSaveAll} disabled={saving || !hasChanges}>
+              <FiSave size={15} />
+              <span>{saving ? "Saving…" : "Save All"}</span>
+              {hasChanges && <span className="ps-unsaved-dot" />}
+            </button>
+          </div>
+        </div>
+
+        {/* Quick Stats */}
+        <div className="ps-quick-stats">
+          <div className="ps-qs">
+            <FiTruck size={14} />
+            <span>Shipping: <strong>₹{shippingCharge}</strong></span>
+          </div>
+          <div className="ps-qs">
+            <FiGift size={14} />
+            <span>Free above: <strong>₹{freeLimit}</strong></span>
+          </div>
+          <div className="ps-qs">
+            <FiCreditCard size={14} />
+            <span>COD: <strong className={enableCOD ? "ps-qs-on" : "ps-qs-off"}>{enableCOD ? "ON" : "OFF"}</strong></span>
+          </div>
+          <div className="ps-qs">
+            <FiMessageSquare size={14} />
+            <span>Reviews: <strong className={enableReviews ? "ps-qs-on" : "ps-qs-off"}>{enableReviews ? "ON" : "OFF"}</strong></span>
+          </div>
+        </div>
+      </section>
+
+      {/* Content */}
+      <main className="ps-main">
+        <div className="ps-sections">
+
+          {/* ===== 1. SHIPPING ===== */}
+          <div className="ps-section">
+            <button className="ps-section-header" onClick={() => toggleSection("shipping")}>
+              <div className="ps-sh-left">
+                <div className="ps-sh-icon ps-sh-blue"><FiTruck size={18} /></div>
+                <div className="ps-sh-text">
+                  <h2>Delivery & Shipping</h2>
+                  <p>Configure shipping charges and free delivery threshold</p>
+                </div>
+              </div>
+              <div className="ps-sh-right">
+                {expandedSections.shipping ? <FiChevronUp size={18} /> : <FiChevronDown size={18} />}
+              </div>
+            </button>
+
+            {expandedSections.shipping && (
+              <div className="ps-section-body">
+                <div className="ps-fields-row">
+                  <div className="ps-field-card">
+                    <div className="ps-fc-header">
+                      <FiPackage size={14} />
+                      <label>Standard Shipping Charge</label>
+                    </div>
+                    <div className="ps-input-group">
+                      <span className="ps-input-prefix">₹</span>
+                      <input
+                        type="number"
+                        value={shippingCharge}
+                        onChange={(e) => setShippingCharge(Number(e.target.value))}
+                        placeholder="0"
+                        className="ps-input"
+                      />
+                    </div>
+                    <p className="ps-field-hint">Applied to all orders below free shipping limit</p>
+                  </div>
+
+                  <div className="ps-field-card">
+                    <div className="ps-fc-header">
+                      <FiGift size={14} />
+                      <label>Free Shipping Above</label>
+                    </div>
+                    <div className="ps-input-group">
+                      <span className="ps-input-prefix">₹</span>
+                      <input
+                        type="number"
+                        value={freeLimit}
+                        onChange={(e) => setFreeLimit(Number(e.target.value))}
+                        placeholder="0"
+                        className="ps-input"
+                      />
+                    </div>
+                    <p className="ps-field-hint">Orders above this amount get free shipping</p>
+                  </div>
+                </div>
+
+                {freeLimit > 0 && shippingCharge > 0 && (
+                  <div className="ps-info-box ps-info-blue">
+                    <FiInfo size={14} />
+                    <span>Orders below ₹{freeLimit.toLocaleString()} will be charged ₹{shippingCharge} for shipping</span>
+                  </div>
+                )}
+              </div>
+            )}
+          </div>
+
+          {/* ===== 2. COD ===== */}
+          <div className="ps-section">
+            <button className="ps-section-header" onClick={() => toggleSection("cod")}>
+              <div className="ps-sh-left">
+                <div className="ps-sh-icon ps-sh-orange"><FiCreditCard size={18} /></div>
+                <div className="ps-sh-text">
+                  <h2>Cash on Delivery</h2>
+                  <p>COD verification and advance payment settings</p>
+                </div>
+              </div>
+              <div className="ps-sh-right">
+                <span className={`ps-sh-status ${enableCOD ? "on" : "off"}`}>{enableCOD ? "Active" : "Inactive"}</span>
+                {expandedSections.cod ? <FiChevronUp size={18} /> : <FiChevronDown size={18} />}
+              </div>
+            </button>
+
+            {expandedSections.cod && (
+              <div className="ps-section-body">
+                {/* Toggle */}
+                <div className={`ps-toggle-card ${enableCOD ? "ps-toggle-on" : "ps-toggle-off"}`}>
+                  <div className="ps-toggle-left">
+                    {enableCOD ? <FiCheckCircle size={20} /> : <FiXCircle size={20} />}
+                    <div>
+                      <strong>{enableCOD ? "Cash on Delivery is Enabled" : "Cash on Delivery is Disabled"}</strong>
+                      <p>{enableCOD ? "Customers can choose COD at checkout" : "COD option is hidden from checkout"}</p>
+                    </div>
+                  </div>
+                  <button className={`ps-toggle-switch ${enableCOD ? "active" : ""}`} onClick={() => setEnableCOD(!enableCOD)} type="button">
+                    <span className="ps-toggle-knob" />
+                  </button>
+                </div>
+
+                {/* Advance Amount */}
+                <div className={`ps-cod-advance ${!enableCOD ? "ps-disabled" : ""}`}>
+                  <div className="ps-field-card">
+                    <div className="ps-fc-header">
+                      <FiShield size={14} />
+                      <label>Required Advance Amount</label>
+                    </div>
+                    <div className="ps-input-group">
+                      <span className="ps-input-prefix">₹</span>
+                      <input
+                        type="number"
+                        value={advanceAmount}
+                        onChange={(e) => setAdvanceAmount(Number(e.target.value))}
+                        placeholder="0"
+                        className="ps-input"
+                        disabled={!enableCOD}
+                      />
+                    </div>
+                    <p className="ps-field-hint">Customer pays this amount online to confirm COD order</p>
+                  </div>
+                </div>
+
+                {enableCOD && advanceAmount > 0 && (
+                  <div className="ps-info-box ps-info-orange">
+                    <FiInfo size={14} />
+                    <span>Customers will pay ₹{advanceAmount.toLocaleString()} online and rest on delivery</span>
+                  </div>
+                )}
+              </div>
+            )}
+          </div>
+
+          {/* ===== 3. DISCOUNTS ===== */}
+          <div className="ps-section">
+            <button className="ps-section-header" onClick={() => toggleSection("discount")}>
+              <div className="ps-sh-left">
+                <div className="ps-sh-icon ps-sh-purple"><FiLayers size={18} /></div>
+                <div className="ps-sh-text">
+                  <h2>Volume Discounts</h2>
+                  <p>Auto-discounts based on cart value ({discountRules.length} rule{discountRules.length !== 1 ? "s" : ""})</p>
+                </div>
+              </div>
+              <div className="ps-sh-right">
+                <span className="ps-sh-badge">{discountRules.length}</span>
+                {expandedSections.discount ? <FiChevronUp size={18} /> : <FiChevronDown size={18} />}
+              </div>
+            </button>
+
+            {expandedSections.discount && (
+              <div className="ps-section-body">
+                <div className="ps-info-box ps-info-purple">
+                  <FiZap size={14} />
+                  <span>Add rules like "Buy ₹5,000+ get 8% off". Rules auto-sort by amount.</span>
+                </div>
+
+                <div className="ps-discount-list">
+                  {discountRules.map((rule, index) => (
+                    <div className="ps-discount-row" key={index}>
+                      <div className="ps-dr-num">{index + 1}</div>
+                      <div className="ps-dr-field">
+                        <label>Min Order</label>
+                        <div className="ps-input-group sm">
+                          <span className="ps-input-prefix">₹</span>
+                          <input
+                            type="number"
+                            value={rule.minAmount}
+                            onChange={(e) => handleRuleChange(index, "minAmount", Number(e.target.value))}
+                            placeholder="Amount"
+                            className="ps-input"
+                          />
+                        </div>
+                      </div>
+                      <div className="ps-dr-arrow"><FiTrendingUp size={14} /></div>
+                      <div className="ps-dr-field">
+                        <label>Discount</label>
+                        <div className="ps-input-group sm">
+                          <input
+                            type="number"
+                            value={rule.discountPercentage}
+                            onChange={(e) => handleRuleChange(index, "discountPercentage", Number(e.target.value))}
+                            placeholder="%"
+                            className="ps-input"
+                          />
+                          <span className="ps-input-suffix"><FiPercent size={13} /></span>
+                        </div>
+                      </div>
+                      <button
+                        className="ps-dr-remove"
+                        onClick={() => handleRemoveRule(index)}
+                        disabled={discountRules.length <= 1}
+                        title={discountRules.length <= 1 ? "At least 1 rule required" : "Remove"}
+                      >
+                        <FiTrash2 size={14} />
+                      </button>
+                    </div>
+                  ))}
+                </div>
+
+                <button className="ps-add-rule" onClick={handleAddRule}>
+                  <FiPlus size={15} /> Add Discount Rule
+                </button>
+
+                {/* Preview */}
+                {discountRules.some((r) => r.minAmount > 0 && r.discountPercentage > 0) && (
+                  <div className="ps-discount-preview">
+                    <h4><FiGift size={13} /> Discount Preview</h4>
+                    <div className="ps-dp-list">
+                      {discountRules
+                        .filter((r) => r.minAmount > 0 && r.discountPercentage > 0)
+                        .sort((a, b) => a.minAmount - b.minAmount)
+                        .map((r, i) => (
+                          <div className="ps-dp-item" key={i}>
+                            <span className="ps-dp-amount">₹{r.minAmount.toLocaleString()}+</span>
+                            <span className="ps-dp-arrow">→</span>
+                            <span className="ps-dp-disc">{r.discountPercentage}% OFF</span>
+                            <span className="ps-dp-save">(Save ₹{Math.round(r.minAmount * r.discountPercentage / 100).toLocaleString()})</span>
+                          </div>
+                        ))}
+                    </div>
+                  </div>
+                )}
+              </div>
+            )}
+          </div>
+
+          {/* ===== 4. REVIEWS ===== */}
+          <div className="ps-section">
+            <button className="ps-section-header" onClick={() => toggleSection("reviews")}>
+              <div className="ps-sh-left">
+                <div className="ps-sh-icon ps-sh-green"><FiMessageSquare size={18} /></div>
+                <div className="ps-sh-text">
+                  <h2>Product Reviews</h2>
+                  <p>Enable or disable customer reviews on product pages</p>
+                </div>
+              </div>
+              <div className="ps-sh-right">
+                <span className={`ps-sh-status ${enableReviews ? "on" : "off"}`}>{enableReviews ? "Active" : "Inactive"}</span>
+                {expandedSections.reviews ? <FiChevronUp size={18} /> : <FiChevronDown size={18} />}
+              </div>
+            </button>
+
+            {expandedSections.reviews && (
+              <div className="ps-section-body">
+                <div className={`ps-toggle-card ${enableReviews ? "ps-toggle-on ps-toggle-green" : "ps-toggle-off"}`}>
+                  <div className="ps-toggle-left">
+                    {enableReviews ? <FiCheckCircle size={20} /> : <FiXCircle size={20} />}
+                    <div>
+                      <strong>{enableReviews ? "Reviews are Enabled" : "Reviews are Disabled"}</strong>
+                      <p>{enableReviews ? "Customers can submit and view reviews" : "Review form and list are hidden on all product pages"}</p>
+                    </div>
+                  </div>
+                  <button className={`ps-toggle-switch ${enableReviews ? "active green" : ""}`} onClick={() => setEnableReviews(!enableReviews)} type="button">
+                    <span className="ps-toggle-knob" />
+                  </button>
+                </div>
+              </div>
+            )}
+          </div>
+
+        </div>
+      </main>
+
+      {/* Sticky Save Bar (Mobile) */}
+      {hasChanges && (
+        <div className="ps-sticky-save">
+          <div className="ps-sticky-inner">
+            <span className="ps-sticky-text"><FiAlertTriangle size={14} /> Unsaved changes</span>
+            <button className="ps-sticky-btn" onClick={handleSaveAll} disabled={saving}>
+              <FiSave size={14} /> {saving ? "Saving…" : "Save All"}
+            </button>
+          </div>
+        </div>
+      )}
+
+      <footer className="ps-footer"><p>© {new Date().getFullYear()} BafnaToys Store Settings</p></footer>
     </div>
   );
 };

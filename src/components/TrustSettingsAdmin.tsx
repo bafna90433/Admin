@@ -5,9 +5,8 @@ import {
   FiSettings, FiSave, FiImage, FiLink, FiStar, 
   FiTrash2, FiPlus, FiX, FiUploadCloud, FiAward, FiUsers
 } from 'react-icons/fi';
-import '../styles/AdminReviews.css'; // Using the same CSS for global classes
+import '../styles/AdminReviews.css';
 
-// CONFIGURATION (Same as AdminReviews)
 const API_BASE =
   process.env.VITE_API_URL ||
   process.env.REACT_APP_API_URL ||
@@ -15,7 +14,7 @@ const API_BASE =
 
 const TrustSettingsAdmin = () => {
   const [images, setImages] = useState<any>({
-    factoryImage: null, manufacturingUnit: null, packingDispatch: null, warehouseStorage: null,
+    factoryImage: null, // BIS Banner
     factorySliderImages: [],
     amazonLogo: null, flipkartLogo: null, meeshoLogo: null, makeInIndiaLogo: null
   });
@@ -25,7 +24,14 @@ const TrustSettingsAdmin = () => {
   const [retailerCount, setRetailerCount] = useState("49,000+");
   const [socialLinks, setSocialLinks] = useState({ youtube: '', instagram: '', facebook: '', linkedin: '' });
   const [storeLinks, setStoreLinks] = useState({ amazon: '', flipkart: '', meesho: '' });
+  
   const [reviews, setReviews] = useState<any[]>([{ text: '', name: '', existingImage: '', file: null, localPreview: '' }]);
+  
+  // ✅ NAYA: Dynamic Factory Visuals State
+  const [factoryVisuals, setFactoryVisuals] = useState<any[]>([
+    { label: 'Manufacturing', existingImage: '', file: null, localPreview: '' }
+  ]);
+
   const [loading, setLoading] = useState(false);
   const [preview, setPreview] = useState<any>({}); 
 
@@ -54,6 +60,13 @@ const TrustSettingsAdmin = () => {
             text: r.reviewText, name: r.reviewerName, existingImage: r.image, file: null, localPreview: ''
           })));
         }
+
+        // ✅ NAYA: Fetch Dynamic Factory Visuals
+        if (res.data.factoryVisuals && res.data.factoryVisuals.length > 0) {
+          setFactoryVisuals(res.data.factoryVisuals.map((v: any) => ({
+            label: v.label || '', existingImage: v.image || '', file: null, localPreview: ''
+          })));
+        }
       }
       setClearSlider(false);
     } catch (error) {
@@ -76,6 +89,7 @@ const TrustSettingsAdmin = () => {
     setPreview({ ...preview, [field]: null });
   };
 
+  // --- Slider Images Logic ---
   const handleMultipleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     if (e.target.files) {
       const filesArray = Array.from(e.target.files);
@@ -103,29 +117,18 @@ const TrustSettingsAdmin = () => {
     }
   };
 
+  // --- Reviews Logic ---
   const addReviewField = () => { setReviews([...reviews, { text: '', name: '', existingImage: '', file: null, localPreview: '' }]); };
-  
   const removeReviewField = (index: number) => { 
     Swal.fire({
-      title: "Remove Review?",
-      text: "Are you sure you want to remove this review field?",
-      icon: "warning",
-      showCancelButton: true,
-      confirmButtonColor: "#ef4444",
-      confirmButtonText: "Yes, Remove",
-    }).then((result) => {
-      if (result.isConfirmed) {
-        setReviews(reviews.filter((_, i) => i !== index)); 
-      }
-    });
+      title: "Remove Review?", text: "Are you sure you want to remove this review field?", icon: "warning", showCancelButton: true, confirmButtonColor: "#ef4444", confirmButtonText: "Yes, Remove",
+    }).then((result) => { if (result.isConfirmed) setReviews(reviews.filter((_, i) => i !== index)); });
   };
-  
   const updateReview = (index: number, field: string, value: any) => {
     const newReviews = [...reviews];
     newReviews[index][field] = value;
     setReviews(newReviews);
   };
-
   const handleReviewFileChange = (index: number, e: React.ChangeEvent<HTMLInputElement>) => {
     if (e.target.files && e.target.files[0]) {
       const file = e.target.files[0];
@@ -135,7 +138,6 @@ const TrustSettingsAdmin = () => {
       setReviews(newReviews);
     }
   };
-
   const removeReviewImage = (index: number) => {
     const newReviews = [...reviews];
     newReviews[index].file = null;
@@ -144,6 +146,32 @@ const TrustSettingsAdmin = () => {
     setReviews(newReviews);
   };
 
+  // ✅ NAYA: Factory Visuals Logic
+  const addFactoryVisual = () => setFactoryVisuals([...factoryVisuals, { label: '', existingImage: '', file: null, localPreview: '' }]);
+  const removeFactoryVisual = (index: number) => setFactoryVisuals(factoryVisuals.filter((_, i) => i !== index));
+  const updateFactoryVisual = (index: number, field: string, value: any) => {
+    const newVisuals = [...factoryVisuals];
+    newVisuals[index][field] = value;
+    setFactoryVisuals(newVisuals);
+  };
+  const handleFactoryVisualFileChange = (index: number, e: React.ChangeEvent<HTMLInputElement>) => {
+    if (e.target.files && e.target.files[0]) {
+      const file = e.target.files[0];
+      const newVisuals = [...factoryVisuals];
+      newVisuals[index].file = file;
+      newVisuals[index].localPreview = URL.createObjectURL(file);
+      setFactoryVisuals(newVisuals);
+    }
+  };
+  const removeFactoryVisualImage = (index: number) => {
+    const newVisuals = [...factoryVisuals];
+    newVisuals[index].file = null;
+    newVisuals[index].localPreview = '';
+    newVisuals[index].existingImage = '';
+    setFactoryVisuals(newVisuals);
+  };
+
+  // --- SAVE ALL LOGIC ---
   const handleSave = async () => {
     setLoading(true);
     const formData = new FormData();
@@ -156,18 +184,26 @@ const TrustSettingsAdmin = () => {
     formData.append('clearSlider', clearSlider.toString());
     formData.append('retainedSliderImages', JSON.stringify(preview.factorySliderImages || []));
 
-    const fileFields = ['factoryImage', 'manufacturingUnit', 'packingDispatch', 'warehouseStorage', 'amazonLogo', 'flipkartLogo', 'meeshoLogo', 'makeInIndiaLogo'];
+    // Static Image fields
+    const fileFields = ['factoryImage', 'amazonLogo', 'flipkartLogo', 'meeshoLogo', 'makeInIndiaLogo'];
     fileFields.forEach(field => {
       if (images[field]) formData.append(field, images[field]);
     });
     
+    // Factory Slider
     if (images.factorySliderImages?.length > 0) {
         images.factorySliderImages.forEach((file: File) => formData.append('factorySliderImages', file));
     }
 
+    // Reviews Data
     const reviewsData = reviews.map(r => ({ text: r.text, name: r.name, hasNewImage: !!r.file, existingImage: r.existingImage }));
     formData.append('reviewsData', JSON.stringify(reviewsData));
     reviews.forEach(r => { if (r.file) formData.append('reviewImages', r.file); });
+
+    // ✅ NAYA: Factory Visuals Data Append
+    const visualsData = factoryVisuals.map(v => ({ label: v.label, hasNewImage: !!v.file, existingImage: v.existingImage }));
+    formData.append('factoryVisualsData', JSON.stringify(visualsData));
+    factoryVisuals.forEach(v => { if (v.file) formData.append('factoryVisualImages', v.file); });
 
     try {
       await axios.put(`${API_BASE}/trust-settings`, formData, { headers: { 'Content-Type': 'multipart/form-data' } });
@@ -280,20 +316,62 @@ const TrustSettingsAdmin = () => {
 
         </div>
 
-        {/* SECTION: FACTORY IMAGES */}
+        {/* SECTION: FACTORY IMAGES & VISUALS */}
         <div style={{ backgroundColor: 'white', padding: '24px', borderRadius: '12px', marginBottom: '24px', boxShadow: '0 4px 6px -1px rgba(0,0,0,0.05)', border: '1px solid #e2e8f0' }}>
           <h3 style={{ marginBottom: '20px', fontSize: '1.2rem', fontWeight: 'bold', color: '#1e293b', display: 'flex', alignItems: 'center', gap: '8px' }}>
             <FiImage color="#f97316" /> Factory & Manufacturing Visuals
           </h3>
-          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(250px, 1fr))', gap: '20px', marginBottom: '20px' }}>
+          
+          {/* Static BIS Banner */}
+          <div style={{ marginBottom: '30px', maxWidth: '350px' }}>
              {renderImageUploader('factoryImage', 'Main Banner (BIS Certified)')}
-             {renderImageUploader('manufacturingUnit', 'Manufacturing Unit')}
-             {renderImageUploader('packingDispatch', 'Packing & Dispatch')}
-             {renderImageUploader('warehouseStorage', 'Warehouse Storage')}
+          </div>
+
+          {/* ✅ NAYA: Dynamic Process Cards Grid */}
+          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '15px', borderTop: '1px solid #e2e8f0', paddingTop: '20px' }}>
+            <h4 style={{ fontSize: '1.1rem', fontWeight: 'bold', color: '#334155' }}>Factory Process Cards</h4>
+            <button onClick={addFactoryVisual} style={{ backgroundColor: '#3b82f6', color: 'white', border: 'none', padding: '8px 16px', borderRadius: '6px', display: 'flex', alignItems: 'center', gap: '6px', cursor: 'pointer', fontWeight: 'bold' }}>
+              <FiPlus /> Add Card
+            </button>
+          </div>
+
+          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(280px, 1fr))', gap: '20px', marginBottom: '30px' }}>
+            {factoryVisuals.map((visual, index) => {
+              const displayUrl = visual.localPreview || visual.existingImage;
+              return (
+                <div key={index} style={{ border: '1px solid #cbd5e1', padding: '15px', borderRadius: '8px', backgroundColor: '#f8fafc', position: 'relative' }}>
+                  <button onClick={() => removeFactoryVisual(index)} style={{ position: 'absolute', top: '10px', right: '10px', color: '#ef4444', background: 'none', border: 'none', cursor: 'pointer', display: 'flex', alignItems: 'center', zIndex: 10 }}>
+                    <FiTrash2 size={18} />
+                  </button>
+                  
+                  <div style={{ marginBottom: '15px', marginTop: '5px', paddingRight: '20px' }}>
+                    <label style={{ display: 'block', fontSize: '0.9rem', marginBottom: '5px', color: '#475569', fontWeight: 'bold' }}>Title Label</label>
+                    <input type="text" value={visual.label} onChange={(e) => updateFactoryVisual(index, 'label', e.target.value)} placeholder="e.g. Manufacturing Unit" style={{ width: '100%', padding: '10px', border: '1px solid #cbd5e1', borderRadius: '6px' }} />
+                  </div>
+
+                  <div>
+                    <label style={{ display: 'block', fontSize: '0.9rem', marginBottom: '5px', color: '#475569', fontWeight: 'bold' }}>Card Image</label>
+                    {displayUrl ? (
+                      <div style={{ position: 'relative', height: '140px', borderRadius: '6px', border: '1px solid #cbd5e1', overflow: 'hidden' }}>
+                        <img src={displayUrl} alt="Visual" style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
+                        <button type="button" onClick={() => removeFactoryVisualImage(index)} style={{ position: 'absolute', top: '5px', right: '5px', backgroundColor: '#ef4444', color: 'white', border: 'none', borderRadius: '50%', width: '24px', height: '24px', display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer' }}>
+                          <FiX size={14} />
+                        </button>
+                      </div>
+                    ) : (
+                      <div style={{ position: 'relative', height: '140px', borderRadius: '6px', border: '2px dashed #cbd5e1', display: 'flex', alignItems: 'center', justifyContent: 'center', backgroundColor: '#fff', overflow: 'hidden' }}>
+                        <span style={{ color: '#94a3b8', fontSize: '14px', display: 'flex', alignItems: 'center', gap: '5px' }}><FiUploadCloud size={18} /> Upload Image</span>
+                        <input type="file" onChange={(e) => handleFactoryVisualFileChange(index, e)} accept="image/*" style={{ position: 'absolute', top: 0, left: 0, opacity: 0, cursor: 'pointer', height: '100%', width: '100%' }} />
+                      </div>
+                    )}
+                  </div>
+                </div>
+              );
+            })}
           </div>
 
           {/* Slider Specific */}
-          <div style={{ padding: '20px', border: '1px solid #cbd5e1', borderRadius: '8px', backgroundColor: '#f8fafc' }}>
+          <div style={{ padding: '20px', border: '1px solid #cbd5e1', borderRadius: '8px', backgroundColor: '#f8fafc', borderTop: '1px solid #e2e8f0' }}>
             <h4 style={{ marginBottom: '15px', color: '#334155', fontWeight: 'bold' }}>Coimbatore Factory: Live Facility Feed (Slider)</h4>
             
             <div style={{ position: 'relative', overflow: 'hidden', display: 'inline-block', marginBottom: '15px' }}>

@@ -1,456 +1,619 @@
-import React, { useEffect, useMemo, useState } from "react";
+import React, { useEffect, useMemo, useState, useCallback, useRef } from "react";
 import toast, { Toaster } from "react-hot-toast";
 import { utils, writeFile } from "xlsx";
-import { format } from "date-fns";
+import { format, formatDistanceToNow } from "date-fns";
 import axios from "axios";
 import "../styles/AdminDashboard.css";
 import {
-  FiSearch,
-  FiX,
-  FiMessageSquare,
-  FiTrash2,
-  FiUser,
-  FiDownload,
-  FiAlertCircle,
-  FiPhone,
-  FiKey,
-  FiChevronLeft,
-  FiChevronRight,
-  FiChevronsLeft,
-  FiChevronsRight,
-  FiMapPin,
-  FiHome,
-  FiBriefcase,
-  FiFileText,
-  FiEye // ✅ Preview Icon
+  FiSearch, FiX, FiMessageSquare, FiTrash2, FiDownload,
+  FiAlertCircle, FiPhone, FiKey, FiChevronLeft, FiChevronRight,
+  FiChevronsLeft, FiChevronsRight, FiMapPin, FiGrid, FiList, 
+  FiRefreshCw, FiCalendar, FiUsers, FiActivity, FiChevronDown, 
+  FiChevronUp, FiClock, FiShield, FiCopy, FiArrowUp, FiArrowDown, 
+  FiMaximize2, FiMinimize2, FiHash, FiTrendingUp, FiSliders, 
+  FiZap, FiEye, FiExternalLink, FiFileText
 } from "react-icons/fi";
 
-// --- CONFIGURATION ---
 const API_BASE =
-  process.env.VITE_API_URL ||
-  process.env.REACT_APP_API_URL ||
+  (import.meta as any).env?.VITE_API_URL ||
+  (process as any).env?.VITE_API_URL ||
+  (process as any).env?.REACT_APP_API_URL ||
   "https://bafnatoys-backend-production.up.railway.app/api";
 
-// ✅ Helper to construct standard URL
 const getFileUrl = (filePath?: string) => {
   if (!filePath) return "";
-  
-  if (filePath.startsWith("http://") || filePath.startsWith("https://")) {
-    return filePath; // Original Cloudinary link
-  }
-
+  if (filePath.startsWith("http://") || filePath.startsWith("https://")) return filePath;
   const baseUrl = API_BASE.replace(/\/api\/?$/, "");
-  const cleanPath = filePath.replace(/\\/g, "/"); 
+  const cleanPath = filePath.replace(/\\/g, "/");
   return `${baseUrl}/${cleanPath.startsWith("/") ? cleanPath.slice(1) : cleanPath}`;
 };
 
-// ✅ Helper to construct Download URL (forces Cloudinary to download)
 const getDownloadUrl = (filePath?: string) => {
   const url = getFileUrl(filePath);
-  if (url.includes("res.cloudinary.com")) {
-    // Adds 'fl_attachment' to force the file to download instead of opening in browser
-    return url.replace("/upload/", "/upload/fl_attachment/");
-  }
+  if (url.includes("res.cloudinary.com")) return url.replace("/upload/", "/upload/fl_attachment/");
   return url;
 };
 
-// Customer Type 
 type Customer = {
   _id: string;
   shopName: string;
   address: string;
   otpMobile: string;
   whatsapp: string;
-  gstNumber?: string; 
-  gstDocumentUrl?: string; 
+  gstDocumentUrl?: string; // Restored the document URL field
   createdAt: string;
 };
 
 const extractCity = (address: string): string => {
   if (!address) return "Unknown";
-  
-  const lines = address.split('\n');
+  const lines = address.split("\n");
   for (const line of lines) {
-    const lowerLine = line.toLowerCase();
-    if (lowerLine.includes('city:') || lowerLine.includes('town:') || lowerLine.includes('district:')) {
-      const parts = line.split(':');
+    const low = line.toLowerCase();
+    if (low.includes("city:") || low.includes("town:") || low.includes("district:")) {
+      const parts = line.split(":");
       if (parts.length > 1) return parts[1].trim();
     }
   }
-  
   for (let i = Math.max(0, lines.length - 3); i < lines.length; i++) {
-    const line = lines[i];
-    if (line.includes(',')) {
-      const parts = line.split(',');
+    if (lines[i].includes(",")) {
+      const parts = lines[i].split(",");
       if (parts.length > 1) return parts[0].trim();
     }
   }
-  
-  const firstLine = lines.find(l => l.trim().length > 0);
-  return firstLine ? firstLine.substring(0, 15) + '...' : "Unknown";
+  const first = lines.find((l) => l.trim().length > 0);
+  return first ? (first.length > 18 ? first.substring(0, 18) + "…" : first) : "Unknown";
 };
 
-// Main Component
+const normalizeWA = (phone: string) => {
+  let d = phone.replace(/\D/g, "");
+  if (d.startsWith("91") && d.length > 10) d = d.substring(2);
+  if (d.length > 10) d = d.slice(-10);
+  return `91${d}`;
+};
+
+const formatPhone = (phone: string) => {
+  const d = phone.replace(/\D/g, "").slice(-10);
+  if (d.length === 10) return `${d.slice(0, 5)} ${d.slice(5)}`;
+  return phone;
+};
+
+type SortKey = "name" | "date" | "city";
+type SortDir = "asc" | "desc";
+const PER_PAGE = [10, 25, 50, 100];
+
 const AdminDashboard: React.FC = () => {
   const [rows, setRows] = useState<Customer[]>([]);
-  const [filteredRows, setFilteredRows] = useState<Customer[]>([]);
   const [loading, setLoading] = useState(true);
   const [err, setErr] = useState<string | null>(null);
   const [acting, setActing] = useState<string | null>(null);
-  const [searchTerm, setSearchTerm] = useState("");
-  const [isSearchFocused, setIsSearchFocused] = useState(false);
-  
-  const [currentPage, setCurrentPage] = useState(1);
-  const [itemsPerPage] = useState(10); 
-  
-  const [expandedAddresses, setExpandedAddresses] = useState<Set<string>>(new Set());
 
-  const [deleteCandidateId, setDeleteCandidateId] = useState<string | null>(null);
-  const [deletePassword, setDeletePassword] = useState("");
+  const [search, setSearch] = useState("");
+  const [debounced, setDebounced] = useState("");
+  const [cityFilter, setCityFilter] = useState("all");
+  const [sortKey, setSortKey] = useState<SortKey>("date");
+  const [sortDir, setSortDir] = useState<SortDir>("desc");
 
-  // ✅ State for Document Preview Modal
-  const [previewDocUrl, setPreviewDocUrl] = useState<string | null>(null);
+  const [page, setPage] = useState(1);
+  const [perPage, setPerPage] = useState(10);
+  const [view, setView] = useState<"card" | "list">("list");
 
-  const toggleAddress = (customerId: string) => {
-    setExpandedAddresses(prev => {
-      const newSet = new Set(prev);
-      if (newSet.has(customerId)) newSet.delete(customerId);
-      else newSet.add(customerId);
-      return newSet;
-    });
-  };
+  const [expanded, setExpanded] = useState<Set<string>>(new Set());
+  const [allExpanded, setAllExpanded] = useState(false);
 
-  const stats = useMemo(() => ({ total: rows.length }), [rows]);
+  const [delId, setDelId] = useState<string | null>(null);
+  const [delPwd, setDelPwd] = useState("");
+  const [previewUrl, setPreviewUrl] = useState<string | null>(null); // Restored state for modal
+  const [showFilters, setShowFilters] = useState(false);
 
-  const fetchCustomers = async () => {
+  const topRef = useRef<HTMLDivElement>(null);
+  const searchRef = useRef<HTMLInputElement>(null);
+
+  const fetchCustomers = useCallback(async () => {
     try {
       setLoading(true);
       const { data } = await axios.get<Customer[]>(`${API_BASE}/admin/customers`);
-      setRows(
-        Array.isArray(data)
-          ? data.sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime())
-          : []
-      );
+      setRows(Array.isArray(data) ? data : []);
       setErr(null);
     } catch (e: any) {
       setErr(e?.response?.data?.message || "Failed to load customers");
-      toast.error("Failed to load customer data.");
+      toast.error("Failed to load data");
     } finally {
       setLoading(false);
     }
-  };
+  }, []);
 
-  useEffect(() => { fetchCustomers(); }, []);
+  useEffect(() => { fetchCustomers(); }, [fetchCustomers]);
 
   useEffect(() => {
-    let result = rows;
-    if (searchTerm) {
-      const term = searchTerm.toLowerCase();
-      result = result.filter(
-        (c) =>
-          c.shopName.toLowerCase().includes(term) ||
-          c.otpMobile.includes(term) ||
-          (c.whatsapp && c.whatsapp.includes(term)) ||
-          (c.gstNumber && c.gstNumber.toLowerCase().includes(term)) ||
-          (c.address && c.address.toLowerCase().includes(term))
+    const t = setTimeout(() => setDebounced(search), 300);
+    return () => clearTimeout(t);
+  }, [search]);
+
+  useEffect(() => { setPage(1); }, [debounced, cityFilter, sortKey, sortDir, perPage]);
+
+  useEffect(() => {
+    const mq = window.matchMedia("(max-width: 768px)");
+    const handler = (e: MediaQueryListEvent | MediaQueryList) => {
+      if (e.matches) setView("card");
+    };
+    handler(mq);
+    mq.addEventListener("change", handler);
+    return () => mq.removeEventListener("change", handler);
+  }, []);
+
+  const cities = useMemo(() => {
+    const set = new Set<string>();
+    rows.forEach((c) => { const city = extractCity(c.address); if (city !== "Unknown") set.add(city); });
+    return Array.from(set).sort();
+  }, [rows]);
+
+  const filtered = useMemo(() => {
+    let list = [...rows];
+    if (debounced) {
+      const q = debounced.toLowerCase();
+      list = list.filter((c) =>
+        c.shopName.toLowerCase().includes(q) ||
+        c.otpMobile.includes(q) ||
+        (c.whatsapp && c.whatsapp.includes(q)) ||
+        (c.address && c.address.toLowerCase().includes(q))
       );
     }
-    setFilteredRows(result);
-    setCurrentPage(1);
-  }, [rows, searchTerm]);
+    if (cityFilter !== "all") list = list.filter((c) => extractCity(c.address) === cityFilter);
+    list.sort((a, b) => {
+      let cmp = 0;
+      if (sortKey === "name") cmp = a.shopName.localeCompare(b.shopName);
+      else if (sortKey === "city") cmp = extractCity(a.address).localeCompare(extractCity(b.address));
+      else cmp = new Date(a.createdAt).getTime() - new Date(b.createdAt).getTime();
+      return sortDir === "desc" ? -cmp : cmp;
+    });
+    return list;
+  }, [rows, debounced, cityFilter, sortKey, sortDir]);
 
-  const paginatedData = useMemo(() => {
-    const startIndex = (currentPage - 1) * itemsPerPage;
-    return filteredRows.slice(startIndex, startIndex + itemsPerPage);
-  }, [filteredRows, currentPage, itemsPerPage]);
+  const totalPages = Math.max(1, Math.ceil(filtered.length / perPage));
+  const safePage = Math.min(page, totalPages);
+  const paginated = useMemo(() => {
+    const s = (safePage - 1) * perPage;
+    return filtered.slice(s, s + perPage);
+  }, [filtered, safePage, perPage]);
 
-  const totalPages = Math.ceil(filteredRows.length / itemsPerPage);
+  const stats = useMemo(() => {
+    const now = new Date();
+    const todayStr = format(now, "yyyy-MM-dd");
+    const week = new Date(now.getTime() - 7 * 86400000);
+    const month = new Date(now.getTime() - 30 * 86400000);
+    let today = 0, wk = 0, mo = 0;
+    rows.forEach((c) => {
+      const d = new Date(c.createdAt);
+      if (format(d, "yyyy-MM-dd") === todayStr) today++;
+      if (d >= week) wk++;
+      if (d >= month) mo++;
+    });
+    const yesterdayStr = format(new Date(now.getTime() - 86400000), "yyyy-MM-dd");
+    let yesterday = 0;
+    rows.forEach((c) => { if (format(new Date(c.createdAt), "yyyy-MM-dd") === yesterdayStr) yesterday++; });
+    const growth = yesterday > 0 ? Math.round(((today - yesterday) / yesterday) * 100) : today > 0 ? 100 : 0;
+    return { total: rows.length, today, week: wk, month: mo, growth };
+  }, [rows]);
 
-  const handlePageChange = (page: number) => {
-    if (page >= 1 && page <= totalPages) setCurrentPage(page);
+  const toggle = (id: string) => {
+    setExpanded((prev) => { const s = new Set(prev); s.has(id) ? s.delete(id) : s.add(id); return s; });
   };
 
-  const handleConfirmDelete = async () => {
-    if (deletePassword !== "bafnatoys") return toast.error("Incorrect password.");
-    if (deleteCandidateId) {
-      setActing(deleteCandidateId);
-      try {
-        await axios.delete(`${API_BASE}/admin/customer/${deleteCandidateId}`);
-        setRows((p) => p.filter((r) => r._id !== deleteCandidateId));
-        toast.success("Customer deleted successfully.");
-      } catch (e: any) {
-        toast.error(e?.response?.data?.message || "An error occurred.");
-      } finally {
-        setActing(null);
-      }
-    }
-    setDeleteCandidateId(null);
-    setDeletePassword("");
+  const toggleAll = () => {
+    if (allExpanded) { setExpanded(new Set()); setAllExpanded(false); }
+    else { setExpanded(new Set(paginated.map((c) => c._id))); setAllExpanded(true); }
+  };
+
+  const copy = (text: string, label: string) => {
+    navigator.clipboard.writeText(text);
+    toast.success(`${label} copied!`, { duration: 1500, icon: "📋", style: { borderRadius: "12px", background: "#1e293b", color: "#fff", fontSize: "14px" } });
+  };
+
+  const openWA = (phone: string) => {
+    if (!phone) return toast.error("WhatsApp number missing!");
+    const clean = normalizeWA(phone);
+    const msg = encodeURIComponent("Hello from BafnaToys! 🧸\nHow can we help you?");
+    window.open(`https://api.whatsapp.com/send?phone=${clean}&text=${msg}`, "_blank");
+  };
+
+  const confirmDelete = async () => {
+    if (delPwd !== "bafnatoys") return toast.error("Wrong password");
+    if (!delId) return;
+    setActing(delId);
+    try {
+      await axios.delete(`${API_BASE}/admin/customer/${delId}`);
+      setRows((p) => p.filter((r) => r._id !== delId));
+      toast.success("Customer deleted", { icon: "🗑️", style: { borderRadius: "12px", background: "#1e293b", color: "#fff" } });
+    } catch (e: any) {
+      toast.error(e?.response?.data?.message || "Error");
+    } finally { setActing(null); setDelId(null); setDelPwd(""); }
   };
 
   const handleExport = () => {
-    const dataToExport = filteredRows.map((c) => ({
+    const data = filtered.map((c) => ({
       "Shop Name": c.shopName,
-      "GST Number": c.gstNumber || "N/A", 
-      "Has GST Document": c.gstDocumentUrl ? "Yes" : "No", 
-      "City": extractCity(c.address),
-      "Full Address": c.address || "N/A",
-      "Mobile": c.otpMobile,
-      "WhatsApp": c.whatsapp,
-      "Registered On": format(new Date(c.createdAt), "dd MMM yyyy, hh:mm a"),
+      "Has GST Doc": c.gstDocumentUrl ? "Yes" : "No", // Restored export field
+      City: extractCity(c.address),
+      "Full Address": c.address || "",
+      Mobile: c.otpMobile,
+      WhatsApp: c.whatsapp,
+      Registered: format(new Date(c.createdAt), "dd MMM yyyy, hh:mm a"),
     }));
-
-    if (dataToExport.length === 0) return toast.error("No data to export.");
-    const worksheet = utils.json_to_sheet(dataToExport);
-    const workbook = utils.book_new();
-    utils.book_append_sheet(workbook, worksheet, "Customers");
-    writeFile(workbook, `BafnaToys_Customers_${format(new Date(), "yyyy-MM-dd")}.xlsx`);
-    toast.success("Data exported successfully!");
+    if (!data.length) return toast.error("Nothing to export");
+    const ws = utils.json_to_sheet(data);
+    const wb = utils.book_new();
+    utils.book_append_sheet(wb, ws, "Customers");
+    writeFile(wb, `Customers_${format(new Date(), "yyyy-MM-dd")}.xlsx`);
+    toast.success("Exported!", { icon: "📊", style: { borderRadius: "12px", background: "#1e293b", color: "#fff" } });
   };
 
-  // ✅ FIX: Fixed Double 91 issue in WhatsApp
-  const openWhatsApp = (phone: string) => {
-    if (!phone) return toast.error("WhatsApp number missing!");
-    
-    // Remove all non-numeric characters
-    let digits = phone.replace(/\D/g, "");
-    
-    // If number starts with 91, strip it out temporarily
-    if (digits.startsWith("91") && digits.length > 10) {
-      digits = digits.substring(2);
-    }
-    
-    // Take only the last 10 digits to be safe
-    if (digits.length > 10) {
-      digits = digits.slice(-10);
-    }
-
-    // Now cleanly prepend exactly one '91'
-    const cleanWhatsApp = `91${digits}`;
-
-    const message = encodeURIComponent("Hello from BafnaToys! 🧸\nHow can we help you today?");
-    window.open(`https://api.whatsapp.com/send?phone=${cleanWhatsApp}&text=${message}`, "_blank", "noopener,noreferrer");
+  const handleSort = (key: SortKey) => {
+    if (sortKey === key) setSortDir((d) => (d === "asc" ? "desc" : "asc"));
+    else { setSortKey(key); setSortDir("asc"); }
   };
 
-  const getPageNumbers = () => {
-    const pages = [];
-    if (totalPages <= 5) {
-      for (let i = 1; i <= totalPages; i++) pages.push(i);
-    } else {
-      if (currentPage <= 3) {
-        pages.push(1, 2, 3, 4, -1, totalPages);
-      } else if (currentPage >= totalPages - 2) {
-        pages.push(1, -1, totalPages - 3, totalPages - 2, totalPages - 1, totalPages);
-      } else {
-        pages.push(1, -1, currentPage - 1, currentPage, currentPage + 1, -1, totalPages);
-      }
-    }
-    return pages;
+  const clearFilters = () => { setSearch(""); setCityFilter("all"); setSortKey("date"); setSortDir("desc"); };
+  const hasActiveFilters = search || cityFilter !== "all";
+
+  const SortIcon = ({ k }: { k: SortKey }) => {
+    if (sortKey !== k) return <FiArrowDown size={11} style={{ opacity: 0.2 }} />;
+    return sortDir === "asc" ? <FiArrowUp size={11} /> : <FiArrowDown size={11} />;
   };
+
+  const pageRange = () => {
+    const r: number[] = [];
+    const max = 5;
+    let s = Math.max(1, safePage - 2);
+    let e = Math.min(totalPages, s + max - 1);
+    if (e - s < max - 1) s = Math.max(1, e - max + 1);
+    for (let i = s; i <= e; i++) r.push(i);
+    return r;
+  };
+
+  const scrollToTop = () => { topRef.current?.scrollIntoView({ behavior: "smooth" }); };
+
+  const AddressPanel = ({ customer }: { customer: Customer }) => (
+    <div className="ad-expanded">
+      <div className="ad-exp-section">
+        <div className="ad-exp-title"><FiZap size={14} /> Quick Info</div>
+        <div className="ad-exp-chips">
+          {/* Restored Document Chip */}
+          {customer.gstDocumentUrl && (
+            <button className="ad-chip ad-chip-doc" onClick={() => setPreviewUrl(customer.gstDocumentUrl || null)}>
+              <FiFileText size={12} /><span>View GST Document</span><FiExternalLink size={10} className="ad-chip-action" />
+            </button>
+          )}
+          <button className="ad-chip ad-chip-phone" onClick={() => copy(customer.otpMobile, "Mobile")}>
+            <FiPhone size={12} /><span>{formatPhone(customer.otpMobile)}</span><FiCopy size={10} className="ad-chip-action" />
+          </button>
+          {customer.whatsapp && customer.whatsapp !== customer.otpMobile && (
+            <button className="ad-chip ad-chip-wa" onClick={() => copy(customer.whatsapp, "WhatsApp")}>
+              <FiMessageSquare size={12} /><span>{formatPhone(customer.whatsapp)}</span><FiCopy size={10} className="ad-chip-action" />
+            </button>
+          )}
+        </div>
+      </div>
+      {customer.address && (
+        <div className="ad-exp-section">
+          <div className="ad-exp-title"><FiMapPin size={14} /> Full Address</div>
+          <div className="ad-addr-box">
+            {customer.address.split("\n").map((line, i) => {
+              const parts = line.split(":");
+              if (parts.length > 1) {
+                return (<div key={i} className="ad-addr-row"><span className="ad-addr-key">{parts[0].trim()}</span><span className="ad-addr-val">{parts.slice(1).join(":").trim()}</span></div>);
+              }
+              return <div key={i} className="ad-addr-text">{line}</div>;
+            })}
+          </div>
+        </div>
+      )}
+      <div className="ad-exp-meta">
+        <div className="ad-meta-item"><FiClock size={12} /><span>Registered {formatDistanceToNow(new Date(customer.createdAt), { addSuffix: true })}</span></div>
+        <div className="ad-meta-item"><FiCalendar size={12} /><span>{format(new Date(customer.createdAt), "EEEE, dd MMM yyyy • hh:mm a")}</span></div>
+      </div>
+    </div>
+  );
+
+  const MobileActions = ({ customer }: { customer: Customer }) => (
+    <div className="ad-mob-actions">
+      <button className="ad-mob-act ad-mob-wa" onClick={() => openWA(customer.whatsapp)}><FiMessageSquare size={16} /><span>WhatsApp</span></button>
+      <button className="ad-mob-act ad-mob-call" onClick={() => window.open(`tel:${customer.otpMobile}`)}><FiPhone size={16} /><span>Call</span></button>
+      {/* Restored Document Action */}
+      {customer.gstDocumentUrl && (
+        <button className="ad-mob-act ad-mob-doc" onClick={() => setPreviewUrl(customer.gstDocumentUrl || null)}><FiEye size={16} /><span>GST Doc</span></button>
+      )}
+      <button className="ad-mob-act ad-mob-del" onClick={() => setDelId(customer._id)} disabled={acting === customer._id}><FiTrash2 size={16} /><span>Delete</span></button>
+    </div>
+  );
 
   return (
-    <div className="admin-dashboard-container fullscreen">
-      <Toaster position="top-center" reverseOrder={false} />
+    <div className="ad-root" ref={topRef}>
+      <Toaster position="top-center" toastOptions={{ style: { borderRadius: "14px", padding: "12px 20px", fontSize: "14px", fontWeight: 500 } }} />
 
-      {/* ✅ --- PREVIEW MODAL --- */}
-      {previewDocUrl && (
-        <div className="doc-modal-overlay">
-          <div className="doc-modal-content">
-            <div className="doc-modal-header">
-              <h3 className="doc-modal-title">Document Preview</h3>
-              <div className="doc-modal-actions">
-                <a 
-                  href={getDownloadUrl(previewDocUrl)} 
-                  className="action-btn-sm export-btn" 
-                  style={{ textDecoration: 'none' }}
-                >
-                  <FiDownload size={14} /> Download
-                </a>
-                <button className="action-btn-sm delete-btn" onClick={() => setPreviewDocUrl(null)}>
-                  <FiX size={14} /> Close
-                </button>
+      {/* Restored Preview Modal */}
+      {previewUrl && (
+        <div className="ad-overlay" onClick={() => setPreviewUrl(null)}>
+          <div className="ad-modal ad-doc-modal" onClick={(e) => e.stopPropagation()}>
+            <div className="ad-modal-bar">
+              <div className="ad-modal-bar-left">
+                <div className="ad-modal-icon doc"><FiFileText size={16} /></div>
+                <div><h3>Document Preview</h3><p>GST Registration Certificate</p></div>
+              </div>
+              <div className="ad-modal-bar-right">
+                <a href={getDownloadUrl(previewUrl)} className="ad-mbtn ad-mbtn-primary" target="_blank" rel="noreferrer"><FiDownload size={14} /><span>Download</span></a>
+                <a href={getFileUrl(previewUrl)} className="ad-mbtn ad-mbtn-ghost" target="_blank" rel="noreferrer"><FiExternalLink size={14} /></a>
+                <button className="ad-mbtn ad-mbtn-close" onClick={() => setPreviewUrl(null)}><FiX size={16} /></button>
               </div>
             </div>
-            <div className="doc-modal-body">
-              <iframe 
-                src={getFileUrl(previewDocUrl)} 
-                title="Document Preview" 
-                className="doc-iframe"
-              />
+            <div className="ad-doc-frame"><iframe src={getFileUrl(previewUrl)} title="Document" /></div>
+          </div>
+        </div>
+      )}
+
+      {delId && (
+        <div className="ad-overlay" onClick={() => { setDelId(null); setDelPwd(""); }}>
+          <div className="ad-modal ad-del-modal" onClick={(e) => e.stopPropagation()}>
+            <div className="ad-del-visual">
+              <div className="ad-del-circle"><div className="ad-del-circle-inner"><FiShield size={28} /></div></div>
+              <div className="ad-del-pulse" />
+            </div>
+            <h3>Delete Customer</h3>
+            <p>This action is <strong>permanent</strong> and cannot be undone.<br />Enter admin password to confirm.</p>
+            <div className="ad-del-input-wrap">
+              <FiKey className="ad-del-input-icon" />
+              <input type="password" placeholder="Enter admin password…" value={delPwd} onChange={(e) => setDelPwd(e.target.value)} onKeyDown={(e) => e.key === "Enter" && confirmDelete()} autoFocus />
+            </div>
+            <div className="ad-del-btns">
+              <button className="ad-dbtn ad-dbtn-cancel" onClick={() => { setDelId(null); setDelPwd(""); }}>Cancel</button>
+              <button className="ad-dbtn ad-dbtn-danger" onClick={confirmDelete}><FiTrash2 size={14} /> Delete Forever</button>
             </div>
           </div>
         </div>
       )}
 
-      <div className="dashboard-header">
-        <div className="header-left">
-          <h1 className="heading"><FiHome className="heading-icon" /> Customer Management</h1>
-          <p className="subheading">View, manage, and export all customer registrations.</p>
+      {/* Top Section */}
+      <section className="ad-top-section">
+        <div className="ad-top-row">
+          <div className="ad-top-left">
+            <h1 className="ad-page-title">Customers</h1>
+            <span className="ad-page-count">{stats.total} registered</span>
+          </div>
+          <div className="ad-top-right">
+            <button className="ad-top-btn ad-top-refresh" onClick={fetchCustomers} disabled={loading} title="Refresh">
+              <FiRefreshCw size={16} className={loading ? "ad-spinning" : ""} />
+            </button>
+            <button className="ad-top-btn ad-top-export" onClick={handleExport}>
+              <FiDownload size={15} /><span>Export</span>
+            </button>
+          </div>
         </div>
-        <div className="header-right">
-          <button className="action-btn export-btn" onClick={handleExport}><FiDownload size={16} /> Export to Excel</button>
-          <div className="profile-section">
-            <div className="profile-icon"><FiUser size={22} /></div>
-            <div className="profile-info">
-              <span className="profile-name">Admin User</span>
-              <span className="profile-role">Administrator</span>
+        <div className="ad-stats-grid">
+          {[
+            { icon: <FiUsers size={20} />, val: stats.total, lbl: "Total Customers", color: "indigo", sub: `${filtered.length} shown` },
+            { icon: <FiActivity size={20} />, val: stats.today, lbl: "Today", color: "emerald", sub: stats.growth > 0 ? `+${stats.growth}% vs yesterday` : stats.growth < 0 ? `${stats.growth}% vs yesterday` : "Same as yesterday" },
+            { icon: <FiTrendingUp size={20} />, val: stats.week, lbl: "This Week", color: "violet", sub: `Avg ${Math.round(stats.week / 7)}/day` },
+            { icon: <FiCalendar size={20} />, val: stats.month, lbl: "Last 30 Days", color: "amber", sub: `Avg ${Math.round(stats.month / 30)}/day` },
+          ].map((s) => (
+            <div className={`ad-stat ad-stat-${s.color}`} key={s.lbl}>
+              <div className="ad-stat-top">
+                <div className="ad-stat-icon">{s.icon}</div>
+                <div className="ad-stat-number">{s.val.toLocaleString()}</div>
+              </div>
+              <div className="ad-stat-label">{s.lbl}</div>
+              <div className="ad-stat-sub">{s.sub}</div>
+            </div>
+          ))}
+        </div>
+      </section>
+
+      {/* Toolbar */}
+      <section className="ad-toolbar-section">
+        <div className="ad-toolbar">
+          <div className="ad-toolbar-main">
+            <div className="ad-search">
+              <FiSearch className="ad-search-icon" />
+              <input ref={searchRef} placeholder="Search shop, phone, address…" value={search} onChange={(e) => setSearch(e.target.value)} />
+              {search && <button className="ad-search-clear" onClick={() => { setSearch(""); searchRef.current?.focus(); }}><FiX size={14} /></button>}
+            </div>
+            <div className="ad-toolbar-btns">
+              <button className={`ad-tbtn ad-tbtn-filter ${showFilters ? "active" : ""} ${hasActiveFilters ? "has-filters" : ""}`} onClick={() => setShowFilters(!showFilters)}>
+                <FiSliders size={15} /><span>Filters</span>{hasActiveFilters && <span className="ad-filter-dot" />}
+              </button>
+              <div className="ad-view-toggle">
+                <button className={`ad-vt-btn ${view === "list" ? "active" : ""}`} onClick={() => setView("list")} title="List"><FiList size={16} /></button>
+                <button className={`ad-vt-btn ${view === "card" ? "active" : ""}`} onClick={() => setView("card")} title="Cards"><FiGrid size={16} /></button>
+              </div>
             </div>
           </div>
-        </div>
-      </div>
 
-      <div className="stats-cards-container">
-        <div className="stats-card total">
-          <div className="stats-icon"><FiUser size={24} /></div>
-          <div>
-            <div className="stats-number">{stats.total}</div>
-            <div className="stats-label">Total Registered Users</div>
-          </div>
-        </div>
-      </div>
-
-      <div className="table-toolbar">
-        <div className="search-box-wrapper">
-          <div className={`search-box ${isSearchFocused ? "focused" : ""}`}>
-            <FiSearch className="search-icon" />
-            <input
-              type="text"
-              placeholder="Search by shop name, phone, GST or address..."
-              value={searchTerm}
-              onChange={(e) => setSearchTerm(e.target.value)}
-              onFocus={() => setIsSearchFocused(true)}
-              onBlur={() => setIsSearchFocused(false)}
-            />
-            {searchTerm && (
-              <button className="clear-search" onClick={() => setSearchTerm("")}><FiX size={16} /></button>
-            )}
-          </div>
-        </div>
-      </div>
-
-      <div className="table-container fullscreen">
-        {loading && <div className="loader-container"><div className="loader"></div></div>}
-        {err && <div className="error-message"><FiAlertCircle /> {err}</div>}
-        {!loading && !err && (
-          <>
-            <div className="customers-list">
-              {paginatedData.length > 0 ? (
-                paginatedData.map((customer) => {
-                  const isExpanded = expandedAddresses.has(customer._id);
-                  const cityName = extractCity(customer.address);
-                  
-                  return (
-                    <div key={customer._id} className="customer-card">
-                      <div className="card-main">
-                        <div className="card-left">
-                          <div className="shop-name"><FiMapPin className="location-icon" size={16} />{customer.shopName}</div>
-                          <div className="city-row">
-                            <span className="dash">-</span><FiMapPin className="city-icon" size={14} /><span className="city-name">{cityName}</span>
-                          </div>
-                        </div>
-                        <div className="card-right">
-                          <button className="action-btn-sm whatsapp-btn" onClick={() => openWhatsApp(customer.whatsapp)}><FiMessageSquare size={14} /> Chat</button>
-                          <button className="action-btn-icon delete-btn" disabled={acting === customer._id} onClick={() => setDeleteCandidateId(customer._id)}><FiTrash2 size={16} /></button>
-                        </div>
-                      </div>
-                      
-                      {(customer.address || customer.gstNumber || customer.gstDocumentUrl) && (
-                        <div className="address-section">
-                          <button className="toggle-address-btn" onClick={() => toggleAddress(customer._id)}>
-                            {isExpanded ? "Hide full details" : "See full details"}
-                          </button>
-                          
-                          {isExpanded && (
-                            <div className="full-address">
-                              
-                              <div style={{ display: 'flex', gap: '10px', flexWrap: 'wrap', marginBottom: '12px' }}>
-                                
-                                {customer.gstNumber && (
-                                  <div style={{ background: "#f0f7ff", padding: "8px 12px", borderRadius: "6px", color: "#0056b3", fontWeight: "600", display: "inline-flex", alignItems: "center" }}>
-                                    <FiBriefcase size={14} style={{ marginRight: '6px' }} />
-                                    GST: {customer.gstNumber}
-                                  </div>
-                                )}
-
-                                {/* ✅ Button: Opens Modal instead of a new tab */}
-                                {customer.gstDocumentUrl && (
-                                  <div 
-                                    onClick={() => setPreviewDocUrl(customer.gstDocumentUrl || null)}
-                                    style={{ background: "#e8f5e9", padding: "8px 12px", borderRadius: "6px", color: "#2e7d32", fontWeight: "600", display: "inline-flex", alignItems: "center", cursor: "pointer", transition: "0.2s" }}
-                                    onMouseOver={(e) => e.currentTarget.style.opacity = '0.8'}
-                                    onMouseOut={(e) => e.currentTarget.style.opacity = '1'}
-                                  >
-                                    <FiEye size={16} style={{ marginRight: '6px' }} />
-                                    View / Download GST Document
-                                  </div>
-                                )}
-                              </div>
-
-                              {customer.address && customer.address.split('\n').map((line, idx) => {
-                                const parts = line.split(':');
-                                if(parts.length > 1) {
-                                  return (
-                                    <div key={idx} className="address-line">
-                                      <strong>{parts[0]}:</strong><span>{parts.slice(1).join(':')}</span>
-                                    </div>
-                                  );
-                                }
-                                return <div key={idx} className="address-line">{line}</div>;
-                              })}
-                              <div className="contact-details">
-                                <div className="contact-item"><FiPhone size={12} className="contact-icon" /><span>{customer.otpMobile}</span></div>
-                                {customer.whatsapp && customer.whatsapp !== customer.otpMobile && (
-                                  <div className="contact-item"><FiMessageSquare size={12} className="contact-icon" /><span>{customer.whatsapp}</span></div>
-                                )}
-                              </div>
-                              <div className="reg-date"><FiUser size={12} className="reg-icon" /> Registered: {format(new Date(customer.createdAt), "dd MMM yyyy, hh:mm a")}</div>
-                            </div>
-                          )}
-                        </div>
-                      )}
-                    </div>
-                  );
-                })
-              ) : (
-                <div className="no-results">No customers match your criteria.</div>
-              )}
-            </div>
-
-            {filteredRows.length > 0 && (
-              <div className="pagination-container">
-                <div className="pagination-info">Showing 1 to {Math.min(itemsPerPage, filteredRows.length)} of {filteredRows.length} entries</div>
-                <div className="pagination-controls">
-                  <button className="pagination-btn" onClick={() => handlePageChange(1)} disabled={currentPage === 1}><FiChevronsLeft size={18} /></button>
-                  <button className="pagination-btn" onClick={() => handlePageChange(currentPage - 1)} disabled={currentPage === 1}><FiChevronLeft size={18} /></button>
-                  {getPageNumbers().map((page, index) => (
-                    page === -1 ? <span key={`ellipsis-${index}`} className="pagination-ellipsis">...</span> : 
-                    <button key={page} className={`pagination-btn ${currentPage === page ? 'active' : ''}`} onClick={() => handlePageChange(page)}>{page}</button>
-                  ))}
-                  <button className="pagination-btn" onClick={() => handlePageChange(currentPage + 1)} disabled={currentPage === totalPages}><FiChevronRight size={18} /></button>
-                  <button className="pagination-btn" onClick={() => handlePageChange(totalPages)} disabled={currentPage === totalPages}><FiChevronsRight size={18} /></button>
+          <div className={`ad-filters ${showFilters ? "open" : ""}`}>
+            <div className="ad-filters-inner">
+              <div className="ad-filter-group">
+                <label><FiMapPin size={12} /> City</label>
+                <div className="ad-select-wrap">
+                  <select value={cityFilter} onChange={(e) => setCityFilter(e.target.value)}>
+                    <option value="all">All Cities ({rows.length})</option>
+                    {cities.map((c) => <option key={c} value={c}>{c}</option>)}
+                  </select>
                 </div>
               </div>
-            )}
-          </>
-        )}
-      </div>
-
-      {deleteCandidateId && (
-        <div className="delete-modal-overlay">
-          <div className="delete-modal-content" style={{height: "auto", maxWidth: "400px"}}>
-            <h3 className="delete-modal-title">Confirm Deletion</h3>
-            <p className="delete-modal-text">This action is permanent and cannot be undone. Please enter the password to confirm.</p>
-            <div className="delete-modal-input-wrapper">
-              <FiKey className="delete-modal-input-icon" />
-              <input type="password" placeholder="Enter password..." className="delete-modal-input" value={deletePassword} onChange={(e) => setDeletePassword(e.target.value)} autoFocus />
+              <div className="ad-filter-group">
+                <label><FiArrowDown size={12} /> Sort By</label>
+                <div className="ad-sort-pills">
+                  {(["date", "name", "city"] as SortKey[]).map((k) => (
+                    <button key={k} className={`ad-pill ${sortKey === k ? "active" : ""}`} onClick={() => handleSort(k)}>
+                      {k === "date" ? "Date" : k === "name" ? "Name" : "City"}<SortIcon k={k} />
+                    </button>
+                  ))}
+                </div>
+              </div>
+              <div className="ad-filter-group">
+                <label><FiHash size={12} /> Per Page</label>
+                <div className="ad-select-wrap sm">
+                  <select value={perPage} onChange={(e) => setPerPage(Number(e.target.value))}>
+                    {PER_PAGE.map((n) => <option key={n} value={n}>{n} items</option>)}
+                  </select>
+                </div>
+              </div>
+              {hasActiveFilters && <button className="ad-clear-filters" onClick={clearFilters}><FiX size={13} /> Clear Filters</button>}
             </div>
-            <div className="delete-modal-actions">
-              <button className="action-btn-sm modal-cancel-btn" onClick={() => { setDeleteCandidateId(null); setDeletePassword(""); }}>Cancel</button>
-              <button className="action-btn-sm modal-confirm-btn" onClick={handleConfirmDelete}>Delete Customer</button>
+          </div>
+
+          <div className="ad-toolbar-info">
+            <div className="ad-showing">
+              {filtered.length === 0 ? <span>No results found</span> : (
+                <><span className="ad-showing-range">{(safePage - 1) * perPage + 1}–{Math.min(safePage * perPage, filtered.length)}</span>
+                  <span className="ad-showing-of"> of </span>
+                  <span className="ad-showing-total">{filtered.length} customers</span>
+                  {debounced && <span className="ad-showing-filtered"> (from {rows.length})</span>}</>
+              )}
+            </div>
+            <div className="ad-toolbar-info-right">
+              {view === "list" && paginated.length > 0 && (
+                <button className="ad-expand-btn" onClick={toggleAll}>
+                  {allExpanded ? <><FiMinimize2 size={13} /> Collapse</> : <><FiMaximize2 size={13} /> Expand All</>}
+                </button>
+              )}
             </div>
           </div>
         </div>
+      </section>
+
+      {/* Content */}
+      <main className="ad-main">
+        {loading ? (
+          <div className="ad-state ad-state-loading">
+            <div className="ad-loader"><div className="ad-loader-ring" /><div className="ad-loader-ring" /><div className="ad-loader-ring" /></div>
+            <h3>Loading Customers</h3><p>Please wait…</p>
+          </div>
+        ) : err ? (
+          <div className="ad-state ad-state-error">
+            <div className="ad-state-icon error"><FiAlertCircle size={28} /></div>
+            <h3>Something went wrong</h3><p>{err}</p>
+            <button className="ad-retry-btn" onClick={fetchCustomers}><FiRefreshCw size={14} /> Try Again</button>
+          </div>
+        ) : paginated.length === 0 ? (
+          <div className="ad-state ad-state-empty">
+            <div className="ad-state-icon empty"><FiSearch size={28} /></div>
+            <h3>No customers found</h3><p>Try adjusting your search or filters</p>
+            {hasActiveFilters && <button className="ad-retry-btn" onClick={clearFilters}><FiX size={14} /> Clear All Filters</button>}
+          </div>
+        ) : view === "list" ? (
+          <div className="ad-table-container">
+            <table className="ad-table">
+              <thead>
+                <tr>
+                  <th className="ad-th-num">#</th>
+                  <th className="ad-th-sortable" onClick={() => handleSort("name")}><span>Shop Name</span><SortIcon k="name" /></th>
+                  <th className="ad-th-sortable" onClick={() => handleSort("city")}><span>City</span><SortIcon k="city" /></th>
+                  <th>Mobile</th>
+                  <th className="ad-th-hide-sm">WhatsApp</th>
+                  <th className="ad-th-sortable" onClick={() => handleSort("date")}><span>Date</span><SortIcon k="date" /></th>
+                  <th className="ad-th-actions">Actions</th>
+                </tr>
+              </thead>
+              <tbody>
+                {paginated.map((c, idx) => {
+                  const isOpen = expanded.has(c._id);
+                  const isNew = new Date().getTime() - new Date(c.createdAt).getTime() < 86400000;
+                  return (
+                    <React.Fragment key={c._id}>
+                      <tr className={`ad-tr ${isOpen ? "ad-tr-open" : ""} ${isNew ? "ad-tr-new" : ""}`} onClick={() => toggle(c._id)}>
+                        <td className="ad-td-num">{(safePage - 1) * perPage + idx + 1}</td>
+                        <td>
+                          <div className="ad-td-shop">
+                            <div className="ad-avatar" style={{ background: `hsl(${(c.shopName.charCodeAt(0) * 37) % 360}, 65%, 55%)` }}>{c.shopName.charAt(0).toUpperCase()}</div>
+                            <div className="ad-shop-info"><span className="ad-shop-name">{c.shopName}</span>{isNew && <span className="ad-new-badge">NEW</span>}</div>
+                          </div>
+                        </td>
+                        <td><span className="ad-td-city"><FiMapPin size={11} />{extractCity(c.address)}</span></td>
+                        <td>
+                          <button className="ad-phone-btn" onClick={(e) => { e.stopPropagation(); copy(c.otpMobile, "Mobile"); }}>
+                            {formatPhone(c.otpMobile)}<FiCopy size={10} className="ad-copy-icon" />
+                          </button>
+                        </td>
+                        <td className="ad-th-hide-sm ad-td-mono">{c.whatsapp ? formatPhone(c.whatsapp) : "–"}</td>
+
+                        <td className="ad-td-date">
+                          <div className="ad-date-wrap"><span className="ad-date-main">{format(new Date(c.createdAt), "dd MMM yy")}</span><span className="ad-date-time">{format(new Date(c.createdAt), "hh:mm a")}</span></div>
+                        </td>
+                        <td className="ad-td-actions" onClick={(e) => e.stopPropagation()}>
+                          <div className="ad-action-group">
+                            <button className="ad-act-btn ad-act-toggle" onClick={() => toggle(c._id)} title={isOpen ? "Collapse" : "Expand"}>{isOpen ? <FiChevronUp size={15} /> : <FiChevronDown size={15} />}</button>
+                            <button className="ad-act-btn ad-act-wa" onClick={() => openWA(c.whatsapp)} title="WhatsApp"><FiMessageSquare size={14} /></button>
+                            {/* Restored Document Action Icon */}
+                            {c.gstDocumentUrl && <button className="ad-act-btn ad-act-doc" onClick={() => setPreviewUrl(c.gstDocumentUrl || null)} title="View Document"><FiEye size={14} /></button>}
+                            <button className="ad-act-btn ad-act-del" onClick={() => setDelId(c._id)} disabled={acting === c._id} title="Delete"><FiTrash2 size={14} /></button>
+                          </div>
+                        </td>
+                      </tr>
+                      {isOpen && <tr className="ad-tr-expanded"><td colSpan={7}><AddressPanel customer={c} /></td></tr>}
+                    </React.Fragment>
+                  );
+                })}
+              </tbody>
+            </table>
+          </div>
+        ) : (
+          <div className="ad-cards-grid">
+            {paginated.map((c) => {
+              const isOpen = expanded.has(c._id);
+              const isNew = new Date().getTime() - new Date(c.createdAt).getTime() < 86400000;
+              return (
+                <div className={`ad-card ${isOpen ? "ad-card-open" : ""}`} key={c._id}>
+                  <div className="ad-card-header">
+                    <div className="ad-card-header-left">
+                      <div className="ad-avatar lg" style={{ background: `hsl(${(c.shopName.charCodeAt(0) * 37) % 360}, 65%, 55%)` }}>{c.shopName.charAt(0).toUpperCase()}</div>
+                      <div className="ad-card-title">
+                        <h4>{c.shopName}{isNew && <span className="ad-new-badge">NEW</span>}</h4>
+                        <div className="ad-card-subtitle">
+                          <FiMapPin size={11} /><span>{extractCity(c.address)}</span>
+                          <span className="ad-card-dot">•</span>
+                          <FiClock size={11} /><span>{formatDistanceToNow(new Date(c.createdAt), { addSuffix: true })}</span>
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+                  <div className="ad-card-body">
+                    <div className="ad-card-fields">
+                      <div className="ad-card-field">
+                        <div className="ad-card-field-icon phone"><FiPhone size={14} /></div>
+                        <div className="ad-card-field-content"><label>Mobile Number</label><button className="ad-field-value copyable" onClick={() => copy(c.otpMobile, "Mobile")}>{formatPhone(c.otpMobile)}<FiCopy size={10} /></button></div>
+                      </div>
+                      <div className="ad-card-field">
+                        <div className="ad-card-field-icon wa"><FiMessageSquare size={14} /></div>
+                        <div className="ad-card-field-content"><label>WhatsApp</label><span className="ad-field-value">{c.whatsapp ? formatPhone(c.whatsapp) : "Not provided"}</span></div>
+                      </div>
+                    </div>
+                  </div>
+                  <MobileActions customer={c} />
+                  <button className="ad-card-expand" onClick={() => toggle(c._id)}>
+                    {isOpen ? <><FiChevronUp size={14} /> Hide Details</> : <><FiChevronDown size={14} /> View Details</>}
+                  </button>
+                  {isOpen && <AddressPanel customer={c} />}
+                </div>
+              );
+            })}
+          </div>
+        )}
+      </main>
+
+      {totalPages > 1 && (
+        <nav className="ad-pagination">
+          <div className="ad-pag-info">Page <strong>{safePage}</strong> of <strong>{totalPages}</strong></div>
+          <div className="ad-pag-controls">
+            <button className="ad-pag-btn" disabled={safePage <= 1} onClick={() => { setPage(1); scrollToTop(); }}><FiChevronsLeft size={16} /></button>
+            <button className="ad-pag-btn" disabled={safePage <= 1} onClick={() => { setPage((p) => p - 1); scrollToTop(); }}><FiChevronLeft size={16} /></button>
+            <div className="ad-pag-pages">
+              {pageRange().map((p) => <button key={p} className={`ad-pag-num ${p === safePage ? "active" : ""}`} onClick={() => { setPage(p); scrollToTop(); }}>{p}</button>)}
+            </div>
+            <button className="ad-pag-btn" disabled={safePage >= totalPages} onClick={() => { setPage((p) => p + 1); scrollToTop(); }}><FiChevronRight size={16} /></button>
+            <button className="ad-pag-btn" disabled={safePage >= totalPages} onClick={() => { setPage(totalPages); scrollToTop(); }}><FiChevronsRight size={16} /></button>
+          </div>
+        </nav>
       )}
+
+      <footer className="ad-footer"><p>© {new Date().getFullYear()} BafnaToys Admin Dashboard</p></footer>
     </div>
   );
 };

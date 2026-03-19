@@ -7,7 +7,7 @@ import {
   FiChevronDown, FiChevronUp, FiExternalLink, FiYoutube,
   FiInstagram, FiFacebook, FiLinkedin, FiShield, FiKey,
   FiLayers, FiGrid, FiAlertTriangle, FiCheck, FiCamera,
-  FiGlobe, FiPackage, FiEye
+  FiGlobe, FiPackage, FiEye, FiMenu
 } from "react-icons/fi";
 import "../styles/TrustSettingsAdmin.css";
 
@@ -20,15 +20,12 @@ const API_BASE =
 const TrustSettingsAdmin: React.FC = () => {
   const [images, setImages] = useState<any>({
     factoryImage: null,
-    factorySliderImages: [],
-    amazonLogo: null, flipkartLogo: null, meeshoLogo: null, makeInIndiaLogo: null,
+    makeInIndiaLogo: null,
   });
 
   const [localPreviews, setLocalPreviews] = useState<any>({});
-  const [clearSlider, setClearSlider] = useState(false);
   const [retailerCount, setRetailerCount] = useState("49,000+");
   const [socialLinks, setSocialLinks] = useState({ youtube: "", instagram: "", facebook: "", linkedin: "" });
-  const [storeLinks, setStoreLinks] = useState({ amazon: "", flipkart: "", meesho: "" });
   const [reviews, setReviews] = useState<any[]>([{ text: "", name: "", existingImage: "", file: null, localPreview: "" }]);
   const [factoryVisuals, setFactoryVisuals] = useState<any[]>([{ label: "Manufacturing", existingImage: "", file: null, localPreview: "" }]);
 
@@ -39,21 +36,23 @@ const TrustSettingsAdmin: React.FC = () => {
   const [hasChanges, setHasChanges] = useState(false);
 
   const [sections, setSections] = useState<Record<string, boolean>>({
-    marketplace: true,
     social: true,
     trust: true,
     factory: true,
-    slider: true,
     reviews: true,
   });
 
   const topRef = useRef<HTMLDivElement>(null);
   const initialLoad = useRef(true);
 
+  // Drag and Drop Refs for Factory Visuals
+  const dragVisualItem = useRef<number | null>(null);
+  const dragVisualOverItem = useRef<number | null>(null);
+
   useEffect(() => {
     if (initialLoad.current) return;
     setHasChanges(true);
-  }, [retailerCount, socialLinks, storeLinks, reviews, factoryVisuals, images, clearSlider]);
+  }, [retailerCount, socialLinks, reviews, factoryVisuals, images]);
 
   const toggleSection = (key: string) => setSections((p) => ({ ...p, [key]: !p[key] }));
 
@@ -68,9 +67,6 @@ const TrustSettingsAdmin: React.FC = () => {
           youtube: res.data.youtubeLink || "", instagram: res.data.instagramLink || "",
           facebook: res.data.facebookLink || "", linkedin: res.data.linkedinLink || "",
         });
-        setStoreLinks({
-          amazon: res.data.amazonLink || "", flipkart: res.data.flipkartLink || "", meesho: res.data.meeshoLink || "",
-        });
         if (res.data.customerReviews?.length > 0) {
           setReviews(res.data.customerReviews.map((r: any) => ({
             text: r.reviewText, name: r.reviewerName, existingImage: r.image, file: null, localPreview: "",
@@ -82,7 +78,6 @@ const TrustSettingsAdmin: React.FC = () => {
           })));
         }
       }
-      setClearSlider(false);
       setTimeout(() => { initialLoad.current = false; }, 100);
     } catch {
       toast.error("Could not load settings");
@@ -117,28 +112,6 @@ const TrustSettingsAdmin: React.FC = () => {
     setPreview({ ...preview, [field]: null });
   };
 
-  // Slider
-  const handleMultipleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    if (!e.target.files) return;
-    const filesArray = Array.from(e.target.files).filter(validateWebp);
-    if (!filesArray.length) { e.target.value = ""; return; }
-    setImages({ ...images, factorySliderImages: [...(images.factorySliderImages || []), ...filesArray] });
-    setLocalPreviews({ ...localPreviews, factorySliderImages: [...(localPreviews.factorySliderImages || []), ...filesArray.map((f) => URL.createObjectURL(f))] });
-    e.target.value = "";
-  };
-
-  const removeSliderImage = (index: number, isLocal: boolean) => {
-    if (isLocal) {
-      const nf = [...(images.factorySliderImages || [])]; nf.splice(index, 1);
-      const np = [...(localPreviews.factorySliderImages || [])]; np.splice(index, 1);
-      setImages({ ...images, factorySliderImages: nf });
-      setLocalPreviews({ ...localPreviews, factorySliderImages: np });
-    } else {
-      const nd = [...(preview.factorySliderImages || [])]; nd.splice(index, 1);
-      setPreview({ ...preview, factorySliderImages: nd });
-    }
-  };
-
   // Reviews
   const addReviewField = () => setReviews([...reviews, { text: "", name: "", existingImage: "", file: null, localPreview: "" }]);
   const removeReviewField = (index: number) => setReviews(reviews.filter((_, i) => i !== index));
@@ -155,7 +128,7 @@ const TrustSettingsAdmin: React.FC = () => {
     const n = [...reviews]; n[index].file = null; n[index].localPreview = ""; n[index].existingImage = ""; setReviews(n);
   };
 
-  // Factory Visuals
+  // Factory Visuals Functions
   const addFactoryVisual = () => setFactoryVisuals([...factoryVisuals, { label: "", existingImage: "", file: null, localPreview: "" }]);
   const removeFactoryVisual = (index: number) => setFactoryVisuals(factoryVisuals.filter((_, i) => i !== index));
   const updateFactoryVisual = (index: number, field: string, value: any) => {
@@ -171,6 +144,39 @@ const TrustSettingsAdmin: React.FC = () => {
     const n = [...factoryVisuals]; n[index].file = null; n[index].localPreview = ""; n[index].existingImage = ""; setFactoryVisuals(n);
   };
 
+  // --- DRAG AND DROP HANDLERS FOR FACTORY VISUALS ---
+  const handleVisualDragStart = (e: React.DragEvent<HTMLDivElement>, position: number) => {
+    dragVisualItem.current = position;
+    if (e.dataTransfer) {
+      e.dataTransfer.effectAllowed = "move";
+      // Firefox requires data to be set to drag
+      e.dataTransfer.setData("text/html", ""); 
+    }
+  };
+
+  const handleVisualDragEnter = (e: React.DragEvent<HTMLDivElement>, position: number) => {
+    dragVisualOverItem.current = position;
+  };
+
+  const handleVisualDragEnd = () => {
+    if (
+      dragVisualItem.current !== null &&
+      dragVisualOverItem.current !== null &&
+      dragVisualItem.current !== dragVisualOverItem.current
+    ) {
+      const newVisuals = [...factoryVisuals];
+      // Remove the dragged item
+      const draggedItemContent = newVisuals.splice(dragVisualItem.current, 1)[0];
+      // Insert it at the new target position
+      newVisuals.splice(dragVisualOverItem.current, 0, draggedItemContent);
+      setFactoryVisuals(newVisuals);
+    }
+    // Reset refs
+    dragVisualItem.current = null;
+    dragVisualOverItem.current = null;
+  };
+  // ---------------------------------------------------
+
   // Save
   const handleSave = async () => {
     setSaving(true);
@@ -180,16 +186,17 @@ const TrustSettingsAdmin: React.FC = () => {
     formData.append("instagramLink", socialLinks.instagram);
     formData.append("facebookLink", socialLinks.facebook);
     formData.append("linkedinLink", socialLinks.linkedin);
-    formData.append("amazonLink", storeLinks.amazon);
-    formData.append("flipkartLink", storeLinks.flipkart);
-    formData.append("meeshoLink", storeLinks.meesho);
-    formData.append("clearSlider", clearSlider.toString());
-    formData.append("retainedSliderImages", JSON.stringify(preview.factorySliderImages || []));
+    
+    // Explicitly clear marketplace links in DB if they were previously set
+    formData.append("amazonLink", "");
+    formData.append("flipkartLink", "");
+    formData.append("meeshoLink", "");
+    formData.append("clearSlider", "true"); // Always clear slider since the feature is removed
+    formData.append("retainedSliderImages", "[]");
 
-    ["factoryImage", "amazonLogo", "flipkartLogo", "meeshoLogo", "makeInIndiaLogo"].forEach((f) => {
+    ["factoryImage", "makeInIndiaLogo"].forEach((f) => {
       if (images[f]) formData.append(f, images[f]);
     });
-    images.factorySliderImages?.forEach((file: File) => formData.append("factorySliderImages", file));
 
     const reviewsData = reviews.map((r) => ({ text: r.text, name: r.name, hasNewImage: !!r.file, existingImage: r.existingImage }));
     formData.append("reviewsData", JSON.stringify(reviewsData));
@@ -202,7 +209,7 @@ const TrustSettingsAdmin: React.FC = () => {
     try {
       await axios.put(`${API_BASE}/trust-settings`, formData, { headers: { "Content-Type": "multipart/form-data" } });
       toast.success("All settings saved!", { icon: "✅", style: { borderRadius: "12px", background: "#1e293b", color: "#fff" } });
-      setImages({ ...images, factorySliderImages: [], amazonLogo: null, flipkartLogo: null, meeshoLogo: null, makeInIndiaLogo: null });
+      setImages({ ...images, makeInIndiaLogo: null });
       setLocalPreviews({});
       setHasChanges(false);
       fetchSettings();
@@ -265,7 +272,7 @@ const TrustSettingsAdmin: React.FC = () => {
         <div className="ts-top-row">
           <div className="ts-top-left">
             <h1 className="ts-title">Trust & Config</h1>
-            <p className="ts-subtitle">Store links, logos, factory visuals & reviews</p>
+            <p className="ts-subtitle">Store logos, factory visuals & reviews</p>
           </div>
           <div className="ts-top-right">
             <button className="ts-top-btn" onClick={fetchSettings} disabled={loading}><FiRefreshCw size={16} className={loading ? "ts-spinning" : ""} /></button>
@@ -278,37 +285,8 @@ const TrustSettingsAdmin: React.FC = () => {
       </section>
 
       <main className="ts-main">
-        {/* ===== 1. MARKETPLACE LINKS ===== */}
-        <div className="ts-section">
-          <button className="ts-section-header" onClick={() => toggleSection("marketplace")}>
-            <div className="ts-sh-left">
-              <div className="ts-sh-icon ts-sh-blue"><FiLink size={18} /></div>
-              <div className="ts-sh-text"><h2>Marketplace Links & Logos</h2><p>Amazon, Flipkart, Meesho URLs and brand logos</p></div>
-            </div>
-            <div className="ts-sh-right">{sections.marketplace ? <FiChevronUp size={18} /> : <FiChevronDown size={18} />}</div>
-          </button>
-          {sections.marketplace && (
-            <div className="ts-section-body">
-              <div className="ts-marketplace-grid">
-                {[
-                  { key: "amazon", label: "Amazon", logo: "amazonLogo" },
-                  { key: "flipkart", label: "Flipkart", logo: "flipkartLogo" },
-                  { key: "meesho", label: "Meesho", logo: "meeshoLogo" },
-                ].map((m) => (
-                  <div className="ts-market-card" key={m.key}>
-                    <div className="ts-field">
-                      <label className="ts-label"><FiExternalLink size={12} /> {m.label} URL</label>
-                      <input type="text" className="ts-input" placeholder={`https://${m.key}.in/...`} value={(storeLinks as any)[m.key]} onChange={(e) => setStoreLinks({ ...storeLinks, [m.key]: e.target.value })} />
-                    </div>
-                    <ImageUploader field={m.logo} label={`${m.label} Logo`} />
-                  </div>
-                ))}
-              </div>
-            </div>
-          )}
-        </div>
 
-        {/* ===== 2. SOCIAL LINKS ===== */}
+        {/* ===== SOCIAL LINKS ===== */}
         <div className="ts-section">
           <button className="ts-section-header" onClick={() => toggleSection("social")}>
             <div className="ts-sh-left">
@@ -336,7 +314,7 @@ const TrustSettingsAdmin: React.FC = () => {
           )}
         </div>
 
-        {/* ===== 3. TRUST BADGE ===== */}
+        {/* ===== TRUST BADGE ===== */}
         <div className="ts-section">
           <button className="ts-section-header" onClick={() => toggleSection("trust")}>
             <div className="ts-sh-left">
@@ -359,7 +337,7 @@ const TrustSettingsAdmin: React.FC = () => {
           )}
         </div>
 
-        {/* ===== 4. FACTORY VISUALS ===== */}
+        {/* ===== FACTORY VISUALS (DRAG & DROP ENABLED) ===== */}
         <div className="ts-section">
           <button className="ts-section-header" onClick={() => toggleSection("factory")}>
             <div className="ts-sh-left">
@@ -378,7 +356,7 @@ const TrustSettingsAdmin: React.FC = () => {
               </div>
 
               <div className="ts-factory-header">
-                <h3><FiGrid size={14} /> Factory Process Cards</h3>
+                <h3><FiGrid size={14} /> Factory Process Cards (Drag to Reorder)</h3>
                 <button className="ts-add-btn" onClick={addFactoryVisual}><FiPlus size={14} /> Add Card</button>
               </div>
 
@@ -386,7 +364,24 @@ const TrustSettingsAdmin: React.FC = () => {
                 {factoryVisuals.map((v, i) => {
                   const displayUrl = v.localPreview || v.existingImage;
                   return (
-                    <div className="ts-visual-card" key={i}>
+                    <div 
+                      className="ts-visual-card" 
+                      key={i}
+                      draggable
+                      onDragStart={(e) => handleVisualDragStart(e, i)}
+                      onDragEnter={(e) => handleVisualDragEnter(e, i)}
+                      onDragEnd={handleVisualDragEnd}
+                      onDragOver={(e) => e.preventDefault()}
+                    >
+                      <div 
+                        className="ts-drag-handle" 
+                        style={{ cursor: "grab", color: "#94a3b8", display: "flex", alignItems: "center", marginBottom: "8px" }}
+                        title="Drag to reorder"
+                      >
+                        <FiMenu size={18} />
+                        <span style={{ fontSize: "12px", marginLeft: "6px" }}>Move</span>
+                      </div>
+                      
                       <button className="ts-visual-remove" onClick={() => removeFactoryVisual(i)}><FiTrash2 size={14} /></button>
                       <div className="ts-field">
                         <label className="ts-label">Title Label</label>
@@ -413,50 +408,7 @@ const TrustSettingsAdmin: React.FC = () => {
           )}
         </div>
 
-        {/* ===== 5. SLIDER ===== */}
-        <div className="ts-section">
-          <button className="ts-section-header" onClick={() => toggleSection("slider")}>
-            <div className="ts-sh-left">
-              <div className="ts-sh-icon ts-sh-teal"><FiLayers size={18} /></div>
-              <div className="ts-sh-text"><h2>Factory Slider</h2><p>Live facility feed slider images</p></div>
-            </div>
-            <div className="ts-sh-right">
-              <span className="ts-sh-badge">{(preview.factorySliderImages?.length || 0) + (localPreviews.factorySliderImages?.length || 0)}</span>
-              {sections.slider ? <FiChevronUp size={18} /> : <FiChevronDown size={18} />}
-            </div>
-          </button>
-          {sections.slider && (
-            <div className="ts-section-body">
-              <label className="ts-slider-upload-btn">
-                <FiUploadCloud size={15} /> Add Slider Images (WEBP)
-                <input type="file" multiple accept=".webp,image/webp" onChange={handleMultipleFileChange} />
-              </label>
-
-              <div className="ts-slider-grid">
-                {preview.factorySliderImages?.map((src: string, i: number) => (
-                  <div className="ts-slider-thumb" key={`db-${i}`}>
-                    <img src={src} alt={`Slide ${i}`} onClick={() => setPreviewImg(src)} />
-                    <button className="ts-slider-remove" onClick={() => removeSliderImage(i, false)}><FiX size={12} /></button>
-                  </div>
-                ))}
-                {localPreviews.factorySliderImages?.map((src: string, i: number) => (
-                  <div className="ts-slider-thumb ts-slider-new" key={`loc-${i}`}>
-                    <img src={src} alt={`New ${i}`} />
-                    <button className="ts-slider-remove" onClick={() => removeSliderImage(i, true)}><FiX size={12} /></button>
-                    <span className="ts-slider-new-badge">NEW</span>
-                  </div>
-                ))}
-              </div>
-
-              <label className="ts-clear-slider">
-                <input type="checkbox" checked={clearSlider} onChange={(e) => setClearSlider(e.target.checked)} />
-                <FiTrash2 size={13} /> Delete all existing slider images
-              </label>
-            </div>
-          )}
-        </div>
-
-        {/* ===== 6. REVIEWS ===== */}
+        {/* ===== REVIEWS ===== */}
         <div className="ts-section">
           <button className="ts-section-header" onClick={() => toggleSection("reviews")}>
             <div className="ts-sh-left">

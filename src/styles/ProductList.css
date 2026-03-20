@@ -1063,4 +1063,91 @@
 .pl-root a:focus-visible {
   outline: 2px solid var(--pl-primary);
   outline-offset: 2px;
+}/* ==================================================
+   FRONTEND MOCK CARDS (LIVE PREVIEW FOR ADMIN)
+   ================================================== */
+.frontend-mock-card {
+  background: #ffffff;
+  border-radius: 12px;
+  border: 1px solid #e2e8f0;
+  padding: 12px;
+  position: relative;
+  transition: all 0.2s ease;
+  display: flex;
+  flex-direction: column;
+  cursor: grab;
 }
+.frontend-mock-card:hover {
+  box-shadow: 0 10px 15px -3px rgba(0,0,0,0.1);
+  transform: translateY(-2px);
+  border-color: #6366f1;
+}
+.frontend-mock-card:active { cursor: grabbing; }
+
+.frontend-mock-card.dragging { opacity: 0.4; transform: scale(0.95); }
+.frontend-mock-card.drag-over { border: 2px dashed #6366f1; background: #f8fafc; }
+
+/* Badges */
+.f-card-badges {
+  position: absolute; top: 12px; left: 12px; right: 12px;
+  display: flex; justify-content: space-between; z-index: 2;
+}
+.f-discount {
+  background: #10b981; color: white;
+  padding: 4px 8px; border-radius: 4px;
+  font-size: 10px; font-weight: 700;
+}
+.f-mrp {
+  background: #1e293b; color: white;
+  width: 36px; height: 36px; border-radius: 50%;
+  display: flex; align-items: center; justify-content: center;
+  font-size: 9px; font-weight: 700; text-align: center; line-height: 1.1;
+}
+
+/* Image */
+.f-card-img {
+  width: 100%; height: 160px;
+  background: #f8fafc; border-radius: 8px;
+  display: flex; align-items: center; justify-content: center;
+  margin-bottom: 12px; overflow: hidden;
+}
+.f-card-img img { width: 100%; height: 100%; object-fit: contain; }
+
+/* Meta Info */
+.f-card-meta { display: flex; justify-content: space-between; margin-bottom: 8px; }
+.f-min-qty { font-size: 11px; font-weight: 600; color: #b45309; display: flex; align-items: center; gap: 4px; }
+.f-in-stock { font-size: 11px; font-weight: 600; color: #059669; display: flex; align-items: center; gap: 4px; }
+.f-out-stock { font-size: 11px; font-weight: 600; color: #ef4444; }
+
+/* Title & Rating */
+.f-card-title {
+  font-size: 14px; font-weight: 700; color: #0f172a; margin-bottom: 6px;
+  display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden;
+}
+.f-card-rating { display: flex; align-items: center; gap: 6px; margin-bottom: 10px; }
+.f-star { background: #10b981; color: white; padding: 2px 6px; border-radius: 4px; font-size: 10px; font-weight: 700; display: flex; align-items: center; gap: 2px; }
+.f-rev-count { font-size: 11px; color: #64748b; }
+
+/* Tags */
+.f-card-tags { display: flex; flex-direction: column; gap: 4px; margin-bottom: 12px; }
+.f-tag-yellow { background: #fef3c7; color: #b45309; padding: 4px 8px; border-radius: 4px; font-size: 10px; font-weight: 600; display: inline-flex; align-items: center; gap: 4px; width: fit-content; }
+.f-tag-blue { background: #e0f2fe; color: #0369a1; padding: 4px 8px; border-radius: 4px; font-size: 10px; font-weight: 600; display: inline-flex; align-items: center; gap: 4px; width: fit-content; }
+
+/* Footer & Buttons */
+.f-card-footer { display: flex; justify-content: space-between; align-items: center; margin-top: auto; padding-bottom: 12px; }
+.f-price { font-size: 18px; font-weight: 800; color: #0f172a; }
+
+.f-admin-actions { display: flex; gap: 6px; }
+.f-btn-edit { background: #eef2ff; color: #4f46e5; padding: 6px; border-radius: 6px; }
+.f-btn-edit:hover { background: #4f46e5; color: white; }
+.f-btn-del { background: #fef2f2; color: #ef4444; padding: 6px; border-radius: 6px; border: none; cursor: pointer; }
+.f-btn-del:hover { background: #ef4444; color: white; }
+
+/* Add to Cart button replaced by Drag Handle for Admin */
+.f-card-add-btn {
+  background: #2563eb; color: white; width: 100%; padding: 8px;
+  border-radius: 8px; font-size: 13px; font-weight: 600; text-align: center;
+  display: flex; justify-content: center; align-items: center; gap: 6px;
+  cursor: grab;
+}
+.f-card-add-btn:active { cursor: grabbing; background: #1d4ed8; }

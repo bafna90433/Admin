@@ -6,11 +6,9 @@ import {
   FiArrowUp, FiArrowDown, FiChevronDown, FiChevronUp,
   FiAlertCircle, FiCheckCircle, FiMenu, FiPackage,
   FiRefreshCw, FiGrid, FiList, FiFilter, FiSliders,
-  FiHash, FiCopy, FiExternalLink, FiBox, FiTag,
-  FiDollarSign, FiLayers, FiImage, FiMoreVertical,
-  FiChevronLeft, FiChevronRight, FiChevronsLeft, FiChevronsRight,
-  FiMinimize2, FiMaximize2, FiEye, FiShield, FiKey,
-  FiDownload, FiTrendingUp, FiActivity, FiAlertTriangle
+  FiHash, FiCopy, FiBox, FiTag, FiDollarSign, FiLayers,
+  FiImage, FiMinimize2, FiMaximize2, FiShield, FiKey,
+  FiStar, FiMonitor, FiSmartphone, FiLayout, FiAlertTriangle
 } from "react-icons/fi";
 import "../styles/ProductList.css";
 
@@ -36,8 +34,10 @@ interface Product {
   name: string;
   sku: string;
   price?: number | string;
+  mrp?: number | string;
   stock?: number;
   unit?: string;
+  innerQty?: number;
   category?: { _id: string; name: string };
   createdAt?: string;
   images?: string[];
@@ -49,17 +49,22 @@ const getImageUrl = (url: string) =>
 
 const norm = (v?: string) => (v || "").toString().toLowerCase().trim();
 
-const PER_PAGE_OPTIONS = [10, 25, 50, 100];
-
 export default function ProductList() {
   const [products, setProducts] = useState<Product[]>([]);
   const [categories, setCategories] = useState<Category[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  
   const [search, setSearch] = useState("");
   const [debounced, setDebounced] = useState("");
   const [expanded, setExpanded] = useState<Record<string, boolean>>({});
+  
+  // View Modes
   const [view, setView] = useState<"table" | "card">("table");
+  const [listMode, setListMode] = useState<"global" | "category">("global"); // Global By Default
+  const [gridPC, setGridPC] = useState(5);
+  const [gridMobile, setGridMobile] = useState(2);
+
   const [showFilters, setShowFilters] = useState(false);
   const [categoryFilter, setCategoryFilter] = useState("all");
   const [stockFilter, setStockFilter] = useState("all");
@@ -91,19 +96,24 @@ export default function ProductList() {
     return () => mq.removeEventListener("change", handler);
   }, []);
 
-  // Fetch
+  // Fetch Data (Products, Categories & Grid Layout)
   const fetchData = useCallback(async () => {
     try {
       setLoading(true);
-      const [prodRes, catRes] = await Promise.all([
+      const [prodRes, catRes, gridRes] = await Promise.all([
         axios.get(`${API_BASE}/products`),
         axios.get(`${API_BASE}/categories`),
+        axios.get(`${API_BASE}/grid-layout`).catch(() => ({ data: {} }))
       ]);
       const sorted = prodRes.data.sort(
         (a: Product, b: Product) => (a.order || 0) - (b.order || 0)
       );
       setProducts(sorted);
       setCategories(catRes.data);
+      
+      if (gridRes.data?.pcColumns) setGridPC(gridRes.data.pcColumns);
+      if (gridRes.data?.mobileColumns) setGridMobile(gridRes.data.mobileColumns);
+      
       setError(null);
     } catch (err: any) {
       setError(err.response?.data?.message || "Failed to load data.");
@@ -119,6 +129,18 @@ export default function ProductList() {
     return () => clearTimeout(t);
   }, [search]);
 
+  // Save Grid Settings
+  const saveGridSettings = async (pc: number, mobile: number) => {
+    setGridPC(pc);
+    setGridMobile(mobile);
+    try {
+      await axios.put(`${API_BASE}/grid-layout`, { pcColumns: pc, mobileColumns: mobile });
+      import("react-hot-toast").then(({ default: toast }) => toast.success("Grid Layout Updated!"));
+    } catch (err) {
+      import("react-hot-toast").then(({ default: toast }) => toast.error("Failed to save layout to DB"));
+    }
+  };
+
   // Stats
   const stats = useMemo(() => {
     let outOfStock = 0, lowStock = 0, inStock = 0;
@@ -131,14 +153,12 @@ export default function ProductList() {
     return {
       total: products.length,
       categories: new Set(products.map((p) => p.category?.name || "Uncategorized")).size,
-      outOfStock,
-      lowStock,
-      inStock,
+      outOfStock, lowStock, inStock,
     };
   }, [products]);
 
-  // Grouped
-  const groupedProducts = useMemo(() => {
+  // Flat Filtered Products
+  const flatFilteredProducts = useMemo(() => {
     const q = norm(debounced);
     let filtered = !q
       ? products
@@ -152,43 +172,34 @@ export default function ProductList() {
     if (categoryFilter !== "all") {
       filtered = filtered.filter((p) => (p.category?.name || "Uncategorized") === categoryFilter);
     }
-
     if (stockFilter === "out") filtered = filtered.filter((p) => (p.stock || 0) === 0);
     else if (stockFilter === "low") filtered = filtered.filter((p) => { const s = p.stock || 0; return s > 0 && s <= 5; });
     else if (stockFilter === "in") filtered = filtered.filter((p) => (p.stock || 0) > 5);
 
+    return filtered;
+  }, [products, debounced, categoryFilter, stockFilter]);
+
+  // Grouped Products
+  const groupedProducts = useMemo(() => {
     const groups: Record<string, Product[]> = {};
-    filtered.forEach((p) => {
+    flatFilteredProducts.forEach((p) => {
       const cat = p.category?.name || "Uncategorized";
       if (!groups[cat]) groups[cat] = [];
       groups[cat].push(p);
     });
     return groups;
-  }, [products, debounced, categoryFilter, stockFilter]);
+  }, [flatFilteredProducts]);
 
-  const totalFiltered = useMemo(() =>
-    Object.values(groupedProducts).reduce((a, b) => a + b.length, 0),
-    [groupedProducts]
-  );
-
+  const totalFiltered = flatFilteredProducts.length;
   const hasActiveFilters = search || categoryFilter !== "all" || stockFilter !== "all";
 
-  const clearFilters = () => {
-    setSearch("");
-    setCategoryFilter("all");
-    setStockFilter("all");
-  };
+  const clearFilters = () => { setSearch(""); setCategoryFilter("all"); setStockFilter("all"); };
 
-  // Delete
-  const handleDelete = async (id: string) => {
-    setDelId(id);
-  };
-
+  // Delete Handlers
+  const handleDelete = async (id: string) => setDelId(id);
   const confirmDelete = async () => {
     if (delPwd !== "bafnatoys") {
-      return import("react-hot-toast").then(({ default: toast }) =>
-        toast.error("Wrong password")
-      );
+      return import("react-hot-toast").then(({ default: toast }) => toast.error("Wrong password"));
     }
     if (!delId) return;
     setDeleting(true);
@@ -196,19 +207,14 @@ export default function ProductList() {
       await axios.delete(`${API_BASE}/products/${delId}`);
       setProducts((prev) => prev.filter((p) => p._id !== delId));
       import("react-hot-toast").then(({ default: toast }) =>
-        toast.success("Product deleted", {
-          icon: "🗑️",
-          style: { borderRadius: "12px", background: "#1e293b", color: "#fff" },
-        })
+        toast.success("Product deleted", { icon: "🗑️", style: { borderRadius: "12px", background: "#1e293b", color: "#fff" } })
       );
     } catch (err: any) {
       import("react-hot-toast").then(({ default: toast }) =>
         toast.error(err.response?.data?.message || "Failed to delete")
       );
     } finally {
-      setDeleting(false);
-      setDelId(null);
-      setDelPwd("");
+      setDeleting(false); setDelId(null); setDelPwd("");
     }
   };
 
@@ -216,30 +222,21 @@ export default function ProductList() {
   const saveCategoryChange = async (productId: string) => {
     const product = products.find((p) => p._id === productId);
     const newCategoryId = editingCategory?.categoryId;
-    if (!product || !newCategoryId || newCategoryId === product.category?._id) {
-      setEditingCategory(null);
-      return;
-    }
+    if (!product || !newCategoryId || newCategoryId === product.category?._id) { setEditingCategory(null); return; }
     try {
       const newCategory = categories.find((c) => c._id === newCategoryId);
       setProducts((prev) =>
-        prev.map((p) =>
-          p._id === productId
-            ? { ...p, category: { _id: newCategoryId, name: newCategory?.name || "—" } }
-            : p
-        )
+        prev.map((p) => p._id === productId ? { ...p, category: { _id: newCategoryId, name: newCategory?.name || "—" } } : p)
       );
       await axios.put(`${API_BASE}/products/${productId}`, { category: newCategoryId });
       setEditingCategory(null);
     } catch {
-      import("react-hot-toast").then(({ default: toast }) =>
-        toast.error("Failed to update category")
-      );
+      import("react-hot-toast").then(({ default: toast }) => toast.error("Failed to update category"));
       setEditingCategory(null);
     }
   };
 
-  // Move
+  // Move via Arrows
   const moveProduct = async (id: string, direction: "up" | "down") => {
     try {
       const res = await axios.put(`${API_BASE}/products/${id}/move`, { direction });
@@ -254,52 +251,45 @@ export default function ProductList() {
         });
       }
     } catch {
-      import("react-hot-toast").then(({ default: toast }) =>
-        toast.error("Failed to move product")
-      );
+      import("react-hot-toast").then(({ default: toast }) => toast.error("Failed to move product"));
     }
   };
 
-  // Drag & Drop
+  // Shared Drag Handlers
   const handleDragStart = (e: React.DragEvent, id: string) => {
-    setDraggedItem(id);
-    e.dataTransfer.effectAllowed = "move";
+    setDraggedItem(id); e.dataTransfer.effectAllowed = "move";
     setTimeout(() => {
       const row = document.getElementById(`row-${id}`);
       if (row) row.classList.add("pl-dragging");
     }, 0);
   };
-
   const handleDragOver = (e: React.DragEvent, id: string) => {
-    e.preventDefault();
-    e.dataTransfer.dropEffect = "move";
+    e.preventDefault(); e.dataTransfer.dropEffect = "move";
     if (dragOverItem !== id) setDragOverItem(id);
   };
-
   const handleDragLeave = () => setDragOverItem(null);
+  const handleDragEnd = (id: string) => {
+    setDraggedItem(null); setDragOverItem(null);
+    const row = document.getElementById(`row-${id}`);
+    if (row) row.classList.remove("pl-dragging");
+  };
 
-  const handleDrop = async (e: React.DragEvent, targetId: string, catName: string) => {
-    e.preventDefault();
-    setDragOverItem(null);
-    if (!draggedItem || draggedItem === targetId) {
-      setDraggedItem(null);
-      return;
-    }
+  // Drop Category Mode
+  const handleDropCategory = async (e: React.DragEvent, targetId: string, catName: string) => {
+    e.preventDefault(); setDragOverItem(null);
+    if (!draggedItem || draggedItem === targetId) { setDraggedItem(null); return; }
+
     const group = groupedProducts[catName];
     const draggedIdx = group.findIndex((p) => p._id === draggedItem);
     const targetIdx = group.findIndex((p) => p._id === targetId);
-    if (draggedIdx === -1 || targetIdx === -1) {
-      setDraggedItem(null);
-      return;
-    }
+    if (draggedIdx === -1 || targetIdx === -1) { setDraggedItem(null); return; }
+
     const steps = Math.abs(targetIdx - draggedIdx);
     const direction = targetIdx > draggedIdx ? "down" : "up";
 
     setProducts((prev) => {
       const newProducts = prev.map((p) => ({ ...p }));
-      const groupItems = newProducts
-        .filter((p) => p.category?.name === catName)
-        .sort((a, b) => (a.order || 0) - (b.order || 0));
+      const groupItems = newProducts.filter((p) => p.category?.name === catName).sort((a, b) => (a.order || 0) - (b.order || 0));
       const draggedItemObj = groupItems.find((p) => p._id === draggedItem);
       if (!draggedItemObj) return prev;
       const filteredGroup = groupItems.filter((p) => p._id !== draggedItem);
@@ -312,78 +302,232 @@ export default function ProductList() {
     });
 
     setDraggedItem(null);
-
-    try {
-      for (let i = 0; i < steps; i++) {
-        await axios.put(`${API_BASE}/products/${draggedItem}/move`, { direction });
-      }
-    } catch {
-      const res = await axios.get(`${API_BASE}/products`);
-      setProducts(res.data.sort((a: Product, b: Product) => (a.order || 0) - (b.order || 0)));
-    }
+    try { for (let i = 0; i < steps; i++) { await axios.put(`${API_BASE}/products/${draggedItem}/move`, { direction }); } } catch { fetchData(); }
   };
 
-  const handleDragEnd = (id: string) => {
+  // Drop Global Mode
+  const handleDropGlobal = async (e: React.DragEvent, targetId: string) => {
+    e.preventDefault(); setDragOverItem(null);
+    if (!draggedItem || draggedItem === targetId) { setDraggedItem(null); return; }
+
+    const draggedIdx = products.findIndex((p) => p._id === draggedItem);
+    const targetIdx = products.findIndex((p) => p._id === targetId);
+    if (draggedIdx === -1 || targetIdx === -1) { setDraggedItem(null); return; }
+
+    const steps = Math.abs(targetIdx - draggedIdx);
+    const direction = targetIdx > draggedIdx ? "down" : "up";
+
+    setProducts((prev) => {
+      const newProducts = [...prev];
+      const draggedItemObj = newProducts.splice(draggedIdx, 1)[0];
+      newProducts.splice(targetIdx, 0, draggedItemObj);
+      newProducts.forEach((p, index) => { p.order = index; });
+      return newProducts;
+    });
+
     setDraggedItem(null);
-    setDragOverItem(null);
-    const row = document.getElementById(`row-${id}`);
-    if (row) row.classList.remove("pl-dragging");
+    try { for (let i = 0; i < steps; i++) { await axios.put(`${API_BASE}/products/${draggedItem}/move`, { direction }); } } catch { fetchData(); }
   };
 
-  const toggleExpand = (catName: string) => {
-    setExpanded((prev) => ({ ...prev, [catName]: !prev[catName] }));
-  };
-
-  const expandAll = () => {
-    const all: Record<string, boolean> = {};
-    Object.keys(groupedProducts).forEach((k) => (all[k] = true));
-    setExpanded(all);
-  };
-
+  const toggleExpand = (catName: string) => setExpanded((prev) => ({ ...prev, [catName]: !prev[catName] }));
+  const expandAll = () => { const all: Record<string, boolean> = {}; Object.keys(groupedProducts).forEach((k) => (all[k] = true)); setExpanded(all); };
   const collapseAll = () => setExpanded({});
-
-  const allExpanded = Object.keys(groupedProducts).every((k) => expanded[k]);
+  const allExpanded = Object.keys(groupedProducts).length > 0 && Object.keys(groupedProducts).every((k) => expanded[k]);
 
   const copy = (text: string, label: string) => {
     navigator.clipboard.writeText(text);
     import("react-hot-toast").then(({ default: toast }) =>
-      toast.success(`${label} copied!`, {
-        duration: 1500,
-        icon: "📋",
-        style: { borderRadius: "12px", background: "#1e293b", color: "#fff", fontSize: "14px" },
-      })
+      toast.success(`${label} copied!`, { duration: 1500, icon: "📋", style: { borderRadius: "12px", background: "#1e293b", color: "#fff", fontSize: "14px" } })
     );
   };
 
-  // ===== Render =====
+  // =========================================================================
+  // RENDER FRONTEND LIVE PREVIEW CARD (GLOBAL VIEW)
+  // =========================================================================
+  const renderFrontendCard = (p: Product) => {
+    const stock = p.stock || 0;
+    const price = Number(p.price || 0);
+    const mrp = Number(p.mrp || price * 1.5); 
+    const discount = Math.round(((mrp - price) / mrp) * 100);
+    const isDragging = draggedItem === p._id;
+    const isDragOver = dragOverItem === p._id;
+
+    return (
+      <div 
+        key={p._id} 
+        id={`row-${p._id}`}
+        className={`frontend-mock-card ${isDragging ? "dragging" : ""} ${isDragOver && !isDragging ? "drag-over" : ""}`}
+        draggable={!search}
+        onDragStart={(e) => handleDragStart(e, p._id)}
+        onDragOver={(e) => handleDragOver(e, p._id)}
+        onDrop={(e) => handleDropGlobal(e, p._id)}
+        onDragEnd={() => handleDragEnd(p._id)}
+      >
+        <div className="f-card-badges">
+          {discount > 0 && <span className="f-discount">⚡ {discount}% OFF</span>}
+          {mrp > price && <span className="f-mrp">MRP<br/>₹{mrp}</span>}
+        </div>
+        
+        <div className="f-card-img">
+          {p.images?.[0] ? <img src={getImageUrl(p.images[0])} alt={p.name} draggable="false" /> : <FiImage size={40} color="#cbd5e1" />}
+        </div>
+
+        <div className="f-card-body">
+          <div className="f-card-meta">
+            <span className="f-min-qty"><FiAlertCircle size={10}/> Min: {p.innerQty || 3}</span>
+            {stock > 0 ? <span className="f-in-stock"><FiCheckCircle size={10}/> In Stock</span> : <span className="f-out-stock">Out of Stock</span>}
+          </div>
+          
+          <h4 className="f-card-title">{p.name}</h4>
+          
+          <div className="f-card-rating">
+            <span className="f-star">5.0 <FiStar size={10} fill="currentColor"/></span>
+            <span className="f-rev-count">(12 Reviews)</span>
+          </div>
+
+          <div className="f-card-tags">
+            <span className="f-tag-yellow"><FiTag size={10}/> Per Packet Price</span>
+            <span className="f-tag-blue"><FiPackage size={10}/> Per packet {p.innerQty || 6} pcs</span>
+          </div>
+
+          <div className="f-card-footer">
+            <span className="f-price">₹{price}</span>
+            <div className="f-admin-actions">
+              <Link to={`/admin/products/edit/${p._id}`} className="f-btn-edit"><FiEdit2 size={14}/></Link>
+              <button onClick={(e) => { e.stopPropagation(); setDelId(p._id); }} className="f-btn-del"><FiTrash2 size={14}/></button>
+            </div>
+          </div>
+          
+          <div className="f-card-add-btn">
+            <FiMenu size={14} /> Drag to Move
+          </div>
+        </div>
+      </div>
+    );
+  };
+
+  // =========================================================================
+  // RENDER STANDARD CATEGORY VIEW (TABLE OR CARD)
+  // =========================================================================
+  const renderCategoryItem = (p: Product, index: number, catName: string, listLength: number) => {
+    const isEditing = editingCategory?.productId === p._id;
+    const currentCat = p.category?._id || "";
+    const stock = p.stock || 0;
+    const unitLabel = p.unit || "Units";
+    const isDragging = draggedItem === p._id;
+    const isDragOver = dragOverItem === p._id;
+    const isFirst = index === 0;
+    const isLast = index === listLength - 1;
+
+    if (view === "table") {
+      return (
+        <tr
+          key={p._id} id={`row-${p._id}`}
+          className={`pl-tr ${isDragging ? "pl-dragging" : ""} ${isDragOver && !isDragging ? "pl-drag-over" : ""}`}
+          draggable={!search}
+          onDragStart={(e) => handleDragStart(e, p._id)}
+          onDragOver={(e) => handleDragOver(e, p._id)}
+          onDragLeave={handleDragLeave}
+          onDrop={(e) => handleDropCategory(e, p._id, catName)}
+          onDragEnd={() => handleDragEnd(p._id)}
+        >
+          <td className="pl-td-drag"><FiMenu className="pl-drag-handle" size={16} title={search ? "Clear search to reorder" : "Drag to reorder"} /></td>
+          <td className="pl-td-num">{index + 1}</td>
+          <td className="pl-td-img">{p.images?.[0] ? <img src={getImageUrl(p.images[0])} alt={p.name} className="pl-thumb" /> : <div className="pl-thumb pl-thumb-empty"><FiImage size={18} /></div>}</td>
+          <td><div className="pl-td-name"><span className="pl-product-name">{p.name}</span><span className="pl-product-sku pl-mobile-sku">{p.sku}</span></div></td>
+          <td className="pl-th-hide-sm"><span className="pl-sku-badge" onClick={() => copy(p.sku, "SKU")}>{p.sku}<FiCopy size={10} className="pl-sku-copy" /></span></td>
+          <td>{stock === 0 ? <span className="pl-stock pl-stock-out"><FiAlertCircle size={12} /> Out</span> : stock <= 5 ? <span className="pl-stock pl-stock-low"><FiAlertTriangle size={12} /> {stock} {unitLabel}</span> : <span className="pl-stock pl-stock-ok"><FiCheckCircle size={12} /> {stock} {unitLabel}</span>}</td>
+          <td className="pl-th-hide-md">
+            <div className="pl-cat-select-wrap">
+              <select value={isEditing ? editingCategory.categoryId : currentCat} onChange={(e) => setEditingCategory({ productId: p._id, categoryId: e.target.value })} className="pl-cat-select">
+                <option value="">Select</option>
+                {categories.map((cat) => <option key={cat._id} value={cat._id}>{cat.name}</option>)}
+              </select>
+              {isEditing && editingCategory.categoryId !== currentCat && (<button onClick={() => saveCategoryChange(p._id)} className="pl-cat-save" title="Save"><FiCheck size={14} /></button>)}
+            </div>
+          </td>
+          <td><span className="pl-price">{p.price ? `₹${Number(p.price).toLocaleString()}` : "—"}</span></td>
+          <td>
+            <div className="pl-actions">
+              <div className="pl-move-btns">
+                <button onClick={(e) => { e.stopPropagation(); moveProduct(p._id, "up"); }} disabled={isFirst} className="pl-move" title="Move Up"><FiArrowUp size={13} /></button>
+                <button onClick={(e) => { e.stopPropagation(); moveProduct(p._id, "down"); }} disabled={isLast} className="pl-move" title="Move Down"><FiArrowDown size={13} /></button>
+              </div>
+              <Link to={`/admin/products/edit/${p._id}`} className="pl-act-btn pl-act-edit" title="Edit"><FiEdit2 size={14} /></Link>
+              <button onClick={() => handleDelete(p._id)} className="pl-act-btn pl-act-del" title="Delete"><FiTrash2 size={14} /></button>
+            </div>
+          </td>
+        </tr>
+      );
+    } else {
+      return (
+        <div className="pl-card" key={p._id}>
+          <div className="pl-card-top">
+            <div className="pl-card-img">{p.images?.[0] ? <img src={getImageUrl(p.images[0])} alt={p.name} /> : <div className="pl-card-img-empty"><FiImage size={24} /></div>}</div>
+            <div className="pl-card-info">
+              <h4 className="pl-card-name">{p.name}</h4>
+              <div className="pl-card-meta">
+                <span className="pl-card-sku" onClick={() => copy(p.sku, "SKU")}><FiHash size={11} /> {p.sku} <FiCopy size={9} /></span>
+                <span className="pl-card-cat"><FiTag size={11} /> {p.category?.name || "Uncategorized"}</span>
+              </div>
+            </div>
+          </div>
+          <div className="pl-card-body">
+            <div className="pl-card-fields">
+              <div className="pl-card-field"><div className="pl-cf-icon price"><FiDollarSign size={14} /></div><div className="pl-cf-content"><label>Price</label><span className="pl-cf-val">{p.price ? `₹${Number(p.price).toLocaleString()}` : "—"}</span></div></div>
+              <div className="pl-card-field">
+                <div className={`pl-cf-icon ${stock === 0 ? "out" : stock <= 5 ? "low" : "ok"}`}>{stock === 0 ? <FiAlertCircle size={14} /> : stock <= 5 ? <FiAlertTriangle size={14} /> : <FiCheckCircle size={14} />}</div>
+                <div className="pl-cf-content"><label>Stock</label><span className="pl-cf-val">{stock === 0 ? "Out of Stock" : `${stock} ${unitLabel}`}</span></div>
+              </div>
+            </div>
+          </div>
+          <div className="pl-card-actions">
+            <div className="pl-card-move">
+              <button onClick={() => moveProduct(p._id, "up")} disabled={isFirst} className="pl-move" title="Up"><FiArrowUp size={14} /></button>
+              <button onClick={() => moveProduct(p._id, "down")} disabled={isLast} className="pl-move" title="Down"><FiArrowDown size={14} /></button>
+            </div>
+            <Link to={`/admin/products/edit/${p._id}`} className="pl-card-act pl-card-edit"><FiEdit2 size={14} /><span>Edit</span></Link>
+            <button onClick={() => handleDelete(p._id)} className="pl-card-act pl-card-delete"><FiTrash2 size={14} /><span>Delete</span></button>
+          </div>
+        </div>
+      );
+    }
+  };
+
   return (
     <div className={`pl-root ${search ? "pl-searching" : ""}`} ref={topRef}>
+      
+      {/* Dynamic Grid Styles based on Controller */}
+      <style>
+        {`
+          .frontend-grid-preview {
+            display: grid;
+            gap: 16px;
+            padding: 10px;
+            grid-template-columns: repeat(${gridPC}, 1fr);
+          }
+          @media (max-width: 768px) {
+            .frontend-grid-preview {
+              grid-template-columns: repeat(${gridMobile}, 1fr);
+            }
+          }
+        `}
+      </style>
+
       {/* Delete Modal */}
       {delId && (
         <div className="pl-overlay" onClick={() => { setDelId(null); setDelPwd(""); }}>
           <div className="pl-del-modal" onClick={(e) => e.stopPropagation()}>
-            <div className="pl-del-visual">
-              <div className="pl-del-circle"><div className="pl-del-circle-inner"><FiShield size={28} /></div></div>
-              <div className="pl-del-pulse" />
-            </div>
+            <div className="pl-del-visual"><div className="pl-del-circle"><div className="pl-del-circle-inner"><FiShield size={28} /></div></div><div className="pl-del-pulse" /></div>
             <h3>Delete Product</h3>
             <p>This action is <strong>permanent</strong> and cannot be undone.<br />Enter admin password to confirm.</p>
             <div className="pl-del-input-wrap">
               <FiKey className="pl-del-input-icon" />
-              <input
-                type="password"
-                placeholder="Enter admin password…"
-                value={delPwd}
-                onChange={(e) => setDelPwd(e.target.value)}
-                onKeyDown={(e) => e.key === "Enter" && confirmDelete()}
-                autoFocus
-              />
+              <input type="password" placeholder="Enter admin password…" value={delPwd} onChange={(e) => setDelPwd(e.target.value)} onKeyDown={(e) => e.key === "Enter" && confirmDelete()} autoFocus />
             </div>
             <div className="pl-del-btns">
               <button className="pl-dbtn pl-dbtn-cancel" onClick={() => { setDelId(null); setDelPwd(""); }}>Cancel</button>
-              <button className="pl-dbtn pl-dbtn-danger" onClick={confirmDelete} disabled={deleting}>
-                <FiTrash2 size={14} /> {deleting ? "Deleting…" : "Delete Forever"}
-              </button>
+              <button className="pl-dbtn pl-dbtn-danger" onClick={confirmDelete} disabled={deleting}><FiTrash2 size={14} /> {deleting ? "Deleting…" : "Delete Forever"}</button>
             </div>
           </div>
         </div>
@@ -397,12 +541,8 @@ export default function ProductList() {
             <span className="pl-count">{stats.total} items</span>
           </div>
           <div className="pl-top-right">
-            <button className="pl-top-btn" onClick={fetchData} disabled={loading} title="Refresh">
-              <FiRefreshCw size={16} className={loading ? "pl-spinning" : ""} />
-            </button>
-            <button className="pl-top-btn pl-top-add" onClick={() => navigate("/admin/products/new")}>
-              <FiPlus size={16} /><span>Add Product</span>
-            </button>
+            <button className="pl-top-btn" onClick={fetchData} disabled={loading} title="Refresh"><FiRefreshCw size={16} className={loading ? "pl-spinning" : ""} /></button>
+            <button className="pl-top-btn pl-top-add" onClick={() => navigate("/admin/products/new")}><FiPlus size={16} /><span>Add Product</span></button>
           </div>
         </div>
 
@@ -416,50 +556,69 @@ export default function ProductList() {
             { icon: <FiAlertCircle size={18} />, val: stats.outOfStock, lbl: "Out of Stock", color: "red" },
           ].map((s) => (
             <div className={`pl-stat pl-stat-${s.color}`} key={s.lbl}>
-              <div className="pl-stat-top">
-                <div className="pl-stat-icon">{s.icon}</div>
-                <div className="pl-stat-num">{s.val}</div>
-              </div>
+              <div className="pl-stat-top"><div className="pl-stat-icon">{s.icon}</div><div className="pl-stat-num">{s.val}</div></div>
               <div className="pl-stat-lbl">{s.lbl}</div>
             </div>
           ))}
         </div>
       </section>
 
-      {/* Toolbar */}
+      {/* Toolbar & Grid Controller */}
       <section className="pl-toolbar-section">
         <div className="pl-toolbar">
           <div className="pl-toolbar-main">
             <div className="pl-search">
               <FiSearch className="pl-search-icon" />
-              <input
-                ref={searchRef}
-                placeholder="Search by name, SKU, or category…"
-                value={search}
-                onChange={(e) => setSearch(e.target.value)}
-              />
-              {search && (
-                <button className="pl-search-clear" onClick={() => { setSearch(""); searchRef.current?.focus(); }}>
-                  <FiX size={14} />
-                </button>
-              )}
+              <input ref={searchRef} placeholder="Search by name, SKU, or category…" value={search} onChange={(e) => setSearch(e.target.value)} />
+              {search && <button className="pl-search-clear" onClick={() => { setSearch(""); searchRef.current?.focus(); }}><FiX size={14} /></button>}
             </div>
+            
             <div className="pl-toolbar-btns">
-              <button
-                className={`pl-tbtn ${showFilters ? "active" : ""} ${hasActiveFilters ? "has-filters" : ""}`}
-                onClick={() => setShowFilters(!showFilters)}
-              >
-                <FiSliders size={15} /><span>Filters</span>
-                {hasActiveFilters && <span className="pl-filter-dot" />}
+              <button className={`pl-tbtn ${showFilters ? "active" : ""} ${hasActiveFilters ? "has-filters" : ""}`} onClick={() => setShowFilters(!showFilters)}>
+                <FiSliders size={15} /><span>Filters</span>{hasActiveFilters && <span className="pl-filter-dot" />}
               </button>
-              <div className="pl-view-toggle">
-                <button className={`pl-vt ${view === "table" ? "active" : ""}`} onClick={() => setView("table")} title="Table"><FiList size={16} /></button>
-                <button className={`pl-vt ${view === "card" ? "active" : ""}`} onClick={() => setView("card")} title="Cards"><FiGrid size={16} /></button>
+              
+              <div className="pl-view-toggle" style={{ marginLeft: '10px' }}>
+                <button className={`pl-vt ${listMode === "global" ? "active" : ""}`} onClick={() => setListMode("global")} style={{width: 'auto', padding: '0 12px', fontSize: '12px', fontWeight: 500}}>Live Preview</button>
+                <button className={`pl-vt ${listMode === "category" ? "active" : ""}`} onClick={() => setListMode("category")} style={{width: 'auto', padding: '0 12px', fontSize: '12px', fontWeight: 500}}>Categories</button>
+                
+                {listMode === "category" && (
+                  <>
+                    <div style={{width: '1px', background: 'var(--pl-border)', height: '16px', margin: '0 8px'}}></div>
+                    <button className={`pl-vt ${view === "table" ? "active" : ""}`} onClick={() => setView("table")} title="Table"><FiList size={15} /></button>
+                    <button className={`pl-vt ${view === "card" ? "active" : ""}`} onClick={() => setView("card")} title="Cards"><FiGrid size={15} /></button>
+                  </>
+                )}
               </div>
             </div>
           </div>
 
-          {/* Filters */}
+          {/* Grid Layout Setup (Only visible in Global Mode) */}
+          {listMode === "global" && (
+            <div style={{ background: '#eef2ff', padding: '10px 15px', borderTop: '1px solid #c7d2fe', display: 'flex', alignItems: 'center', gap: '20px', flexWrap: 'wrap' }}>
+              <strong style={{ color: '#4f46e5', display: 'flex', alignItems: 'center', gap: '8px', fontSize: '13px' }}>
+                <FiLayout size={16} /> Frontend Grid Setup
+              </strong>
+              
+              <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                <FiMonitor size={14} color="#64748b"/>
+                <span style={{ fontSize: '12px', fontWeight: 600, color: '#475569' }}>PC:</span>
+                <select value={gridPC} onChange={(e) => saveGridSettings(Number(e.target.value), gridMobile)} style={{ padding: '2px 6px', borderRadius: '4px', border: '1px solid #cbd5e1', fontSize: '12px' }}>
+                  {[4, 5, 6, 7, 8].map(n => <option key={n} value={n}>{n} Columns</option>)}
+                </select>
+              </div>
+
+              <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                <FiSmartphone size={14} color="#64748b"/>
+                <span style={{ fontSize: '12px', fontWeight: 600, color: '#475569' }}>Mobile:</span>
+                <select value={gridMobile} onChange={(e) => saveGridSettings(gridPC, Number(e.target.value))} style={{ padding: '2px 6px', borderRadius: '4px', border: '1px solid #cbd5e1', fontSize: '12px' }}>
+                  {[1, 2, 3].map(n => <option key={n} value={n}>{n} Columns</option>)}
+                </select>
+              </div>
+            </div>
+          )}
+
+          {/* Filters Dropdown */}
           <div className={`pl-filters ${showFilters ? "open" : ""}`}>
             <div className="pl-filters-inner">
               <div className="pl-filter-group">
@@ -478,9 +637,7 @@ export default function ProductList() {
                   <option value="out">Out of Stock</option>
                 </select>
               </div>
-              {hasActiveFilters && (
-                <button className="pl-clear-filters" onClick={clearFilters}><FiX size={13} /> Clear</button>
-              )}
+              {hasActiveFilters && <button className="pl-clear-filters" onClick={clearFilters}><FiX size={13} /> Clear</button>}
             </div>
           </div>
 
@@ -491,7 +648,7 @@ export default function ProductList() {
               {hasActiveFilters && <span className="pl-showing-sub"> (filtered from {stats.total})</span>}
             </div>
             <div className="pl-toolbar-info-right">
-              {Object.keys(groupedProducts).length > 0 && (
+              {listMode === "category" && Object.keys(groupedProducts).length > 0 && (
                 <button className="pl-expand-btn" onClick={allExpanded ? collapseAll : expandAll}>
                   {allExpanded ? <><FiMinimize2 size={13} /> Collapse</> : <><FiMaximize2 size={13} /> Expand All</>}
                 </button>
@@ -501,7 +658,7 @@ export default function ProductList() {
         </div>
       </section>
 
-      {/* Main */}
+      {/* Main Content */}
       <main className="pl-main">
         {loading ? (
           <div className="pl-state">
@@ -514,38 +671,39 @@ export default function ProductList() {
             <h3>Something went wrong</h3><p>{error}</p>
             <button className="pl-retry-btn" onClick={fetchData}><FiRefreshCw size={14} /> Try Again</button>
           </div>
-        ) : Object.keys(groupedProducts).length === 0 ? (
+        ) : totalFiltered === 0 ? (
           <div className="pl-state pl-state-empty">
             <div className="pl-state-icon empty"><FiSearch size={28} /></div>
             <h3>No products found</h3><p>Try adjusting your search or filters</p>
             {hasActiveFilters && <button className="pl-retry-btn" onClick={clearFilters}><FiX size={14} /> Clear All Filters</button>}
           </div>
+        ) : listMode === "global" ? (
+          /* ===== GLOBAL VIEW (Frontend Live Preview) ===== */
+          <div className="pl-category pl-cat-open" style={{ padding: '10px' }}>
+            <div className="frontend-grid-preview">
+              {flatFilteredProducts.map((p) => renderFrontendCard(p))}
+            </div>
+          </div>
         ) : (
+          /* ===== CATEGORY VIEW (Grouped Standard Tables/Cards) ===== */
           Object.keys(groupedProducts).map((catName) => {
             const catProducts = groupedProducts[catName];
             const isOpen = expanded[catName];
 
             return (
               <div className={`pl-category ${isOpen ? "pl-cat-open" : ""}`} key={catName}>
-                {/* Category Header */}
                 <div className="pl-cat-header" onClick={() => toggleExpand(catName)}>
                   <div className="pl-cat-header-left">
-                    <div className="pl-cat-icon">
-                      <FiLayers size={16} />
-                    </div>
+                    <div className="pl-cat-icon"><FiLayers size={16} /></div>
                     <h2>{catName}</h2>
                     <span className="pl-cat-count">{catProducts.length}</span>
                   </div>
-                  <div className="pl-cat-header-right">
-                    {isOpen ? <FiChevronUp size={18} /> : <FiChevronDown size={18} />}
-                  </div>
+                  <div className="pl-cat-header-right">{isOpen ? <FiChevronUp size={18} /> : <FiChevronDown size={18} />}</div>
                 </div>
 
-                {/* Category Content */}
                 {isOpen && (
                   <div className="pl-cat-content">
                     {view === "table" ? (
-                      /* ===== TABLE VIEW ===== */
                       <div className="pl-table-wrap">
                         <table className="pl-table">
                           <thead>
@@ -562,153 +720,13 @@ export default function ProductList() {
                             </tr>
                           </thead>
                           <tbody>
-                            {catProducts.map((p, index) => {
-                              const isEditing = editingCategory?.productId === p._id;
-                              const currentCat = p.category?._id || "";
-                              const stock = p.stock || 0;
-                              const unitLabel = p.unit || "Units";
-                              const isDragging = draggedItem === p._id;
-                              const isDragOver = dragOverItem === p._id;
-
-                              return (
-                                <tr
-                                  key={p._id}
-                                  id={`row-${p._id}`}
-                                  className={`pl-tr ${isDragging ? "pl-dragging" : ""} ${isDragOver && !isDragging ? "pl-drag-over" : ""}`}
-                                  draggable={!search}
-                                  onDragStart={(e) => handleDragStart(e, p._id)}
-                                  onDragOver={(e) => handleDragOver(e, p._id)}
-                                  onDragLeave={handleDragLeave}
-                                  onDrop={(e) => handleDrop(e, p._id, catName)}
-                                  onDragEnd={() => handleDragEnd(p._id)}
-                                >
-                                  <td className="pl-td-drag">
-                                    <FiMenu className="pl-drag-handle" size={16} title={search ? "Clear search to reorder" : "Drag to reorder"} />
-                                  </td>
-                                  <td className="pl-td-num">{index + 1}</td>
-                                  <td className="pl-td-img">
-                                    {p.images?.[0] ? (
-                                      <img src={getImageUrl(p.images[0])} alt={p.name} className="pl-thumb" />
-                                    ) : (
-                                      <div className="pl-thumb pl-thumb-empty"><FiImage size={18} /></div>
-                                    )}
-                                  </td>
-                                  <td>
-                                    <div className="pl-td-name">
-                                      <span className="pl-product-name">{p.name}</span>
-                                      <span className="pl-product-sku pl-mobile-sku">{p.sku}</span>
-                                    </div>
-                                  </td>
-                                  <td className="pl-th-hide-sm">
-                                    <span className="pl-sku-badge" onClick={() => copy(p.sku, "SKU")}>
-                                      {p.sku}<FiCopy size={10} className="pl-sku-copy" />
-                                    </span>
-                                  </td>
-                                  <td>
-                                    {stock === 0 ? (
-                                      <span className="pl-stock pl-stock-out"><FiAlertCircle size={12} /> Out</span>
-                                    ) : stock <= 5 ? (
-                                      <span className="pl-stock pl-stock-low"><FiAlertTriangle size={12} /> {stock} {unitLabel}</span>
-                                    ) : (
-                                      <span className="pl-stock pl-stock-ok"><FiCheckCircle size={12} /> {stock} {unitLabel}</span>
-                                    )}
-                                  </td>
-                                  <td className="pl-th-hide-md">
-                                    <div className="pl-cat-select-wrap">
-                                      <select
-                                        value={isEditing ? editingCategory.categoryId : currentCat}
-                                        onChange={(e) => setEditingCategory({ productId: p._id, categoryId: e.target.value })}
-                                        className="pl-cat-select"
-                                      >
-                                        <option value="">Select</option>
-                                        {categories.map((cat) => (
-                                          <option key={cat._id} value={cat._id}>{cat.name}</option>
-                                        ))}
-                                      </select>
-                                      {isEditing && editingCategory.categoryId !== currentCat && (
-                                        <button onClick={() => saveCategoryChange(p._id)} className="pl-cat-save" title="Save">
-                                          <FiCheck size={14} />
-                                        </button>
-                                      )}
-                                    </div>
-                                  </td>
-                                  <td>
-                                    <span className="pl-price">{p.price ? `₹${Number(p.price).toLocaleString()}` : "—"}</span>
-                                  </td>
-                                  <td>
-                                    <div className="pl-actions">
-                                      <div className="pl-move-btns">
-                                        <button onClick={(e) => { e.stopPropagation(); moveProduct(p._id, "up"); }} disabled={index === 0} className="pl-move" title="Move Up"><FiArrowUp size={13} /></button>
-                                        <button onClick={(e) => { e.stopPropagation(); moveProduct(p._id, "down"); }} disabled={index === catProducts.length - 1} className="pl-move" title="Move Down"><FiArrowDown size={13} /></button>
-                                      </div>
-                                      <Link to={`/admin/products/edit/${p._id}`} className="pl-act-btn pl-act-edit" title="Edit"><FiEdit2 size={14} /></Link>
-                                      <button onClick={() => handleDelete(p._id)} className="pl-act-btn pl-act-del" title="Delete"><FiTrash2 size={14} /></button>
-                                    </div>
-                                  </td>
-                                </tr>
-                              );
-                            })}
+                            {catProducts.map((p, i) => renderCategoryItem(p, i, catName, catProducts.length))}
                           </tbody>
                         </table>
                       </div>
                     ) : (
-                      /* ===== CARD VIEW ===== */
                       <div className="pl-cards">
-                        {catProducts.map((p, index) => {
-                          const stock = p.stock || 0;
-                          const unitLabel = p.unit || "Units";
-
-                          return (
-                            <div className="pl-card" key={p._id}>
-                              <div className="pl-card-top">
-                                <div className="pl-card-img">
-                                  {p.images?.[0] ? (
-                                    <img src={getImageUrl(p.images[0])} alt={p.name} />
-                                  ) : (
-                                    <div className="pl-card-img-empty"><FiImage size={24} /></div>
-                                  )}
-                                </div>
-                                <div className="pl-card-info">
-                                  <h4 className="pl-card-name">{p.name}</h4>
-                                  <div className="pl-card-meta">
-                                    <span className="pl-card-sku" onClick={() => copy(p.sku, "SKU")}><FiHash size={11} /> {p.sku} <FiCopy size={9} /></span>
-                                    <span className="pl-card-cat"><FiTag size={11} /> {p.category?.name || "Uncategorized"}</span>
-                                  </div>
-                                </div>
-                              </div>
-
-                              <div className="pl-card-body">
-                                <div className="pl-card-fields">
-                                  <div className="pl-card-field">
-                                    <div className="pl-cf-icon price"><FiDollarSign size={14} /></div>
-                                    <div className="pl-cf-content">
-                                      <label>Price</label>
-                                      <span className="pl-cf-val">{p.price ? `₹${Number(p.price).toLocaleString()}` : "—"}</span>
-                                    </div>
-                                  </div>
-                                  <div className="pl-card-field">
-                                    <div className={`pl-cf-icon ${stock === 0 ? "out" : stock <= 5 ? "low" : "ok"}`}>
-                                      {stock === 0 ? <FiAlertCircle size={14} /> : stock <= 5 ? <FiAlertTriangle size={14} /> : <FiCheckCircle size={14} />}
-                                    </div>
-                                    <div className="pl-cf-content">
-                                      <label>Stock</label>
-                                      <span className="pl-cf-val">{stock === 0 ? "Out of Stock" : `${stock} ${unitLabel}`}</span>
-                                    </div>
-                                  </div>
-                                </div>
-                              </div>
-
-                              <div className="pl-card-actions">
-                                <div className="pl-card-move">
-                                  <button onClick={() => moveProduct(p._id, "up")} disabled={index === 0} className="pl-move" title="Up"><FiArrowUp size={14} /></button>
-                                  <button onClick={() => moveProduct(p._id, "down")} disabled={index === catProducts.length - 1} className="pl-move" title="Down"><FiArrowDown size={14} /></button>
-                                </div>
-                                <Link to={`/admin/products/edit/${p._id}`} className="pl-card-act pl-card-edit"><FiEdit2 size={14} /><span>Edit</span></Link>
-                                <button onClick={() => handleDelete(p._id)} className="pl-card-act pl-card-delete"><FiTrash2 size={14} /><span>Delete</span></button>
-                              </div>
-                            </div>
-                          );
-                        })}
+                        {catProducts.map((p, i) => renderCategoryItem(p, i, catName, catProducts.length))}
                       </div>
                     )}
                   </div>

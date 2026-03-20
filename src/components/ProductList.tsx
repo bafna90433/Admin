@@ -8,7 +8,7 @@ import {
   FiRefreshCw, FiGrid, FiList, FiFilter, FiSliders,
   FiHash, FiCopy, FiBox, FiTag, FiDollarSign, FiLayers,
   FiImage, FiMinimize2, FiMaximize2, FiShield, FiKey,
-  FiStar, FiMonitor, FiSmartphone, FiLayout, FiAlertTriangle
+  FiStar, FiMonitor, FiSmartphone, FiLayout, FiAlertTriangle, FiCheckSquare
 } from "react-icons/fi";
 import "../styles/ProductList.css";
 
@@ -61,7 +61,7 @@ export default function ProductList() {
   
   // View Modes
   const [view, setView] = useState<"table" | "card">("table");
-  const [listMode, setListMode] = useState<"global" | "category">("global"); // Global By Default
+  const [listMode, setListMode] = useState<"global" | "category">("global");
   const [gridPC, setGridPC] = useState(5);
   const [gridMobile, setGridMobile] = useState(2);
 
@@ -71,6 +71,9 @@ export default function ProductList() {
 
   const [draggedItem, setDraggedItem] = useState<string | null>(null);
   const [dragOverItem, setDragOverItem] = useState<string | null>(null);
+
+  // Selection State for Bulk Move to Top
+  const [selectedIds, setSelectedIds] = useState<string[]>([]);
 
   const [editingCategory, setEditingCategory] = useState<{
     productId: string;
@@ -96,7 +99,7 @@ export default function ProductList() {
     return () => mq.removeEventListener("change", handler);
   }, []);
 
-  // Fetch Data (Products, Categories & Grid Layout)
+  // Fetch Data
   const fetchData = useCallback(async () => {
     try {
       setLoading(true);
@@ -195,6 +198,80 @@ export default function ProductList() {
 
   const clearFilters = () => { setSearch(""); setCategoryFilter("all"); setStockFilter("all"); };
 
+  // ════════════════════════════════════════════════════════════
+  // ✅ FIXED: SELECTION AND BULK MOVE TO TOP LOGIC
+  // ════════════════════════════════════════════════════════════
+  const toggleSelection = (id: string) => {
+    setSelectedIds((prev) => 
+      prev.includes(id) ? prev.filter((itemId) => itemId !== id) : [...prev, id]
+    );
+  };
+
+  const moveSelectedToTop = async () => {
+    if (selectedIds.length === 0) return;
+
+    setProducts((prev) => {
+      let updatedPayload: Product[] = [];
+      const copy = [...prev];
+
+      if (listMode === "global") {
+        // GLOBAL MODE: Absolute top of all products
+        const selected = copy.filter(p => selectedIds.includes(p._id));
+        const unselected = copy.filter(p => !selectedIds.includes(p._id));
+        const newOrder = [...selected, ...unselected];
+        updatedPayload = newOrder.map((p, i) => ({ ...p, order: i }));
+      } else {
+        // CATEGORY MODE: Top of their respective categories ONLY
+        updatedPayload = [...copy];
+        
+        // Group by category to process individually
+        const groups: Record<string, Product[]> = {};
+        updatedPayload.forEach(p => {
+          const cId = p.category?._id || "unassigned";
+          if (!groups[cId]) groups[cId] = [];
+          groups[cId].push(p);
+        });
+
+        Object.keys(groups).forEach(cId => {
+          const groupProducts = groups[cId];
+          const hasSelected = groupProducts.some(p => selectedIds.includes(p._id));
+          
+          if (hasSelected) {
+            // Keep original order values to maintain global bounds
+            const originalOrders = groupProducts.map(p => p.order || 0).sort((a, b) => a - b);
+            
+            const selectedInGroup = groupProducts.filter(p => selectedIds.includes(p._id));
+            const unselectedInGroup = groupProducts.filter(p => !selectedIds.includes(p._id));
+            const newGroupOrder = [...selectedInGroup, ...unselectedInGroup];
+            
+            newGroupOrder.forEach((p, i) => {
+              p.order = originalOrders[i];
+              const globalIdx = updatedPayload.findIndex(up => up._id === p._id);
+              if (globalIdx !== -1) updatedPayload[globalIdx].order = p.order;
+            });
+          }
+        });
+
+        // Re-sort payload by updated order
+        updatedPayload.sort((a, b) => (a.order || 0) - (b.order || 0));
+      }
+
+      // Fire API asynchronously
+      axios.put(`${API_BASE}/products/reorder`, {
+        products: updatedPayload.map((p) => ({ _id: p._id, order: p.order }))
+      }).then(() => {
+        import("react-hot-toast").then(({ default: toast }) => toast.success(`${selectedIds.length} items moved to top!`));
+        setSelectedIds([]); 
+      }).catch(() => {
+        import("react-hot-toast").then(({ default: toast }) => toast.error("Sync failed, refreshing..."));
+        fetchData();
+      });
+
+      return updatedPayload;
+    });
+  };
+  // ════════════════════════════════════════════════════════════
+
   // Delete Handlers
   const handleDelete = async (id: string) => setDelId(id);
   const confirmDelete = async () => {
@@ -284,25 +361,28 @@ export default function ProductList() {
     const targetIdx = group.findIndex((p) => p._id === targetId);
     if (draggedIdx === -1 || targetIdx === -1) { setDraggedItem(null); return; }
 
-    const steps = Math.abs(targetIdx - draggedIdx);
-    const direction = targetIdx > draggedIdx ? "down" : "up";
+    const newGroup = [...group];
+    const [draggedObj] = newGroup.splice(draggedIdx, 1);
+    newGroup.splice(targetIdx, 0, draggedObj);
 
-    setProducts((prev) => {
-      const newProducts = prev.map((p) => ({ ...p }));
-      const groupItems = newProducts.filter((p) => p.category?.name === catName).sort((a, b) => (a.order || 0) - (b.order || 0));
-      const draggedItemObj = groupItems.find((p) => p._id === draggedItem);
-      if (!draggedItemObj) return prev;
-      const filteredGroup = groupItems.filter((p) => p._id !== draggedItem);
-      filteredGroup.splice(targetIdx, 0, draggedItemObj);
-      filteredGroup.forEach((p, index) => {
-        const match = newProducts.find((np) => np._id === p._id);
-        if (match) match.order = index;
+    const originalOrders = group.map(p => p.order || 0).sort((a,b) => a - b);
+    const updatedPayload = newGroup.map((p, i) => ({ ...p, order: originalOrders[i] }));
+
+    setProducts(prev => {
+      const copy = [...prev];
+      updatedPayload.forEach(upd => {
+        const idx = copy.findIndex(p => p._id === upd._id);
+        if(idx !== -1) copy[idx].order = upd.order;
       });
-      return newProducts.sort((a, b) => (a.order || 0) - (b.order || 0));
+      return copy.sort((a, b) => (a.order || 0) - (b.order || 0));
     });
 
     setDraggedItem(null);
-    try { for (let i = 0; i < steps; i++) { await axios.put(`${API_BASE}/products/${draggedItem}/move`, { direction }); } } catch { fetchData(); }
+    try {
+      await axios.put(`${API_BASE}/products/reorder`, {
+        products: updatedPayload.map(p => ({ _id: p._id, order: p.order }))
+      });
+    } catch { fetchData(); }
   };
 
   // Drop Global Mode
@@ -310,23 +390,23 @@ export default function ProductList() {
     e.preventDefault(); setDragOverItem(null);
     if (!draggedItem || draggedItem === targetId) { setDraggedItem(null); return; }
 
-    const draggedIdx = products.findIndex((p) => p._id === draggedItem);
-    const targetIdx = products.findIndex((p) => p._id === targetId);
+    const draggedIdx = flatFilteredProducts.findIndex((p) => p._id === draggedItem);
+    const targetIdx = flatFilteredProducts.findIndex((p) => p._id === targetId);
     if (draggedIdx === -1 || targetIdx === -1) { setDraggedItem(null); return; }
 
-    const steps = Math.abs(targetIdx - draggedIdx);
-    const direction = targetIdx > draggedIdx ? "down" : "up";
+    const newVisualOrder = [...flatFilteredProducts];
+    const [draggedObj] = newVisualOrder.splice(draggedIdx, 1);
+    newVisualOrder.splice(targetIdx, 0, draggedObj);
 
-    setProducts((prev) => {
-      const newProducts = [...prev];
-      const draggedItemObj = newProducts.splice(draggedIdx, 1)[0];
-      newProducts.splice(targetIdx, 0, draggedItemObj);
-      newProducts.forEach((p, index) => { p.order = index; });
-      return newProducts;
-    });
-
+    const updatedPayload = newVisualOrder.map((p, index) => ({ ...p, order: index }));
+    setProducts(updatedPayload);
     setDraggedItem(null);
-    try { for (let i = 0; i < steps; i++) { await axios.put(`${API_BASE}/products/${draggedItem}/move`, { direction }); } } catch { fetchData(); }
+
+    try {
+      await axios.put(`${API_BASE}/products/reorder`, {
+        products: updatedPayload.map((p) => ({ _id: p._id, order: p.order }))
+      });
+    } catch { fetchData(); }
   };
 
   const toggleExpand = (catName: string) => setExpanded((prev) => ({ ...prev, [catName]: !prev[catName] }));
@@ -351,12 +431,13 @@ export default function ProductList() {
     const discount = Math.round(((mrp - price) / mrp) * 100);
     const isDragging = draggedItem === p._id;
     const isDragOver = dragOverItem === p._id;
+    const isSelected = selectedIds.includes(p._id);
 
     return (
       <div 
         key={p._id} 
         id={`row-${p._id}`}
-        className={`frontend-mock-card ${isDragging ? "dragging" : ""} ${isDragOver && !isDragging ? "drag-over" : ""}`}
+        className={`frontend-mock-card ${isDragging ? "dragging" : ""} ${isDragOver && !isDragging ? "drag-over" : ""} ${isSelected ? "selected" : ""}`}
         draggable={!search}
         onDragStart={(e) => handleDragStart(e, p._id)}
         onDragOver={(e) => handleDragOver(e, p._id)}
@@ -364,8 +445,18 @@ export default function ProductList() {
         onDragEnd={() => handleDragEnd(p._id)}
       >
         <div className="f-card-badges">
-          {discount > 0 && <span className="f-discount">⚡ {discount}% OFF</span>}
-          {mrp > price && <span className="f-mrp">MRP<br/>₹{mrp}</span>}
+          {/* Checkbox */}
+          <input 
+            type="checkbox" 
+            className="pl-checkbox-custom" 
+            checked={isSelected} 
+            onChange={() => toggleSelection(p._id)} 
+            onClick={(e) => e.stopPropagation()} 
+          />
+          <div style={{display: 'flex', gap: '6px'}}>
+            {discount > 0 && <span className="f-discount">⚡ {discount}% OFF</span>}
+            {mrp > price && <span className="f-mrp">MRP<br/>₹{mrp}</span>}
+          </div>
         </div>
         
         <div className="f-card-img">
@@ -418,12 +509,13 @@ export default function ProductList() {
     const isDragOver = dragOverItem === p._id;
     const isFirst = index === 0;
     const isLast = index === listLength - 1;
+    const isSelected = selectedIds.includes(p._id);
 
     if (view === "table") {
       return (
         <tr
           key={p._id} id={`row-${p._id}`}
-          className={`pl-tr ${isDragging ? "pl-dragging" : ""} ${isDragOver && !isDragging ? "pl-drag-over" : ""}`}
+          className={`pl-tr ${isDragging ? "pl-dragging" : ""} ${isDragOver && !isDragging ? "pl-drag-over" : ""} ${isSelected ? "pl-tr-selected" : ""}`}
           draggable={!search}
           onDragStart={(e) => handleDragStart(e, p._id)}
           onDragOver={(e) => handleDragOver(e, p._id)}
@@ -431,6 +523,15 @@ export default function ProductList() {
           onDrop={(e) => handleDropCategory(e, p._id, catName)}
           onDragEnd={() => handleDragEnd(p._id)}
         >
+          {/* Checkbox */}
+          <td className="pl-td-check">
+            <input 
+              type="checkbox" 
+              className="pl-checkbox-custom" 
+              checked={isSelected} 
+              onChange={() => toggleSelection(p._id)} 
+            />
+          </td>
           <td className="pl-td-drag"><FiMenu className="pl-drag-handle" size={16} title={search ? "Clear search to reorder" : "Drag to reorder"} /></td>
           <td className="pl-td-num">{index + 1}</td>
           <td className="pl-td-img">{p.images?.[0] ? <img src={getImageUrl(p.images[0])} alt={p.name} className="pl-thumb" /> : <div className="pl-thumb pl-thumb-empty"><FiImage size={18} /></div>}</td>
@@ -461,9 +562,28 @@ export default function ProductList() {
       );
     } else {
       return (
-        <div className="pl-card" key={p._id}>
-          <div className="pl-card-top">
-            <div className="pl-card-img">{p.images?.[0] ? <img src={getImageUrl(p.images[0])} alt={p.name} /> : <div className="pl-card-img-empty"><FiImage size={24} /></div>}</div>
+        <div 
+          className={`pl-card ${isDragging ? "dragging" : ""} ${isDragOver && !isDragging ? "drag-over" : ""} ${isSelected ? "selected" : ""}`} 
+          key={p._id}
+          draggable={!search}
+          onDragStart={(e) => handleDragStart(e, p._id)}
+          onDragOver={(e) => handleDragOver(e, p._id)}
+          onDrop={(e) => handleDropCategory(e, p._id, catName)}
+          onDragEnd={() => handleDragEnd(p._id)}
+        >
+          {/* Checkbox */}
+          <div style={{ position: 'absolute', top: '10px', left: '10px', zIndex: 10 }}>
+            <input 
+              type="checkbox" 
+              className="pl-checkbox-custom" 
+              checked={isSelected} 
+              onChange={() => toggleSelection(p._id)} 
+              onClick={(e) => e.stopPropagation()} 
+            />
+          </div>
+
+          <div className="pl-card-top" style={{ cursor: 'grab' }}>
+            <div className="pl-card-img">{p.images?.[0] ? <img src={getImageUrl(p.images[0])} alt={p.name} draggable="false" /> : <div className="pl-card-img-empty"><FiImage size={24} /></div>}</div>
             <div className="pl-card-info">
               <h4 className="pl-card-name">{p.name}</h4>
               <div className="pl-card-meta">
@@ -497,7 +617,7 @@ export default function ProductList() {
   return (
     <div className={`pl-root ${search ? "pl-searching" : ""}`} ref={topRef}>
       
-      {/* Dynamic Grid Styles based on Controller */}
+      {/* Dynamic Grid Styles & Selection Styles */}
       <style>
         {`
           .frontend-grid-preview {
@@ -511,6 +631,14 @@ export default function ProductList() {
               grid-template-columns: repeat(${gridMobile}, 1fr);
             }
           }
+          .frontend-mock-card.dragging, .pl-card.dragging { opacity: 0.4; }
+          .frontend-mock-card.drag-over, .pl-card.drag-over { border: 2px dashed #6366f1; }
+          
+          /* Selection Checkbox Styles */
+          .pl-checkbox-custom { width: 18px; height: 18px; cursor: pointer; accent-color: #4f46e5; }
+          .frontend-mock-card.selected, .pl-card.selected { border: 2px solid #4f46e5; background: #f5f3ff; }
+          .pl-tr-selected { background: #f5f3ff !important; }
+          .pl-th-check, .pl-td-check { width: 30px; text-align: center; padding-left: 10px; }
         `}
       </style>
 
@@ -545,22 +673,6 @@ export default function ProductList() {
             <button className="pl-top-btn pl-top-add" onClick={() => navigate("/admin/products/new")}><FiPlus size={16} /><span>Add Product</span></button>
           </div>
         </div>
-
-        {/* Stats */}
-        <div className="pl-stats">
-          {[
-            { icon: <FiPackage size={18} />, val: stats.total, lbl: "Total Products", color: "indigo" },
-            { icon: <FiLayers size={18} />, val: stats.categories, lbl: "Categories", color: "violet" },
-            { icon: <FiCheckCircle size={18} />, val: stats.inStock, lbl: "In Stock", color: "emerald" },
-            { icon: <FiAlertTriangle size={18} />, val: stats.lowStock, lbl: "Low Stock", color: "amber" },
-            { icon: <FiAlertCircle size={18} />, val: stats.outOfStock, lbl: "Out of Stock", color: "red" },
-          ].map((s) => (
-            <div className={`pl-stat pl-stat-${s.color}`} key={s.lbl}>
-              <div className="pl-stat-top"><div className="pl-stat-icon">{s.icon}</div><div className="pl-stat-num">{s.val}</div></div>
-              <div className="pl-stat-lbl">{s.lbl}</div>
-            </div>
-          ))}
-        </div>
       </section>
 
       {/* Toolbar & Grid Controller */}
@@ -579,8 +691,8 @@ export default function ProductList() {
               </button>
               
               <div className="pl-view-toggle" style={{ marginLeft: '10px' }}>
-                <button className={`pl-vt ${listMode === "global" ? "active" : ""}`} onClick={() => setListMode("global")} style={{width: 'auto', padding: '0 12px', fontSize: '12px', fontWeight: 500}}>Live Preview</button>
-                <button className={`pl-vt ${listMode === "category" ? "active" : ""}`} onClick={() => setListMode("category")} style={{width: 'auto', padding: '0 12px', fontSize: '12px', fontWeight: 500}}>Categories</button>
+                <button className={`pl-vt ${listMode === "global" ? "active" : ""}`} onClick={() => {setListMode("global"); setSelectedIds([]);}} style={{width: 'auto', padding: '0 12px', fontSize: '12px', fontWeight: 500}}>Live Preview</button>
+                <button className={`pl-vt ${listMode === "category" ? "active" : ""}`} onClick={() => {setListMode("category"); setSelectedIds([]);}} style={{width: 'auto', padding: '0 12px', fontSize: '12px', fontWeight: 500}}>Categories</button>
                 
                 {listMode === "category" && (
                   <>
@@ -595,7 +707,7 @@ export default function ProductList() {
 
           {/* Grid Layout Setup (Only visible in Global Mode) */}
           {listMode === "global" && (
-            <div style={{ background: '#eef2ff', padding: '10px 15px', borderTop: '1px solid #c7d2fe', display: 'flex', alignItems: 'center', gap: '20px', flexWrap: 'wrap' }}>
+            <div style={{ background: '#f8fafc', padding: '10px 15px', borderTop: '1px solid #e2e8f0', display: 'flex', alignItems: 'center', gap: '20px', flexWrap: 'wrap' }}>
               <strong style={{ color: '#4f46e5', display: 'flex', alignItems: 'center', gap: '8px', fontSize: '13px' }}>
                 <FiLayout size={16} /> Frontend Grid Setup
               </strong>
@@ -614,6 +726,21 @@ export default function ProductList() {
                 <select value={gridMobile} onChange={(e) => saveGridSettings(gridPC, Number(e.target.value))} style={{ padding: '2px 6px', borderRadius: '4px', border: '1px solid #cbd5e1', fontSize: '12px' }}>
                   {[1, 2, 3].map(n => <option key={n} value={n}>{n} Columns</option>)}
                 </select>
+              </div>
+            </div>
+          )}
+
+          {/* BULK ACTION BAR */}
+          {selectedIds.length > 0 && (
+            <div style={{ background: '#eef2ff', padding: '12px 15px', borderTop: '2px solid #818cf8', display: 'flex', alignItems: 'center', justifyContent: 'space-between', animation: 'pl-fadeIn 0.2s' }}>
+              <strong style={{ color: '#4f46e5', fontSize: '14px', display: 'flex', alignItems: 'center', gap: '6px' }}>
+                <FiCheckSquare size={16} /> {selectedIds.length} Products Selected
+              </strong>
+              <div style={{ display: 'flex', gap: '10px' }}>
+                <button onClick={() => setSelectedIds([])} style={{ background: '#fff', border: '1px solid #cbd5e1', padding: '6px 12px', borderRadius: '6px', fontSize: '13px', cursor: 'pointer', fontWeight: 600, color: '#475569' }}>Cancel</button>
+                <button onClick={moveSelectedToTop} style={{ background: '#4f46e5', border: 'none', color: '#fff', padding: '6px 12px', borderRadius: '6px', fontSize: '13px', cursor: 'pointer', fontWeight: 600, display: 'flex', alignItems: 'center', gap: '6px', boxShadow: '0 2px 4px rgba(79, 70, 229, 0.2)' }}>
+                  <FiArrowUp size={14} /> Move to Top
+                </button>
               </div>
             </div>
           )}
@@ -646,13 +773,6 @@ export default function ProductList() {
             <div className="pl-showing">
               <span className="pl-showing-bold">{totalFiltered}</span> products
               {hasActiveFilters && <span className="pl-showing-sub"> (filtered from {stats.total})</span>}
-            </div>
-            <div className="pl-toolbar-info-right">
-              {listMode === "category" && Object.keys(groupedProducts).length > 0 && (
-                <button className="pl-expand-btn" onClick={allExpanded ? collapseAll : expandAll}>
-                  {allExpanded ? <><FiMinimize2 size={13} /> Collapse</> : <><FiMaximize2 size={13} /> Expand All</>}
-                </button>
-              )}
             </div>
           </div>
         </div>
@@ -708,6 +828,24 @@ export default function ProductList() {
                         <table className="pl-table">
                           <thead>
                             <tr>
+                              <th className="pl-th-check">
+                                <input 
+                                  type="checkbox" 
+                                  className="pl-checkbox-custom"
+                                  onChange={(e) => {
+                                    if(e.target.checked) {
+                                      // Only select from currently visible filtered items
+                                      const newIds = new Set([...selectedIds, ...catProducts.map(p => p._id)]);
+                                      setSelectedIds(Array.from(newIds));
+                                    } else {
+                                      // Unselect only these category items
+                                      const catIds = catProducts.map(p => p._id);
+                                      setSelectedIds(selectedIds.filter(id => !catIds.includes(id)));
+                                    }
+                                  }}
+                                  checked={catProducts.every(p => selectedIds.includes(p._id)) && catProducts.length > 0}
+                                />
+                              </th>
                               <th className="pl-th-drag"></th>
                               <th className="pl-th-num">#</th>
                               <th className="pl-th-img">Image</th>

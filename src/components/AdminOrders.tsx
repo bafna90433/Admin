@@ -40,6 +40,7 @@ type CustomerLite = {
 
 type ShippingAddress = {
   _id?: string;
+  shopName?: string; // ✅ Added Shop Name
   fullName: string;
   phone: string;
   street: string;
@@ -48,7 +49,13 @@ type ShippingAddress = {
   state: string;
   pincode: string;
   type: string;
-  isDefault?: boolean;
+  gstNumber?: string; // ✅ Added GST
+  isDifferentShipping?: boolean; // ✅ Added Different Shipping fields
+  shippingStreet?: string;
+  shippingArea?: string;
+  shippingPincode?: string;
+  shippingCity?: string;
+  shippingState?: string;
 };
 
 type OrderStatus =
@@ -156,30 +163,33 @@ const statusLabel = (s: OrderStatus) => {
 /* --- Export Functions --- */
 const exportAllOrders = (orders: Order[]) => {
   const rows = orders.map((o) => {
-    const wa = normalizeWhatsApp91(
-      o.customerId?.whatsapp || o.customerId?.otpMobile
-    );
+    const wa = normalizeWhatsApp91(o.customerId?.whatsapp || o.customerId?.otpMobile);
+    const addr = o.shippingAddress;
+    
+    // Check for different shipping logic
+    const finalShippingAddress = addr?.isDifferentShipping 
+      ? `${addr.shippingStreet || ""}, ${addr.shippingArea || ""}`
+      : `${addr?.street || ""}, ${addr?.area || ""}`;
+    const finalShippingCity = addr?.isDifferentShipping ? addr.shippingCity : addr?.city;
+    const finalShippingState = addr?.isDifferentShipping ? addr.shippingState : addr?.state;
+    const finalShippingPincode = addr?.isDifferentShipping ? addr.shippingPincode : addr?.pincode;
+
     return {
       OrderNumber: o.orderNumber || o._id.slice(-6),
-      Status:
-        statusLabel(o.status as OrderStatus) +
-        (o.status === "cancelled" && o.cancelledBy
-          ? ` (${o.cancelledBy})`
-          : ""),
+      Status: statusLabel(o.status as OrderStatus) + (o.status === "cancelled" && o.cancelledBy ? ` (${o.cancelledBy})` : ""),
       Total: o.total,
       Payment_Mode: paymentLabel(o.paymentMode),
       CreatedAt: formatExcelDate(o.createdAt),
-      Shop: o.customerId?.shopName || "",
+      Shop: addr?.shopName || o.customerId?.shopName || "", // ✅ Added Shop Name
+      GST_Number: addr?.gstNumber || "-", // ✅ Added GST
       Phone: o.customerId?.otpMobile || "",
       WhatsApp: wa || "",
-      ShippingName: o.shippingAddress?.fullName || "",
-      ShippingPhone: o.shippingAddress?.phone || "",
-      ShippingAddress: `${o.shippingAddress?.street || ""}, ${
-        o.shippingAddress?.area || ""
-      }`,
-      ShippingCity: o.shippingAddress?.city || "",
-      ShippingState: o.shippingAddress?.state || "",
-      ShippingPincode: o.shippingAddress?.pincode || "",
+      ShippingName: addr?.fullName || "",
+      ShippingPhone: addr?.phone || "",
+      ShippingAddress: finalShippingAddress,
+      ShippingCity: finalShippingCity || "",
+      ShippingState: finalShippingState || "",
+      ShippingPincode: finalShippingPincode || "",
       TotalPackets: o.items.reduce((sum, it) => sum + toInners(it), 0),
       TrackingID: o.trackingId || "-",
       Courier: o.courierName || "-",
@@ -189,28 +199,28 @@ const exportAllOrders = (orders: Order[]) => {
   const wb = XLSX.utils.book_new();
   XLSX.utils.book_append_sheet(wb, ws, "Orders");
   const buf = XLSX.write(wb, { bookType: "xlsx", type: "array" });
-  saveAs(
-    new Blob([buf], { type: "application/octet-stream" }),
-    "all_orders.xlsx"
-  );
+  saveAs(new Blob([buf], { type: "application/octet-stream" }), "Bafnatoys_All_Orders.xlsx");
 };
 
 const exportSingleOrder = (order: Order) => {
   const createdAt = formatExcelDate(order.createdAt);
-  const wa = normalizeWhatsApp91(
-    order.customerId?.whatsapp || order.customerId?.otpMobile
-  );
+  const wa = normalizeWhatsApp91(order.customerId?.whatsapp || order.customerId?.otpMobile);
+  const addr = order.shippingAddress;
+
+  const finalShippingAddress = addr?.isDifferentShipping 
+      ? `${addr.shippingStreet || ""}, ${addr.shippingArea || ""}`
+      : `${addr?.street || ""}, ${addr?.area || ""}`;
+
   const rows = order.items.map((it) => ({
     OrderNumber: order.orderNumber || order._id.slice(-6),
     Status: statusLabel(order.status),
     Payment_Mode: paymentLabel(order.paymentMode),
-    Shop: order.customerId?.shopName || "",
+    Shop: addr?.shopName || order.customerId?.shopName || "", // ✅ Added Shop Name
+    GST_Number: addr?.gstNumber || "-", // ✅ Added GST
     Phone: order.customerId?.otpMobile || "",
     WhatsApp: wa || "",
-    ShippingName: order.shippingAddress?.fullName || "",
-    ShippingAddress: `${order.shippingAddress?.street || ""}, ${
-      order.shippingAddress?.area || ""
-    }`,
+    ShippingName: addr?.fullName || "",
+    ShippingAddress: finalShippingAddress,
     Item: it.name,
     Qty: it.qty,
     Price: it.price,
@@ -224,10 +234,7 @@ const exportSingleOrder = (order: Order) => {
   const wb = XLSX.utils.book_new();
   XLSX.utils.book_append_sheet(wb, ws, "Order");
   const buf = XLSX.write(wb, { bookType: "xlsx", type: "array" });
-  saveAs(
-    new Blob([buf], { type: "application/octet-stream" }),
-    `order_${order.orderNumber || order._id.slice(-6)}.xlsx`
-  );
+  saveAs(new Blob([buf], { type: "application/octet-stream" }), `Order_${order.orderNumber || order._id.slice(-6)}.xlsx`);
 };
 
 /* --- Invoice Generator --- */
@@ -239,50 +246,20 @@ const generateInvoice = (order: Order) => {
     month: "long",
     day: "numeric",
   });
-  const shippingAddr = order.shippingAddress;
-  const wa = normalizeWhatsApp91(
-    order.customerId?.whatsapp || order.customerId?.otpMobile
-  );
+  
+  const addr = order.shippingAddress;
+  const wa = normalizeWhatsApp91(order.customerId?.whatsapp || order.customerId?.otpMobile);
+  
   let shippingHtml = "No shipping address provided";
-  if (shippingAddr) {
-    shippingHtml = [
-      shippingAddr.fullName
-        ? `<strong>${shippingAddr.fullName}</strong>`
-        : "",
-      shippingAddr.street,
-      shippingAddr.area,
-      `${shippingAddr.city}, ${shippingAddr.state}`,
-      shippingAddr.pincode ? `PIN: ${shippingAddr.pincode}` : "",
-      shippingAddr.phone ? `Phone: ${shippingAddr.phone}` : "",
-    ]
-      .filter(Boolean)
-      .join("<br>");
+  if (addr) {
+    shippingHtml = addr.isDifferentShipping 
+      ? `<strong>${addr.fullName}</strong><br/>${addr.shippingStreet}<br/>${addr.shippingArea || ""}<br/>${addr.shippingCity}, ${addr.shippingState} - ${addr.shippingPincode}<br/>Phone: ${addr.phone}`
+      : `<strong>${addr.fullName}</strong><br/>${addr.street}<br/>${addr.area || ""}<br/>${addr.city}, ${addr.state} - ${addr.pincode}<br/>Phone: ${addr.phone}`;
   }
+
   const paymentText = paymentLabel(order.paymentMode);
-  const content = `<!DOCTYPE html><html><head><title>Invoice - ${
-    order.orderNumber || order._id.slice(-6)
-  }</title><style>body{font-family:'Segoe UI',Arial,sans-serif;padding:20px;background:#fff;color:#333}.invoice-container{max-width:850px;margin:0 auto;border:1px solid #ddd;padding:30px}.header{text-align:center;margin-bottom:25px;border-bottom:3px solid #2c5aa0;padding-bottom:15px}.header img{max-height:70px}.invoice-details{display:flex;justify-content:space-between;gap:14px;margin-bottom:25px}.detail-section{width:32%}.detail-section h3{font-size:15px;color:#2c5aa0;border-bottom:1px solid #ddd;margin-bottom:5px}table{width:100%;border-collapse:collapse;margin:20px 0;font-size:14px}th{background:#2c5aa0;color:#fff;padding:10px;text-align:left}td{padding:10px;border-bottom:1px solid #eee}.footer{margin-top:40px;text-align:center;font-size:12px;color:#777}@media print{.btn-hide{display:none}}</style></head><body><div class="invoice-container"><div class="header"><img src="https://res.cloudinary.com/dpdecxqb9/image/upload/v1758783697/bafnatoys/lwccljc9kkosfv9wnnrq.png" alt="BafnaToys"/><p>1-12, Thondamuthur Road, Coimbatore - 641007<br>+91 9043347300 | bafnatoysphotos@gmail.com</p><h2>PRO FORMA INVOICE</h2></div><div class="invoice-details"><div class="detail-section"><h3>Bill To</h3><p><strong>${
-    order.customerId?.shopName || "-"
-  }</strong><br>Mobile: ${
-    order.customerId?.otpMobile || "-"
-  }<br>WhatsApp: ${
-    wa || "-"
-  }</p></div><div class="detail-section"><h3>Ship To</h3><p>${shippingHtml}</p></div><div class="detail-section"><h3>Order Details</h3><p>Invoice: ${
-    order.orderNumber
-  }<br>Date: ${currentDate}<br>Payment: ${paymentText}<br>${
-    order.trackingId ? `AWB: ${order.trackingId}` : ""
-  }</p></div></div><table><thead><tr><th>Product</th><th>Qty</th><th>Rate</th><th>Amount</th></tr></thead><tbody>${order.items
-    .map(
-      (it) =>
-        `<tr><td>${it.name}</td><td>${it.qty}</td><td>₹${it.price}</td><td>₹${
-          it.qty * it.price
-        }</td></tr>`
-    )
-    .join(
-      ""
-    )}</tbody><tfoot><tr><td colspan="3" align="right"><strong>Total</strong></td><td><strong>₹${
-    order.total
-  }</strong></td></tr></tfoot></table><div class="footer"><p>Thank you for choosing BafnaToys!</p></div></div><div style="text-align:center;margin-top:20px" class="btn-hide"><button onclick="window.print()" style="padding:10px 20px;background:#2c5aa0;color:white;border:none;cursor:pointer">Print Invoice</button></div></body></html>`;
+  
+  const content = `<!DOCTYPE html><html><head><title>Invoice - ${order.orderNumber || order._id.slice(-6)}</title><style>body{font-family:'Segoe UI',Arial,sans-serif;padding:20px;background:#fff;color:#333}.invoice-container{max-width:850px;margin:0 auto;border:1px solid #ddd;padding:30px}.header{text-align:center;margin-bottom:25px;border-bottom:3px solid #2c5aa0;padding-bottom:15px}.header img{max-height:70px}.invoice-details{display:flex;justify-content:space-between;gap:14px;margin-bottom:25px}.detail-section{width:32%}.detail-section h3{font-size:15px;color:#2c5aa0;border-bottom:1px solid #ddd;margin-bottom:5px}table{width:100%;border-collapse:collapse;margin:20px 0;font-size:14px}th{background:#2c5aa0;color:#fff;padding:10px;text-align:left}td{padding:10px;border-bottom:1px solid #eee}.footer{margin-top:40px;text-align:center;font-size:12px;color:#777}@media print{.btn-hide{display:none}}</style></head><body><div class="invoice-container"><div class="header"><img src="https://res.cloudinary.com/dpdecxqb9/image/upload/v1758783697/bafnatoys/lwccljc9kkosfv9wnnrq.png" alt="BafnaToys"/><p>1-12, Thondamuthur Road, Coimbatore - 641007<br>+91 9043347300 | bafnatoysphotos@gmail.com</p><h2>PRO FORMA INVOICE</h2></div><div class="invoice-details"><div class="detail-section"><h3>Bill To</h3><p><strong>${addr?.shopName || order.customerId?.shopName || "-"}</strong><br>GST: ${addr?.gstNumber || "-"}<br>Mobile: ${order.customerId?.otpMobile || "-"}<br>WhatsApp: ${wa || "-"}</p></div><div class="detail-section"><h3>Ship To</h3><p>${shippingHtml}</p></div><div class="detail-section"><h3>Order Details</h3><p>Invoice: ${order.orderNumber}<br>Date: ${currentDate}<br>Payment: ${paymentText}<br>${order.trackingId ? `AWB: ${order.trackingId}` : ""}</p></div></div><table><thead><tr><th>Product</th><th>Qty</th><th>Rate</th><th>Amount</th></tr></thead><tbody>${order.items.map((it) => `<tr><td>${it.name}</td><td>${it.qty}</td><td>₹${it.price}</td><td>₹${it.qty * it.price}</td></tr>`).join("")}</tbody><tfoot><tr><td colspan="3" align="right"><strong>Total</strong></td><td><strong>₹${order.total}</strong></td></tr></tfoot></table><div class="footer"><p>Thank you for choosing BafnaToys!</p></div></div><div style="text-align:center;margin-top:20px" class="btn-hide"><button onclick="window.print()" style="padding:10px 20px;background:#2c5aa0;color:white;border:none;cursor:pointer">Print Invoice</button></div></body></html>`;
   printWindow.document.write(content);
   printWindow.document.close();
 };
@@ -336,14 +313,13 @@ const AdminOrders: React.FC = () => {
           { headers: authHeaders() }
         );
 
-        // Handle both array response and paginated object response
         let list: Order[] = [];
         let total = 0;
 
         if (Array.isArray(data)) {
           list = data;
           total = data.length;
-          setHasMore(false); // backend returned all
+          setHasMore(false);
         } else if (data?.orders) {
           list = data.orders;
           total = data.total || data.totalCount || list.length;
@@ -369,9 +345,7 @@ const AdminOrders: React.FC = () => {
         setServerPage(page);
         setError(null);
       } catch (err: any) {
-        setError(
-          err?.response?.data?.message || "Unable to fetch orders"
-        );
+        setError(err?.response?.data?.message || "Unable to fetch orders");
       } finally {
         setLoading(false);
         setLoadingMore(false);
@@ -387,7 +361,6 @@ const AdminOrders: React.FC = () => {
   };
 
   const loadAllFromServer = async () => {
-    // Fetch all remaining pages
     let page = serverPage + 1;
     setLoadingMore(true);
     try {
@@ -604,10 +577,13 @@ const AdminOrders: React.FC = () => {
         const inOrderNum = norm(o.orderNumber || o._id).includes(q);
         const inCustomer =
           norm(o.customerId?.shopName).includes(q) ||
+          norm(o.shippingAddress?.shopName).includes(q) ||
+          norm(o.shippingAddress?.gstNumber).includes(q) ||
           norm(o.customerId?.otpMobile).includes(q) ||
           norm(o.customerId?.whatsapp).includes(q);
         const inShipping =
           norm(o.shippingAddress?.city).includes(q) ||
+          norm(o.shippingAddress?.shippingCity).includes(q) ||
           norm(o.shippingAddress?.fullName).includes(q);
         const inPayment = norm(o.paymentMode).includes(q);
         return inOrderNum || inCustomer || inShipping || inPayment;
@@ -725,7 +701,7 @@ const AdminOrders: React.FC = () => {
               <span className="ao-search-icon">🔍</span>
               <input
                 type="text"
-                placeholder="Search orders..."
+                placeholder="Search orders, shop, GST..."
                 value={search}
                 onChange={(e) => setSearch(e.target.value)}
               />
@@ -816,7 +792,7 @@ const AdminOrders: React.FC = () => {
                 <tr>
                   <th>Order #</th>
                   <th>Date</th>
-                  <th>Customer</th>
+                  <th>Shop Details</th>
                   <th>City</th>
                   <th>Items</th>
                   <th>Total</th>
@@ -828,9 +804,6 @@ const AdminOrders: React.FC = () => {
               </thead>
               <tbody>
                 {paginatedOrders.map((o) => {
-                  const wa = normalizeWhatsApp91(
-                    o.customerId?.whatsapp || o.customerId?.otpMobile
-                  );
                   return (
                     <tr key={o._id} className={`ao-tr-${o.status}`}>
                       <td className="ao-td-mono">
@@ -845,14 +818,17 @@ const AdminOrders: React.FC = () => {
                       <td>
                         <div className="ao-td-customer">
                           <strong>
-                            {o.customerId?.shopName || "Guest"}
+                            {o.shippingAddress?.shopName || o.customerId?.shopName || "Guest"}
                           </strong>
+                          <small>
+                            GST: {o.shippingAddress?.gstNumber || "N/A"}
+                          </small>
                           <small>
                             {o.customerId?.otpMobile || ""}
                           </small>
                         </div>
                       </td>
-                      <td>{o.shippingAddress?.city || "-"}</td>
+                      <td>{o.shippingAddress?.isDifferentShipping ? o.shippingAddress.shippingCity : (o.shippingAddress?.city || "-")}</td>
                       <td>{o.items?.length || 0}</td>
                       <td className="ao-td-price">
                         ₹{o.total.toLocaleString()}
@@ -969,14 +945,16 @@ const AdminOrders: React.FC = () => {
                   <div className="ao-card-body">
                     <div className="ao-info-row">
                       <div className="ao-info">
-                        <label>Customer</label>
+                        <label>Shop / Business</label>
                         <strong>
-                          {o.customerId?.shopName || "Guest"}
+                          {o.shippingAddress?.shopName || o.customerId?.shopName || "Guest"}
                         </strong>
+                        <small>
+                          GST: {o.shippingAddress?.gstNumber || "N/A"}
+                        </small>
                         <small>
                           📞 {o.customerId?.otpMobile || "-"}
                         </small>
-                        <small>💬 {wa || "-"}</small>
                       </div>
                       <div className="ao-info ao-right">
                         <label>Total</label>
@@ -990,7 +968,7 @@ const AdminOrders: React.FC = () => {
                       <div className="ao-info">
                         <label>Location</label>
                         <span>
-                          {o.shippingAddress?.city || "N/A"}
+                          {o.shippingAddress?.isDifferentShipping ? o.shippingAddress.shippingCity : (o.shippingAddress?.city || "N/A")}
                         </span>
                       </div>
                       <div className="ao-info ao-right">
@@ -1159,6 +1137,7 @@ const AdminOrders: React.FC = () => {
           <div
             className="ao-modal"
             onClick={(e) => e.stopPropagation()}
+            style={{ maxWidth: '800px', width: '95%' }}
           >
             <div className="ao-modal-header">
               <h3>
@@ -1198,13 +1177,16 @@ const AdminOrders: React.FC = () => {
 
             <div className="ao-modal-grid">
               <div className="ao-modal-section">
-                <h4>Customer</h4>
+                <h4>Billing Details</h4>
                 <p>
                   <strong>
-                    {viewing.customerId?.shopName}
+                    {viewing.shippingAddress?.shopName || viewing.customerId?.shopName}
                   </strong>
                 </p>
-                <p>📞 {viewing.customerId?.otpMobile}</p>
+                <p>
+                  <strong>GST:</strong> {viewing.shippingAddress?.gstNumber || "N/A"}
+                </p>
+                <p>📞 {viewing.shippingAddress?.phone || viewing.customerId?.otpMobile}</p>
                 <p>
                   💬{" "}
                   {normalizeWhatsApp91(
@@ -1214,7 +1196,7 @@ const AdminOrders: React.FC = () => {
                 </p>
               </div>
               <div className="ao-modal-section">
-                <h4>Shipping</h4>
+                <h4>Shipping Address</h4>
                 {viewing.shippingAddress ? (
                   <>
                     <p>
@@ -1222,14 +1204,19 @@ const AdminOrders: React.FC = () => {
                         {viewing.shippingAddress.fullName}
                       </strong>
                     </p>
-                    <p>
-                      {viewing.shippingAddress.street},{" "}
-                      {viewing.shippingAddress.city}
-                    </p>
-                    <p>
-                      {viewing.shippingAddress.state} -{" "}
-                      {viewing.shippingAddress.pincode}
-                    </p>
+                    {viewing.shippingAddress.isDifferentShipping ? (
+                      <>
+                        <p>{viewing.shippingAddress.shippingStreet}</p>
+                        <p>{viewing.shippingAddress.shippingArea}</p>
+                        <p>{viewing.shippingAddress.shippingCity}, {viewing.shippingAddress.shippingState} - {viewing.shippingAddress.shippingPincode}</p>
+                      </>
+                    ) : (
+                      <>
+                        <p>{viewing.shippingAddress.street}</p>
+                        <p>{viewing.shippingAddress.area}</p>
+                        <p>{viewing.shippingAddress.city}, {viewing.shippingAddress.state} - {viewing.shippingAddress.pincode}</p>
+                      </>
+                    )}
                   </>
                 ) : (
                   <p className="ao-muted">

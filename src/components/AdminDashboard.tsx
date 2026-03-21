@@ -40,7 +40,8 @@ type Customer = {
   address: string;
   otpMobile: string;
   whatsapp: string;
-  gstDocumentUrl?: string; // Restored the document URL field
+  gstNumber?: string;       // ✅ ADDED GST Number Type
+  gstDocumentUrl?: string;  
   createdAt: string;
 };
 
@@ -102,7 +103,7 @@ const AdminDashboard: React.FC = () => {
 
   const [delId, setDelId] = useState<string | null>(null);
   const [delPwd, setDelPwd] = useState("");
-  const [previewUrl, setPreviewUrl] = useState<string | null>(null); // Restored state for modal
+  const [previewUrl, setPreviewUrl] = useState<string | null>(null); 
   const [showFilters, setShowFilters] = useState(false);
 
   const topRef = useRef<HTMLDivElement>(null);
@@ -155,7 +156,8 @@ const AdminDashboard: React.FC = () => {
         c.shopName.toLowerCase().includes(q) ||
         c.otpMobile.includes(q) ||
         (c.whatsapp && c.whatsapp.includes(q)) ||
-        (c.address && c.address.toLowerCase().includes(q))
+        (c.address && c.address.toLowerCase().includes(q)) ||
+        (c.gstNumber && c.gstNumber.toLowerCase().includes(q)) // ✅ Search by GST
       );
     }
     if (cityFilter !== "all") list = list.filter((c) => extractCity(c.address) === cityFilter);
@@ -232,7 +234,8 @@ const AdminDashboard: React.FC = () => {
   const handleExport = () => {
     const data = filtered.map((c) => ({
       "Shop Name": c.shopName,
-      "Has GST Doc": c.gstDocumentUrl ? "Yes" : "No", // Restored export field
+      "GST Number": c.gstNumber || "N/A", // ✅ ADDED TO EXCEL EXPORT
+      "Has GST Doc": c.gstDocumentUrl ? "Yes" : "No", 
       City: extractCity(c.address),
       "Full Address": c.address || "",
       Mobile: c.otpMobile,
@@ -277,7 +280,14 @@ const AdminDashboard: React.FC = () => {
       <div className="ad-exp-section">
         <div className="ad-exp-title"><FiZap size={14} /> Quick Info</div>
         <div className="ad-exp-chips">
-          {/* Restored Document Chip */}
+          
+          {/* ✅ ADDED: GST Number Chip */}
+          {customer.gstNumber && (
+            <button className="ad-chip ad-chip-doc" style={{ background: '#f0fdf4', color: '#16a34a', borderColor: '#bbf7d0' }} onClick={() => copy(customer.gstNumber!, "GST Number")}>
+              <FiShield size={12} /><span>GST: {customer.gstNumber}</span><FiCopy size={10} className="ad-chip-action" />
+            </button>
+          )}
+
           {customer.gstDocumentUrl && (
             <button className="ad-chip ad-chip-doc" onClick={() => setPreviewUrl(customer.gstDocumentUrl || null)}>
               <FiFileText size={12} /><span>View GST Document</span><FiExternalLink size={10} className="ad-chip-action" />
@@ -318,7 +328,6 @@ const AdminDashboard: React.FC = () => {
     <div className="ad-mob-actions">
       <button className="ad-mob-act ad-mob-wa" onClick={() => openWA(customer.whatsapp)}><FiMessageSquare size={16} /><span>WhatsApp</span></button>
       <button className="ad-mob-act ad-mob-call" onClick={() => window.open(`tel:${customer.otpMobile}`)}><FiPhone size={16} /><span>Call</span></button>
-      {/* Restored Document Action */}
       {customer.gstDocumentUrl && (
         <button className="ad-mob-act ad-mob-doc" onClick={() => setPreviewUrl(customer.gstDocumentUrl || null)}><FiEye size={16} /><span>GST Doc</span></button>
       )}
@@ -330,7 +339,6 @@ const AdminDashboard: React.FC = () => {
     <div className="ad-root" ref={topRef}>
       <Toaster position="top-center" toastOptions={{ style: { borderRadius: "14px", padding: "12px 20px", fontSize: "14px", fontWeight: 500 } }} />
 
-      {/* Restored Preview Modal */}
       {previewUrl && (
         <div className="ad-overlay" onClick={() => setPreviewUrl(null)}>
           <div className="ad-modal ad-doc-modal" onClick={(e) => e.stopPropagation()}>
@@ -412,7 +420,7 @@ const AdminDashboard: React.FC = () => {
           <div className="ad-toolbar-main">
             <div className="ad-search">
               <FiSearch className="ad-search-icon" />
-              <input ref={searchRef} placeholder="Search shop, phone, address…" value={search} onChange={(e) => setSearch(e.target.value)} />
+              <input ref={searchRef} placeholder="Search shop, phone, address, GST..." value={search} onChange={(e) => setSearch(e.target.value)} />
               {search && <button className="ad-search-clear" onClick={() => { setSearch(""); searchRef.current?.focus(); }}><FiX size={14} /></button>}
             </div>
             <div className="ad-toolbar-btns">
@@ -541,7 +549,6 @@ const AdminDashboard: React.FC = () => {
                           <div className="ad-action-group">
                             <button className="ad-act-btn ad-act-toggle" onClick={() => toggle(c._id)} title={isOpen ? "Collapse" : "Expand"}>{isOpen ? <FiChevronUp size={15} /> : <FiChevronDown size={15} />}</button>
                             <button className="ad-act-btn ad-act-wa" onClick={() => openWA(c.whatsapp)} title="WhatsApp"><FiMessageSquare size={14} /></button>
-                            {/* Restored Document Action Icon */}
                             {c.gstDocumentUrl && <button className="ad-act-btn ad-act-doc" onClick={() => setPreviewUrl(c.gstDocumentUrl || null)} title="View Document"><FiEye size={14} /></button>}
                             <button className="ad-act-btn ad-act-del" onClick={() => setDelId(c._id)} disabled={acting === c._id} title="Delete"><FiTrash2 size={14} /></button>
                           </div>

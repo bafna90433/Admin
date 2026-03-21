@@ -14,6 +14,7 @@ import {
   Info,
   ExternalLink,
   CheckCircle,
+  FileText, // ✅ Naya icon import kiya
 } from "lucide-react";
 
 // --- ✅ CONFIGURATION (Live URL Fix) ---
@@ -44,20 +45,33 @@ const resolveImage = (img?: string): string => {
   return `${MEDIA_BASE}/uploads/${encodeURIComponent(img)}`;
 };
 
-// ✅ Export single order (Excel)
+// ✅ Export single order (Excel) - Naye fields add kiye
 const exportSingleOrder = (order: any) => {
   const sa = order.shippingAddress;
   const rows = (order.items || []).map((it: any) => ({
     Order_Number: order.orderNumber || order._id?.slice(-6),
-    Shop_Name: order.customerId?.shopName || "",
+    Shop_Name_Registered: order.customerId?.shopName || "",
     Customer_Mobile: order.customerId?.otpMobile || "",
-    Shipping_Name: sa?.fullName || "",
-    Shipping_Phone: sa?.phone || "",
-    Street: sa?.street || "",
-    Area: sa?.area || "N/A",
-    City: sa?.city || "",
-    State: sa?.state || "",
-    Pincode: sa?.pincode || "",
+    
+    // ✅ Billing Details
+    Billing_Shop_Name: sa?.shopName || "",
+    Billing_GST_Number: sa?.gstNumber || "",
+    Billing_Contact_Person: sa?.fullName || "",
+    Billing_Phone: sa?.phone || "",
+    Billing_Street: sa?.street || "",
+    Billing_Area: sa?.area || "N/A",
+    Billing_City: sa?.city || "",
+    Billing_State: sa?.state || "",
+    Billing_Pincode: sa?.pincode || "",
+
+    // ✅ Shipping Details (If Different)
+    Is_Different_Shipping: sa?.isDifferentShipping ? "Yes" : "No",
+    Shipping_Street: sa?.isDifferentShipping ? sa?.shippingStreet : sa?.street,
+    Shipping_Area: sa?.isDifferentShipping ? sa?.shippingArea : sa?.area || "N/A",
+    Shipping_City: sa?.isDifferentShipping ? sa?.shippingCity : sa?.city,
+    Shipping_State: sa?.isDifferentShipping ? sa?.shippingState : sa?.state,
+    Shipping_Pincode: sa?.isDifferentShipping ? sa?.shippingPincode : sa?.pincode,
+
     Item_Name: it.name,
     Qty_Packets: it.qty,
     Price_Per_Pc: it.price,
@@ -166,13 +180,13 @@ const OrderModal: React.FC<OrderModalProps> = ({ order, onClose }) => {
               </div>
             </div>
 
-            {/* Customer Info */}
+            {/* Customer Registration Info */}
             <div className="ord-m-section">
               <h4 className="section-title">
-                <User size={18} /> Customer Info
+                <User size={18} /> Registered Account
               </h4>
               <p>
-                <strong>Shop:</strong> {order.customerId?.shopName || "N/A"}
+                <strong>Registered Name:</strong> {order.customerId?.shopName || "N/A"}
               </p>
               <p>
                 <strong>Phone:</strong> {order.customerId?.otpMobile || "-"}
@@ -194,35 +208,62 @@ const OrderModal: React.FC<OrderModalProps> = ({ order, onClose }) => {
               )}
             </div>
 
-            {/* Shipping Address */}
+            {/* ✅ UPDATED: Billing Address */}
             <div className="ord-m-section shipping-highlight">
-              <h4 className="section-title">
-                <MapPin size={18} /> Shipping Address
+              <h4 className="section-title" style={{ color: '#1d4ed8' }}>
+                <FileText size={18} /> Billing Details
               </h4>
               {sa ? (
-                <div className="address-display-box">
+                <div className="address-display-box" style={{ background: '#f0f9ff', borderColor: '#bae6fd' }}>
                   <p>
-                    <strong>{sa.fullName}</strong>
+                    <strong>Shop: {sa.shopName || "N/A"}</strong>
                   </p>
-                  <p>{sa.street}</p>
-                  {sa.area && <p>{sa.area}</p>}
                   <p>
-                    {sa.city}, {sa.state} - <strong>{sa.pincode}</strong>
+                    <strong>Attn: {sa.fullName}</strong>
                   </p>
-                  <div style={{ marginTop: "8px" }}>
-                    <strong style={{ display: "flex", alignItems: "center", gap: "6px" }}>
-                      <Phone size={14} /> {sa.phone}
-                    </strong>
+                  {sa.gstNumber && (
+                    <p style={{ color: '#047857', fontWeight: 600, marginTop: '4px' }}>
+                      GST: {sa.gstNumber}
+                    </p>
+                  )}
+                  <div style={{ marginTop: "8px", borderTop: '1px dashed #bae6fd', paddingTop: '8px' }}>
+                    <p>{sa.street}</p>
+                    {sa.area && <p>{sa.area}</p>}
+                    <p>
+                      {sa.city}, {sa.state} - <strong>{sa.pincode}</strong>
+                    </p>
+                    <div style={{ marginTop: "8px" }}>
+                      <strong style={{ display: "flex", alignItems: "center", gap: "6px" }}>
+                        <Phone size={14} /> {sa.phone}
+                      </strong>
+                    </div>
                   </div>
                 </div>
               ) : (
-                <p className="no-data">Shipping address not available.</p>
+                <p className="no-data">Billing details not available.</p>
               )}
             </div>
+
+            {/* ✅ NEW: Different Shipping Address (if selected) */}
+            {sa?.isDifferentShipping && (
+              <div className="ord-m-section shipping-highlight">
+                <h4 className="section-title" style={{ color: '#b45309' }}>
+                  <MapPin size={18} /> Deliver To (Shipping Address)
+                </h4>
+                <div className="address-display-box" style={{ background: '#fffbeb', borderColor: '#fde68a' }}>
+                  <p>{sa.shippingStreet}</p>
+                  {sa.shippingArea && <p>{sa.shippingArea}</p>}
+                  <p>
+                    {sa.shippingCity}, {sa.shippingState} - <strong>{sa.shippingPincode}</strong>
+                  </p>
+                </div>
+              </div>
+            )}
+
           </div>
 
           {/* Items */}
-          <div className="ord-m-section">
+          <div className="ord-m-section" style={{ marginTop: '20px' }}>
             <h4 className="section-title">
               <Package size={18} /> Items List
             </h4>

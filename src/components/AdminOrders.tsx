@@ -40,7 +40,7 @@ type CustomerLite = {
 
 type ShippingAddress = {
   _id?: string;
-  shopName?: string; // ✅ Added Shop Name
+  shopName?: string;
   fullName: string;
   phone: string;
   street: string;
@@ -49,8 +49,8 @@ type ShippingAddress = {
   state: string;
   pincode: string;
   type: string;
-  gstNumber?: string; // ✅ Added GST
-  isDifferentShipping?: boolean; // ✅ Added Different Shipping fields
+  gstNumber?: string;
+  isDifferentShipping?: boolean;
   shippingStreet?: string;
   shippingArea?: string;
   shippingPincode?: string;
@@ -166,7 +166,6 @@ const exportAllOrders = (orders: Order[]) => {
     const wa = normalizeWhatsApp91(o.customerId?.whatsapp || o.customerId?.otpMobile);
     const addr = o.shippingAddress;
     
-    // Check for different shipping logic
     const finalShippingAddress = addr?.isDifferentShipping 
       ? `${addr.shippingStreet || ""}, ${addr.shippingArea || ""}`
       : `${addr?.street || ""}, ${addr?.area || ""}`;
@@ -180,8 +179,8 @@ const exportAllOrders = (orders: Order[]) => {
       Total: o.total,
       Payment_Mode: paymentLabel(o.paymentMode),
       CreatedAt: formatExcelDate(o.createdAt),
-      Shop: addr?.shopName || o.customerId?.shopName || "", // ✅ Added Shop Name
-      GST_Number: addr?.gstNumber || "-", // ✅ Added GST
+      Shop: addr?.shopName || o.customerId?.shopName || "", 
+      GST_Number: addr?.gstNumber || "-", 
       Phone: o.customerId?.otpMobile || "",
       WhatsApp: wa || "",
       ShippingName: addr?.fullName || "",
@@ -215,8 +214,8 @@ const exportSingleOrder = (order: Order) => {
     OrderNumber: order.orderNumber || order._id.slice(-6),
     Status: statusLabel(order.status),
     Payment_Mode: paymentLabel(order.paymentMode),
-    Shop: addr?.shopName || order.customerId?.shopName || "", // ✅ Added Shop Name
-    GST_Number: addr?.gstNumber || "-", // ✅ Added GST
+    Shop: addr?.shopName || order.customerId?.shopName || "", 
+    GST_Number: addr?.gstNumber || "-", 
     Phone: order.customerId?.otpMobile || "",
     WhatsApp: wa || "",
     ShippingName: addr?.fullName || "",
@@ -292,7 +291,7 @@ const AdminOrders: React.FC = () => {
   const [serverPage, setServerPage] = useState(1);
   const [hasMore, setHasMore] = useState(true);
   const [totalFromServer, setTotalFromServer] = useState(0);
-  const SERVER_LIMIT = 200; // fetch 200 at a time
+  const SERVER_LIMIT = 200; 
 
   // Ship modal
   const [shipOpen, setShipOpen] = useState(false);
@@ -300,6 +299,20 @@ const AdminOrders: React.FC = () => {
   const [shipCourier, setShipCourier] = useState<string>(COURIERS[0]);
   const [shipTracking, setShipTracking] = useState<string>("");
   const [shipErr, setShipErr] = useState<string>("");
+
+  // ✅ NEW: State for Delhivery Boxes
+  const [boxes, setBoxes] = useState({
+    SMALL: { qty: 0, weight: 0 },
+    MEDIUM: { qty: 0, weight: 0 },
+    LARGE: { qty: 0, weight: 0 },
+  });
+
+  const handleBoxChange = (size: 'SMALL' | 'MEDIUM' | 'LARGE', field: 'qty' | 'weight', value: string) => {
+    setBoxes(prev => ({
+      ...prev,
+      [size]: { ...prev[size], [field]: Number(value) }
+    }));
+  };
 
   /* ===== FETCH with server pagination ===== */
   const fetchOrders = useCallback(
@@ -404,7 +417,6 @@ const AdminOrders: React.FC = () => {
     return () => clearTimeout(t);
   }, [search]);
 
-  // Reset page when filters change
   useEffect(() => {
     setCurrentPage(1);
   }, [debounced, activeTab, perPage]);
@@ -477,10 +489,18 @@ const AdminOrders: React.FC = () => {
     }
   };
 
-  /* ===== Ship Modal ===== */
+  /* ===== Ship Modal Logic ===== */
   const openShipModal = (o: Order) => {
     setShipOrder(o);
     setShipErr("");
+    
+    // Reset Boxes for new modal open
+    setBoxes({
+      SMALL: { qty: 0, weight: 0 },
+      MEDIUM: { qty: 0, weight: 0 },
+      LARGE: { qty: 0, weight: 0 },
+    });
+
     const existing = (o.courierName || "").trim();
     const normalized = existing.toLowerCase();
     const isAllowed =
@@ -502,21 +522,38 @@ const AdminOrders: React.FC = () => {
   const submitShip = async () => {
     if (!shipOrder) return;
     const courier = shipCourier.trim();
-    const tracking = shipTracking.trim();
-    if (!courier) return setShipErr("Courier select karo.");
-    if (!tracking)
-      return setShipErr("Tracking / AWB number required.");
+    
+    // ✅ NEW: Payload preparation based on courier
+    let payload: any = { status: "shipped", courierName: courier };
+
+    if (courier === "Delhivery") {
+      const totalQty = boxes.SMALL.qty + boxes.MEDIUM.qty + boxes.LARGE.qty;
+      if (totalQty === 0) {
+        return setShipErr("Please add at least 1 box for Delhivery shipment.");
+      }
+      
+      const packingDetails = [
+        { boxType: "SMALL", quantity: boxes.SMALL.qty, totalWeight: boxes.SMALL.weight },
+        { boxType: "MEDIUM", quantity: boxes.MEDIUM.qty, totalWeight: boxes.MEDIUM.weight },
+        { boxType: "LARGE", quantity: boxes.LARGE.qty, totalWeight: boxes.LARGE.weight },
+      ].filter(b => b.quantity > 0);
+
+      payload.packingDetails = packingDetails;
+      // We don't send trackingId manually for Delhivery, Backend API generates it
+    } else {
+      // V-Xpress flow (Manual)
+      const tracking = shipTracking.trim();
+      if (!tracking) return setShipErr("Tracking / AWB number required for V-Xpress.");
+      payload.trackingId = tracking;
+    }
 
     try {
       setShipErr("");
       setActOn(shipOrder._id);
+      
       const { data } = await axios.patch<Order>(
         `${API_BASE}/orders/${shipOrder._id}/status`,
-        {
-          status: "shipped",
-          courierName: courier,
-          trackingId: tracking,
-        },
+        payload,
         { headers: authHeaders() }
       );
 
@@ -551,7 +588,7 @@ const AdminOrders: React.FC = () => {
       }
 
       closeShipModal();
-      alert("✅ Shipped! WhatsApp will be sent from backend.");
+      alert("✅ Shipped Successfully!");
     } catch (e: any) {
       setShipErr(
         e?.response?.data?.message || "Shipping update failed"
@@ -1287,9 +1324,10 @@ const AdminOrders: React.FC = () => {
           <div
             className="ao-modal ao-modal-sm"
             onClick={(e) => e.stopPropagation()}
+            style={{ padding: '20px' }}
           >
             <div className="ao-modal-header">
-              <h3>
+              <h3 style={{ margin: 0 }}>
                 🚚 Ship #{shipOrder.orderNumber}
               </h3>
               <button
@@ -1299,38 +1337,77 @@ const AdminOrders: React.FC = () => {
                 ×
               </button>
             </div>
-            <div className="ao-ship-form">
-              <label>Courier</label>
-              <select
-                value={shipCourier}
-                onChange={(e) =>
-                  setShipCourier(e.target.value)
-                }
-              >
-                {COURIERS.map((c) => (
-                  <option key={c} value={c}>
-                    {c}
-                  </option>
-                ))}
-              </select>
+            
+            <div className="ao-ship-form" style={{ display: 'flex', flexDirection: 'column', gap: '15px', marginTop: '15px' }}>
+              <div>
+                <label style={{ display: 'block', marginBottom: '5px', fontWeight: 'bold' }}>Courier</label>
+                <select
+                  value={shipCourier}
+                  onChange={(e) => setShipCourier(e.target.value)}
+                  style={{ width: '100%', padding: '8px', border: '1px solid #ddd', borderRadius: '4px' }}
+                >
+                  {COURIERS.map((c) => (
+                    <option key={c} value={c}>
+                      {c}
+                    </option>
+                  ))}
+                </select>
+              </div>
 
-              <label>AWB / Tracking Number</label>
-              <input
-                value={shipTracking}
-                onChange={(e) =>
-                  setShipTracking(e.target.value)
-                }
-                placeholder="Enter tracking ID"
-              />
-
-              {shipErr && (
-                <p className="ao-ship-error">{shipErr}</p>
+              {/* ✅ NEW: Conditional UI for Delhivery Box System */}
+              {shipCourier === "Delhivery" ? (
+                <div style={{ background: '#f8fafc', padding: '15px', borderRadius: '6px', border: '1px solid #e2e8f0' }}>
+                  <p style={{ fontSize: '13px', color: '#475569', marginBottom: '10px', fontWeight: 'bold' }}>
+                    📦 Pack Details (Auto-generates AWB via API)
+                  </p>
+                  
+                  {(['SMALL', 'MEDIUM', 'LARGE'] as const).map((size) => (
+                    <div key={size} style={{ display: 'flex', gap: '10px', alignItems: 'center', marginBottom: '8px' }}>
+                      <span style={{ width: '70px', fontSize: '13px', fontWeight: '600' }}>{size}</span>
+                      <input
+                        type="number"
+                        placeholder="Qty"
+                        min="0"
+                        value={boxes[size].qty || ''}
+                        onChange={(e) => handleBoxChange(size, 'qty', e.target.value)}
+                        style={{ width: '70px', padding: '6px', border: '1px solid #cbd5e1', borderRadius: '4px', fontSize: '13px' }}
+                      />
+                      <input
+                        type="number"
+                        placeholder="Wt (kg)"
+                        min="0"
+                        step="0.1"
+                        value={boxes[size].weight || ''}
+                        onChange={(e) => handleBoxChange(size, 'weight', e.target.value)}
+                        style={{ width: '80px', padding: '6px', border: '1px solid #cbd5e1', borderRadius: '4px', fontSize: '13px' }}
+                      />
+                    </div>
+                  ))}
+                </div>
+              ) : (
+                /* V-Xpress Manual Flow */
+                <div>
+                  <label style={{ display: 'block', marginBottom: '5px', fontWeight: 'bold' }}>AWB / Tracking Number</label>
+                  <input
+                    value={shipTracking}
+                    onChange={(e) => setShipTracking(e.target.value)}
+                    placeholder="Enter manual tracking ID"
+                    style={{ width: '100%', padding: '8px', border: '1px solid #ddd', borderRadius: '4px' }}
+                  />
+                </div>
               )}
 
-              <div className="ao-ship-actions">
+              {shipErr && (
+                <p className="ao-ship-error" style={{ color: 'red', fontSize: '13px', margin: 0 }}>
+                  {shipErr}
+                </p>
+              )}
+
+              <div className="ao-ship-actions" style={{ display: 'flex', gap: '10px', justifyContent: 'flex-end', marginTop: '10px' }}>
                 <button
                   className="ao-btn ao-btn-outline"
                   onClick={closeShipModal}
+                  style={{ padding: '8px 16px', background: '#f1f5f9', border: 'none', borderRadius: '4px', cursor: 'pointer' }}
                 >
                   Cancel
                 </button>
@@ -1338,10 +1415,11 @@ const AdminOrders: React.FC = () => {
                   className="ao-btn ao-btn-primary"
                   onClick={submitShip}
                   disabled={actOn === shipOrder._id}
+                  style={{ padding: '8px 16px', background: '#2563eb', color: 'white', border: 'none', borderRadius: '4px', cursor: 'pointer' }}
                 >
                   {actOn === shipOrder._id
                     ? "Saving..."
-                    : "Save & Ship"}
+                    : (shipCourier === "Delhivery" ? "Generate AWB & Ship" : "Save & Ship")}
                 </button>
               </div>
             </div>

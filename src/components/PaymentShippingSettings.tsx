@@ -24,12 +24,16 @@ interface DiscountRule {
 const PaymentShippingSettings: React.FC = () => {
   const [shippingCharge, setShippingCharge] = useState<number>(0);
   const [freeLimit, setFreeLimit] = useState<number>(0);
+  
+  // ✅ COD States
   const [advanceAmount, setAdvanceAmount] = useState<number>(0);
+  const [advanceType, setAdvanceType] = useState<"flat" | "percentage">("flat");
+  const [enableCOD, setEnableCOD] = useState<boolean>(true);
+  
   const [discountRules, setDiscountRules] = useState<DiscountRule[]>([
     { minAmount: 1000, discountPercentage: 5 },
   ]);
   const [enableReviews, setEnableReviews] = useState<boolean>(true);
-  const [enableCOD, setEnableCOD] = useState<boolean>(true);
 
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
@@ -44,11 +48,11 @@ const PaymentShippingSettings: React.FC = () => {
   const topRef = useRef<HTMLDivElement>(null);
   const initialLoad = useRef(true);
 
-  // Track changes
+  // Track changes (added advanceType here)
   useEffect(() => {
     if (initialLoad.current) return;
     setHasChanges(true);
-  }, [shippingCharge, freeLimit, advanceAmount, discountRules, enableReviews, enableCOD]);
+  }, [shippingCharge, freeLimit, advanceAmount, advanceType, discountRules, enableReviews, enableCOD]);
 
   const fetchAllSettings = useCallback(async () => {
     try {
@@ -66,6 +70,8 @@ const PaymentShippingSettings: React.FC = () => {
       }
       if (codRes.status === "fulfilled" && codRes.value.data) {
         setAdvanceAmount(codRes.value.data.advanceAmount || 0);
+        // ✅ API se advanceType set karo (default flat)
+        setAdvanceType(codRes.value.data.advanceType || "flat");
         setEnableCOD(codRes.value.data.enabled !== false);
       }
       if (discountRes.status === "fulfilled" && Array.isArray(discountRes.value.data) && discountRes.value.data.length > 0) {
@@ -77,7 +83,6 @@ const PaymentShippingSettings: React.FC = () => {
         setEnableReviews(reviewRes.value.data.enabled !== false);
       }
 
-      // Mark initial load complete
       setTimeout(() => { initialLoad.current = false; }, 100);
     } catch {
       toast.error("Could not load settings");
@@ -92,7 +97,6 @@ const PaymentShippingSettings: React.FC = () => {
     setExpandedSections((prev) => ({ ...prev, [key]: !prev[key] }));
   };
 
-  // Discount handlers
   const handleAddRule = () => {
     setDiscountRules((prev) => [...prev, { minAmount: 0, discountPercentage: 0 }]);
   };
@@ -112,7 +116,6 @@ const PaymentShippingSettings: React.FC = () => {
     });
   };
 
-  // Save
   const handleSaveAll = async () => {
     setSaving(true);
     try {
@@ -129,7 +132,8 @@ const PaymentShippingSettings: React.FC = () => {
 
       await Promise.all([
         axios.put(`${API_BASE}/shipping-rules`, { shippingCharge: Number(shippingCharge), freeShippingThreshold: Number(freeLimit) }),
-        axios.put(`${API_BASE}/settings/cod`, { advanceAmount: Number(advanceAmount), enabled: enableCOD }),
+        // ✅ API call me advanceType pass kiya
+        axios.put(`${API_BASE}/settings/cod`, { advanceAmount: Number(advanceAmount), advanceType, enabled: enableCOD }),
         axios.put(`${API_BASE}/discount-rules`, { rules: validRules }),
         axios.put(`${API_BASE}/settings/reviews`, { enabled: enableReviews }),
       ]);
@@ -158,7 +162,6 @@ const PaymentShippingSettings: React.FC = () => {
     <div className="ps-root" ref={topRef}>
       <Toaster position="top-center" toastOptions={{ style: { borderRadius: "14px", padding: "12px 20px", fontSize: "14px", fontWeight: 500 } }} />
 
-      {/* Top */}
       <section className="ps-top">
         <div className="ps-top-row">
           <div className="ps-top-left">
@@ -177,7 +180,6 @@ const PaymentShippingSettings: React.FC = () => {
           </div>
         </div>
 
-        {/* Quick Stats */}
         <div className="ps-quick-stats">
           <div className="ps-qs">
             <FiTruck size={14} />
@@ -198,7 +200,6 @@ const PaymentShippingSettings: React.FC = () => {
         </div>
       </section>
 
-      {/* Content */}
       <main className="ps-main">
         <div className="ps-sections">
 
@@ -285,7 +286,6 @@ const PaymentShippingSettings: React.FC = () => {
 
             {expandedSections.cod && (
               <div className="ps-section-body">
-                {/* Toggle */}
                 <div className={`ps-toggle-card ${enableCOD ? "ps-toggle-on" : "ps-toggle-off"}`}>
                   <div className="ps-toggle-left">
                     {enableCOD ? <FiCheckCircle size={20} /> : <FiXCircle size={20} />}
@@ -299,32 +299,80 @@ const PaymentShippingSettings: React.FC = () => {
                   </button>
                 </div>
 
-                {/* Advance Amount */}
                 <div className={`ps-cod-advance ${!enableCOD ? "ps-disabled" : ""}`}>
-                  <div className="ps-field-card">
-                    <div className="ps-fc-header">
-                      <FiShield size={14} />
-                      <label>Required Advance Amount</label>
+                  
+                  {/* ✅ NAYA: Type Selector */}
+                  <div className="ps-fields-row" style={{ marginBottom: '15px' }}>
+                    <div className="ps-field-card" style={{ flex: 1 }}>
+                      <div className="ps-fc-header">
+                        <FiLayers size={14} />
+                        <label>Advance Payment Type</label>
+                      </div>
+                      <div style={{ display: 'flex', gap: '10px', marginTop: '10px' }}>
+                        <button 
+                          onClick={() => setAdvanceType("flat")}
+                          style={{ 
+                            flex: 1, padding: '10px', borderRadius: '8px', cursor: 'pointer', fontWeight: 600, border: 'none',
+                            backgroundColor: advanceType === "flat" ? "#f97316" : "#f1f5f9",
+                            color: advanceType === "flat" ? "#fff" : "#475569" 
+                          }}
+                        >
+                          Flat Amount (₹)
+                        </button>
+                        <button 
+                          onClick={() => {
+                            setAdvanceType("percentage");
+                            if (advanceAmount > 100) setAdvanceAmount(100);
+                          }}
+                          style={{ 
+                            flex: 1, padding: '10px', borderRadius: '8px', cursor: 'pointer', fontWeight: 600, border: 'none',
+                            backgroundColor: advanceType === "percentage" ? "#f97316" : "#f1f5f9",
+                            color: advanceType === "percentage" ? "#fff" : "#475569" 
+                          }}
+                        >
+                          Percentage (%)
+                        </button>
+                      </div>
                     </div>
-                    <div className="ps-input-group">
-                      <span className="ps-input-prefix">₹</span>
-                      <input
-                        type="number"
-                        value={advanceAmount}
-                        onChange={(e) => setAdvanceAmount(Number(e.target.value))}
-                        placeholder="0"
-                        className="ps-input"
-                        disabled={!enableCOD}
-                      />
+
+                    {/* ✅ NAYA: Dynamic Input based on selection */}
+                    <div className="ps-field-card" style={{ flex: 1 }}>
+                      <div className="ps-fc-header">
+                        <FiShield size={14} />
+                        <label>Required Advance Amount</label>
+                      </div>
+                      <div className="ps-input-group">
+                        <span className="ps-input-prefix">{advanceType === "flat" ? "₹" : "%"}</span>
+                        <input
+                          type="number"
+                          value={advanceAmount}
+                          onChange={(e) => {
+                            let val = Number(e.target.value);
+                            // Agar percentage hai toh max 100 limit laga di
+                            if (advanceType === "percentage" && val > 100) val = 100;
+                            if (val < 0) val = 0;
+                            setAdvanceAmount(val);
+                          }}
+                          placeholder="0"
+                          className="ps-input"
+                          disabled={!enableCOD}
+                        />
+                      </div>
+                      <p className="ps-field-hint">
+                        {advanceType === "percentage" 
+                          ? `Customer pays ${advanceAmount}% of total order value online.` 
+                          : "Customer pays this fixed amount online."}
+                      </p>
                     </div>
-                    <p className="ps-field-hint">Customer pays this amount online to confirm COD order</p>
                   </div>
                 </div>
 
                 {enableCOD && advanceAmount > 0 && (
                   <div className="ps-info-box ps-info-orange">
                     <FiInfo size={14} />
-                    <span>Customers will pay ₹{advanceAmount.toLocaleString()} online and rest on delivery</span>
+                    <span>
+                      Customers will pay <strong>{advanceType === "percentage" ? `${advanceAmount}%` : `₹${advanceAmount.toLocaleString()}`}</strong> online to confirm their COD order, and the rest on delivery.
+                    </span>
                   </div>
                 )}
               </div>
@@ -332,6 +380,7 @@ const PaymentShippingSettings: React.FC = () => {
           </div>
 
           {/* ===== 3. DISCOUNTS ===== */}
+          {/* ... (Discount Rules section as it is) ... */}
           <div className="ps-section">
             <button className="ps-section-header" onClick={() => toggleSection("discount")}>
               <div className="ps-sh-left">
@@ -401,7 +450,6 @@ const PaymentShippingSettings: React.FC = () => {
                   <FiPlus size={15} /> Add Discount Rule
                 </button>
 
-                {/* Preview */}
                 {discountRules.some((r) => r.minAmount > 0 && r.discountPercentage > 0) && (
                   <div className="ps-discount-preview">
                     <h4><FiGift size={13} /> Discount Preview</h4>
@@ -461,7 +509,6 @@ const PaymentShippingSettings: React.FC = () => {
         </div>
       </main>
 
-      {/* Sticky Save Bar (Mobile) */}
       {hasChanges && (
         <div className="ps-sticky-save">
           <div className="ps-sticky-inner">

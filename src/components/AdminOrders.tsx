@@ -146,12 +146,6 @@ const getExternalTrackingLink = (courier?: string) => {
   const cName = norm(courier);
   if (cName.includes("delhivery"))
     return "https://www.delhivery.com/tracking";
-  if (
-    cName.includes("vxpress") ||
-    cName.includes("v-xpress") ||
-    cName.includes("v xpress")
-  )
-    return "https://vxpress.in/track-result/";
   return null;
 };
 
@@ -263,8 +257,8 @@ const generateInvoice = (order: Order) => {
   printWindow.document.close();
 };
 
-/* --- Courier Options --- */
-const COURIERS = ["Delhivery", "V-Xpress"] as const;
+/* --- ✅ COURIERS UPDATED: ONLY DELHIVERY --- */
+const COURIERS = ["Delhivery"] as const;
 
 /* --- Per-page Options --- */
 const PER_PAGE_OPTIONS = [10, 20, 50, 100, 200];
@@ -501,14 +495,7 @@ const AdminOrders: React.FC = () => {
       LARGE: { qty: 0, weight: 0 },
     });
 
-    const existing = (o.courierName || "").trim();
-    const normalized = existing.toLowerCase();
-    const isAllowed =
-      normalized.includes("delhivery") ||
-      normalized.includes("vxpress") ||
-      normalized.includes("v-xpress") ||
-      normalized.includes("v xpress");
-    setShipCourier(isAllowed && existing ? existing : COURIERS[0]);
+    setShipCourier(COURIERS[0]); // Default to Delhivery
     setShipTracking(o.trackingId?.trim() || "");
     setShipOpen(true);
   };
@@ -523,7 +510,6 @@ const AdminOrders: React.FC = () => {
     if (!shipOrder) return;
     const courier = shipCourier.trim();
     
-    // ✅ NEW: Payload preparation based on courier
     let payload: any = { status: "shipped", courierName: courier };
 
     if (courier === "Delhivery") {
@@ -539,12 +525,6 @@ const AdminOrders: React.FC = () => {
       ].filter(b => b.quantity > 0);
 
       payload.packingDetails = packingDetails;
-      // We don't send trackingId manually for Delhivery, Backend API generates it
-    } else {
-      // V-Xpress flow (Manual)
-      const tracking = shipTracking.trim();
-      if (!tracking) return setShipErr("Tracking / AWB number required for V-Xpress.");
-      payload.trackingId = tracking;
     }
 
     try {
@@ -1341,61 +1321,45 @@ const AdminOrders: React.FC = () => {
             <div className="ao-ship-form" style={{ display: 'flex', flexDirection: 'column', gap: '15px', marginTop: '15px' }}>
               <div>
                 <label style={{ display: 'block', marginBottom: '5px', fontWeight: 'bold' }}>Courier</label>
+                {/* 🔒 Select box disabled, only Delhivery is shown */}
                 <select
-                  value={shipCourier}
-                  onChange={(e) => setShipCourier(e.target.value)}
-                  style={{ width: '100%', padding: '8px', border: '1px solid #ddd', borderRadius: '4px' }}
+                  value="Delhivery"
+                  disabled
+                  style={{ width: '100%', padding: '8px', border: '1px solid #ddd', borderRadius: '4px', backgroundColor: '#f1f5f9' }}
                 >
-                  {COURIERS.map((c) => (
-                    <option key={c} value={c}>
-                      {c}
-                    </option>
-                  ))}
+                  <option value="Delhivery">Delhivery</option>
                 </select>
               </div>
 
-              {/* ✅ NEW: Conditional UI for Delhivery Box System */}
-              {shipCourier === "Delhivery" ? (
-                <div style={{ background: '#f8fafc', padding: '15px', borderRadius: '6px', border: '1px solid #e2e8f0' }}>
-                  <p style={{ fontSize: '13px', color: '#475569', marginBottom: '10px', fontWeight: 'bold' }}>
-                    📦 Pack Details (Auto-generates AWB via API)
-                  </p>
-                  
-                  {(['SMALL', 'MEDIUM', 'LARGE'] as const).map((size) => (
-                    <div key={size} style={{ display: 'flex', gap: '10px', alignItems: 'center', marginBottom: '8px' }}>
-                      <span style={{ width: '70px', fontSize: '13px', fontWeight: '600' }}>{size}</span>
-                      <input
-                        type="number"
-                        placeholder="Qty"
-                        min="0"
-                        value={boxes[size].qty || ''}
-                        onChange={(e) => handleBoxChange(size, 'qty', e.target.value)}
-                        style={{ width: '70px', padding: '6px', border: '1px solid #cbd5e1', borderRadius: '4px', fontSize: '13px' }}
-                      />
-                      <input
-                        type="number"
-                        placeholder="Wt (kg)"
-                        min="0"
-                        step="0.1"
-                        value={boxes[size].weight || ''}
-                        onChange={(e) => handleBoxChange(size, 'weight', e.target.value)}
-                        style={{ width: '80px', padding: '6px', border: '1px solid #cbd5e1', borderRadius: '4px', fontSize: '13px' }}
-                      />
-                    </div>
-                  ))}
-                </div>
-              ) : (
-                /* V-Xpress Manual Flow */
-                <div>
-                  <label style={{ display: 'block', marginBottom: '5px', fontWeight: 'bold' }}>AWB / Tracking Number</label>
-                  <input
-                    value={shipTracking}
-                    onChange={(e) => setShipTracking(e.target.value)}
-                    placeholder="Enter manual tracking ID"
-                    style={{ width: '100%', padding: '8px', border: '1px solid #ddd', borderRadius: '4px' }}
-                  />
-                </div>
-              )}
+              {/* ✅ Delhivery Box System */}
+              <div style={{ background: '#f8fafc', padding: '15px', borderRadius: '6px', border: '1px solid #e2e8f0' }}>
+                <p style={{ fontSize: '13px', color: '#475569', marginBottom: '10px', fontWeight: 'bold' }}>
+                  📦 Pack Details (Auto-generates AWB via API)
+                </p>
+                
+                {(['SMALL', 'MEDIUM', 'LARGE'] as const).map((size) => (
+                  <div key={size} style={{ display: 'flex', gap: '10px', alignItems: 'center', marginBottom: '8px' }}>
+                    <span style={{ width: '70px', fontSize: '13px', fontWeight: '600' }}>{size}</span>
+                    <input
+                      type="number"
+                      placeholder="Qty"
+                      min="0"
+                      value={boxes[size].qty || ''}
+                      onChange={(e) => handleBoxChange(size, 'qty', e.target.value)}
+                      style={{ width: '70px', padding: '6px', border: '1px solid #cbd5e1', borderRadius: '4px', fontSize: '13px' }}
+                    />
+                    <input
+                      type="number"
+                      placeholder="Wt (kg)"
+                      min="0"
+                      step="0.1"
+                      value={boxes[size].weight || ''}
+                      onChange={(e) => handleBoxChange(size, 'weight', e.target.value)}
+                      style={{ width: '80px', padding: '6px', border: '1px solid #cbd5e1', borderRadius: '4px', fontSize: '13px' }}
+                    />
+                  </div>
+                ))}
+              </div>
 
               {shipErr && (
                 <p className="ao-ship-error" style={{ color: 'red', fontSize: '13px', margin: 0 }}>
@@ -1417,9 +1381,7 @@ const AdminOrders: React.FC = () => {
                   disabled={actOn === shipOrder._id}
                   style={{ padding: '8px 16px', background: '#2563eb', color: 'white', border: 'none', borderRadius: '4px', cursor: 'pointer' }}
                 >
-                  {actOn === shipOrder._id
-                    ? "Saving..."
-                    : (shipCourier === "Delhivery" ? "Generate AWB & Ship" : "Save & Ship")}
+                  {actOn === shipOrder._id ? "Saving..." : "Generate AWB & Ship"}
                 </button>
               </div>
             </div>

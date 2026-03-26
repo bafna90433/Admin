@@ -11,17 +11,17 @@ const API_BASE =
   (import.meta as any).env?.VITE_API_URL ||
   (process as any).env?.VITE_API_URL ||
   (process as any).env?.REACT_APP_API_URL ||
-  "https://bafnatoys-backend-production.up.railway.app/api";
+  "http://localhost:5000/api";
 
 const MEDIA_BASE =
   (import.meta as any).env?.VITE_MEDIA_URL ||
   (process as any).env?.VITE_MEDIA_URL ||
   (process as any).env?.REACT_APP_MEDIA_URL ||
-  "https://bafnatoys-backend-production.up.railway.app";
+  "http://localhost:5000";
 
 /* --- Types --- */
 type OrderItem = {
-  productId: string;
+  productId: any;
   name: string;
   qty: number;
   price: number;
@@ -29,6 +29,7 @@ type OrderItem = {
   innerQty?: number;
   inners?: number;
   nosPerInner?: number;
+  sku?: string;
 };
 
 type CustomerLite = {
@@ -74,6 +75,8 @@ type Order = {
   items: OrderItem[];
   total: number;
   paymentMode?: PaymentMode;
+  advancePaid?: number; // ✅ Added this to read from DB
+  remainingAmount?: number; // ✅ Added this to read from DB
   status: OrderStatus;
   shippingAddress?: ShippingAddress;
   isShipped?: boolean;
@@ -142,10 +145,10 @@ const normalizeWhatsApp91 = (raw?: string) => {
   return `91${last10}`;
 };
 
-const getExternalTrackingLink = (courier?: string) => {
+const getExternalTrackingLink = (courier?: string, trackingId?: string) => {
   const cName = norm(courier);
-  if (cName.includes("delhivery"))
-    return "https://www.delhivery.com/tracking";
+  if (cName.includes("delhivery") && trackingId)
+    return `https://www.delhivery.com/track-v2/package/${trackingId}`;
   return null;
 };
 
@@ -171,6 +174,8 @@ const exportAllOrders = (orders: Order[]) => {
       OrderNumber: o.orderNumber || o._id.slice(-6),
       Status: statusLabel(o.status as OrderStatus) + (o.status === "cancelled" && o.cancelledBy ? ` (${o.cancelledBy})` : ""),
       Total: o.total,
+      Advance_Paid: o.advancePaid || 0, // ✅ Excel me Advance dikhega
+      Remaining_Amount: o.remainingAmount ?? (o.paymentMode === 'COD' ? o.total : 0), // ✅ Excel me Balance dikhega
       Payment_Mode: paymentLabel(o.paymentMode),
       CreatedAt: formatExcelDate(o.createdAt),
       Shop: addr?.shopName || o.customerId?.shopName || "", 
@@ -208,6 +213,8 @@ const exportSingleOrder = (order: Order) => {
     OrderNumber: order.orderNumber || order._id.slice(-6),
     Status: statusLabel(order.status),
     Payment_Mode: paymentLabel(order.paymentMode),
+    Advance_Paid: order.advancePaid || 0, // ✅
+    Remaining_Amount: order.remainingAmount ?? (order.paymentMode === 'COD' ? order.total : 0), // ✅
     Shop: addr?.shopName || order.customerId?.shopName || "", 
     GST_Number: addr?.gstNumber || "-", 
     Phone: order.customerId?.otpMobile || "",
@@ -215,6 +222,7 @@ const exportSingleOrder = (order: Order) => {
     ShippingName: addr?.fullName || "",
     ShippingAddress: finalShippingAddress,
     Item: it.name,
+    SKU: it.sku || it.productId?.sku || "-",
     Qty: it.qty,
     Price: it.price,
     Total: it.price * it.qty,
@@ -252,7 +260,13 @@ const generateInvoice = (order: Order) => {
 
   const paymentText = paymentLabel(order.paymentMode);
   
-  const content = `<!DOCTYPE html><html><head><title>Invoice - ${order.orderNumber || order._id.slice(-6)}</title><style>body{font-family:'Segoe UI',Arial,sans-serif;padding:20px;background:#fff;color:#333}.invoice-container{max-width:850px;margin:0 auto;border:1px solid #ddd;padding:30px}.header{text-align:center;margin-bottom:25px;border-bottom:3px solid #2c5aa0;padding-bottom:15px}.header img{max-height:70px}.invoice-details{display:flex;justify-content:space-between;gap:14px;margin-bottom:25px}.detail-section{width:32%}.detail-section h3{font-size:15px;color:#2c5aa0;border-bottom:1px solid #ddd;margin-bottom:5px}table{width:100%;border-collapse:collapse;margin:20px 0;font-size:14px}th{background:#2c5aa0;color:#fff;padding:10px;text-align:left}td{padding:10px;border-bottom:1px solid #eee}.footer{margin-top:40px;text-align:center;font-size:12px;color:#777}@media print{.btn-hide{display:none}}</style></head><body><div class="invoice-container"><div class="header"><img src="https://res.cloudinary.com/dpdecxqb9/image/upload/v1758783697/bafnatoys/lwccljc9kkosfv9wnnrq.png" alt="BafnaToys"/><p>1-12, Thondamuthur Road, Coimbatore - 641007<br>+91 9043347300 | bafnatoysphotos@gmail.com</p><h2>PRO FORMA INVOICE</h2></div><div class="invoice-details"><div class="detail-section"><h3>Bill To</h3><p><strong>${addr?.shopName || order.customerId?.shopName || "-"}</strong><br>GST: ${addr?.gstNumber || "-"}<br>Mobile: ${order.customerId?.otpMobile || "-"}<br>WhatsApp: ${wa || "-"}</p></div><div class="detail-section"><h3>Ship To</h3><p>${shippingHtml}</p></div><div class="detail-section"><h3>Order Details</h3><p>Invoice: ${order.orderNumber}<br>Date: ${currentDate}<br>Payment: ${paymentText}<br>${order.trackingId ? `AWB: ${order.trackingId}` : ""}</p></div></div><table><thead><tr><th>Product</th><th>Qty</th><th>Rate</th><th>Amount</th></tr></thead><tbody>${order.items.map((it) => `<tr><td>${it.name}</td><td>${it.qty}</td><td>₹${it.price}</td><td>₹${it.qty * it.price}</td></tr>`).join("")}</tbody><tfoot><tr><td colspan="3" align="right"><strong>Total</strong></td><td><strong>₹${order.total}</strong></td></tr></tfoot></table><div class="footer"><p>Thank you for choosing BafnaToys!</p></div></div><div style="text-align:center;margin-top:20px" class="btn-hide"><button onclick="window.print()" style="padding:10px 20px;background:#2c5aa0;color:white;border:none;cursor:pointer">Print Invoice</button></div></body></html>`;
+  // ✅ ADDED ADVANCE PAYMENT DETAILS IN INVOICE HTML
+  let paymentDetailsHtml = `Payment: ${paymentText}`;
+  if (order.paymentMode === "COD" && (order.advancePaid || 0) > 0) {
+    paymentDetailsHtml += `<br><span style="color: #16a34a;">Advance Paid: ₹${order.advancePaid}</span><br><strong style="color: #dc2626;">To Collect: ₹${order.remainingAmount ?? (order.total - order.advancePaid!)}</strong>`;
+  }
+  
+  const content = `<!DOCTYPE html><html><head><title>Invoice - ${order.orderNumber || order._id.slice(-6)}</title><style>body{font-family:'Segoe UI',Arial,sans-serif;padding:20px;background:#fff;color:#333}.invoice-container{max-width:850px;margin:0 auto;border:1px solid #ddd;padding:30px}.header{text-align:center;margin-bottom:25px;border-bottom:3px solid #2c5aa0;padding-bottom:15px}.header img{max-height:70px}.invoice-details{display:flex;justify-content:space-between;gap:14px;margin-bottom:25px}.detail-section{width:32%}.detail-section h3{font-size:15px;color:#2c5aa0;border-bottom:1px solid #ddd;margin-bottom:5px}table{width:100%;border-collapse:collapse;margin:20px 0;font-size:14px}th{background:#2c5aa0;color:#fff;padding:10px;text-align:left}td{padding:10px;border-bottom:1px solid #eee}.footer{margin-top:40px;text-align:center;font-size:12px;color:#777}@media print{.btn-hide{display:none}}</style></head><body><div class="invoice-container"><div class="header"><img src="https://res.cloudinary.com/dpdecxqb9/image/upload/v1758783697/bafnatoys/lwccljc9kkosfv9wnnrq.png" alt="BafnaToys"/><p>1-12, Thondamuthur Road, Coimbatore - 641007<br>+91 9043347300 | bafnatoysphotos@gmail.com</p><h2>PRO FORMA INVOICE</h2></div><div class="invoice-details"><div class="detail-section"><h3>Bill To</h3><p><strong>${addr?.shopName || order.customerId?.shopName || "-"}</strong><br>GST: ${addr?.gstNumber || "-"}<br>Mobile: ${order.customerId?.otpMobile || "-"}<br>WhatsApp: ${wa || "-"}</p></div><div class="detail-section"><h3>Ship To</h3><p>${shippingHtml}</p></div><div class="detail-section"><h3>Order Details</h3><p>Invoice: ${order.orderNumber}<br>Date: ${currentDate}<br>${paymentDetailsHtml}<br>${order.trackingId ? `AWB: ${order.trackingId}` : ""}</p></div></div><table><thead><tr><th>Product</th><th>Qty</th><th>Rate</th><th>Amount</th></tr></thead><tbody>${order.items.map((it) => `<tr><td>${it.name}<br><small style="color:#777;">SKU: ${it.sku || it.productId?.sku || "-"}</small></td><td>${it.qty}</td><td>₹${it.price}</td><td>₹${it.qty * it.price}</td></tr>`).join("")}</tbody><tfoot><tr><td colspan="3" align="right"><strong>Total</strong></td><td><strong>₹${order.total}</strong></td></tr></tfoot></table><div class="footer"><p>Thank you for choosing BafnaToys!</p></div></div><div style="text-align:center;margin-top:20px" class="btn-hide"><button onclick="window.print()" style="padding:10px 20px;background:#2c5aa0;color:white;border:none;cursor:pointer">Print Invoice</button></div></body></html>`;
   printWindow.document.write(content);
   printWindow.document.close();
 };
@@ -293,15 +307,17 @@ const AdminOrders: React.FC = () => {
   const [shipCourier, setShipCourier] = useState<string>(COURIERS[0]);
   const [shipTracking, setShipTracking] = useState<string>("");
   const [shipErr, setShipErr] = useState<string>("");
+  const [manualAdvance, setManualAdvance] = useState<number>(0); 
 
-  // ✅ NEW: State for Delhivery Boxes
+  // State for Delhivery Boxes
   const [boxes, setBoxes] = useState({
-    SMALL: { qty: 0, weight: 0 },
-    MEDIUM: { qty: 0, weight: 0 },
-    LARGE: { qty: 0, weight: 0 },
+    A28: { qty: 0, weight: 0 },
+    A06: { qty: 0, weight: 0 },
+    A08: { qty: 0, weight: 0 },
+    A31: { qty: 0, weight: 0 },
   });
 
-  const handleBoxChange = (size: 'SMALL' | 'MEDIUM' | 'LARGE', field: 'qty' | 'weight', value: string) => {
+  const handleBoxChange = (size: 'A28' | 'A06' | 'A08' | 'A31', field: 'qty' | 'weight', value: string) => {
     setBoxes(prev => ({
       ...prev,
       [size]: { ...prev[size], [field]: Number(value) }
@@ -438,6 +454,8 @@ const AdminOrders: React.FC = () => {
                 status: data.status,
                 cancelledBy: data.cancelledBy,
                 paymentMode: data.paymentMode,
+                advancePaid: data.advancePaid,
+                remainingAmount: data.remainingAmount,
                 isShipped: data.isShipped,
                 trackingId: data.trackingId,
                 courierName: data.courierName,
@@ -455,6 +473,8 @@ const AdminOrders: React.FC = () => {
                 status: data.status,
                 cancelledBy: data.cancelledBy,
                 paymentMode: data.paymentMode,
+                advancePaid: data.advancePaid,
+                remainingAmount: data.remainingAmount,
                 isShipped: data.isShipped,
                 trackingId: data.trackingId,
                 courierName: data.courierName,
@@ -470,14 +490,26 @@ const AdminOrders: React.FC = () => {
     }
   };
 
+  /* 👇 YAHAN DELETE ORDER ME PASSWORD PROTECTION ADD KI HAI 👇 */
   const deleteOrder = async (id: string) => {
-    if (!window.confirm("Delete this order?")) return;
+    const password = window.prompt("⚠️ Admin Password required to delete this order:");
+    
+    if (password === null) return; // Agar user ne Cancel click kiya
+    
+    if (password !== "Adminbafnatoys") {
+      alert("❌ Incorrect password! Only Admins can delete orders.");
+      return;
+    }
+
+    if (!window.confirm("Are you sure you want to permanently delete this order?")) return;
+
     try {
       await axios.delete(`${API_BASE}/orders/${id}`, {
         headers: authHeaders(),
       });
       setAllOrders((prev) => prev.filter((o) => o._id !== id));
       if (viewing?._id === id) setViewing(null);
+      alert("✅ Order deleted successfully.");
     } catch (e: any) {
       alert(e?.response?.data?.message || "Delete failed");
     }
@@ -490,13 +522,17 @@ const AdminOrders: React.FC = () => {
     
     // Reset Boxes for new modal open
     setBoxes({
-      SMALL: { qty: 0, weight: 0 },
-      MEDIUM: { qty: 0, weight: 0 },
-      LARGE: { qty: 0, weight: 0 },
+      A28: { qty: 0, weight: 0 },
+      A06: { qty: 0, weight: 0 },
+      A08: { qty: 0, weight: 0 },
+      A31: { qty: 0, weight: 0 },
     });
 
-    setShipCourier(COURIERS[0]); // Default to Delhivery
+    setShipCourier(COURIERS[0]); 
     setShipTracking(o.trackingId?.trim() || "");
+    
+    // Yahan order se purana advance utha ke set karenge modal me
+    setManualAdvance(o.advancePaid || 0); 
     setShipOpen(true);
   };
 
@@ -513,18 +549,26 @@ const AdminOrders: React.FC = () => {
     let payload: any = { status: "shipped", courierName: courier };
 
     if (courier === "Delhivery") {
-      const totalQty = boxes.SMALL.qty + boxes.MEDIUM.qty + boxes.LARGE.qty;
+      const totalQty = boxes.A28.qty + boxes.A06.qty + boxes.A08.qty + boxes.A31.qty;
       if (totalQty === 0) {
         return setShipErr("Please add at least 1 box for Delhivery shipment.");
       }
       
       const packingDetails = [
-        { boxType: "SMALL", quantity: boxes.SMALL.qty, totalWeight: boxes.SMALL.weight },
-        { boxType: "MEDIUM", quantity: boxes.MEDIUM.qty, totalWeight: boxes.MEDIUM.weight },
-        { boxType: "LARGE", quantity: boxes.LARGE.qty, totalWeight: boxes.LARGE.weight },
+        { boxType: "A28", quantity: boxes.A28.qty, totalWeight: boxes.A28.weight },
+        { boxType: "A06", quantity: boxes.A06.qty, totalWeight: boxes.A06.weight },
+        { boxType: "A08", quantity: boxes.A08.qty, totalWeight: boxes.A08.weight },
+        { boxType: "A31", quantity: boxes.A31.qty, totalWeight: boxes.A31.weight },
       ].filter(b => b.quantity > 0);
 
       payload.packingDetails = packingDetails;
+
+      if (shipOrder.paymentMode !== "ONLINE") {
+        payload.manualAdvance = manualAdvance || 0;
+        payload.codAmountToCollect = shipOrder.total - (manualAdvance || 0);
+      } else {
+        payload.codAmountToCollect = 0; 
+      }
     }
 
     try {
@@ -546,6 +590,8 @@ const AdminOrders: React.FC = () => {
                 trackingId: data.trackingId,
                 courierName: data.courierName,
                 status: data.status,
+                advancePaid: data.advancePaid, 
+                remainingAmount: data.remainingAmount, 
                 wa: data.wa,
               }
             : o
@@ -561,6 +607,8 @@ const AdminOrders: React.FC = () => {
                 trackingId: data.trackingId,
                 courierName: data.courierName,
                 status: data.status,
+                advancePaid: data.advancePaid,
+                remainingAmount: data.remainingAmount,
                 wa: data.wa,
               }
             : null
@@ -862,6 +910,12 @@ const AdminOrders: React.FC = () => {
                             ? "Online"
                             : "COD"}
                         </span>
+                        {o.paymentMode === "COD" && (o.advancePaid || 0) > 0 && (
+                          <div style={{ fontSize: "11px", marginTop: "4px", color: "#16a34a", fontWeight: "bold" }}>
+                            Adv: ₹{o.advancePaid} <br/>
+                            <span style={{ color: "#dc2626" }}>Bal: ₹{o.remainingAmount ?? (o.total - o.advancePaid!)}</span>
+                          </div>
+                        )}
                       </td>
                       <td>
                         <select
@@ -999,6 +1053,11 @@ const AdminOrders: React.FC = () => {
                         >
                           {paymentLabel(o.paymentMode)}
                         </span>
+                        {o.paymentMode === "COD" && (o.advancePaid || 0) > 0 && (
+                          <div style={{ fontSize: "12px", marginTop: "2px", color: "#16a34a", fontWeight: "bold" }}>
+                            Adv: ₹{o.advancePaid} | <span style={{ color: "#dc2626" }}>Bal: ₹{o.remainingAmount ?? (o.total - o.advancePaid!)}</span>
+                          </div>
+                        )}
                       </div>
                     </div>
 
@@ -1250,12 +1309,14 @@ const AdminOrders: React.FC = () => {
                   {viewing.trackingId}
                 </span>
                 {getExternalTrackingLink(
-                  viewing.courierName
+                  viewing.courierName,
+                  viewing.trackingId
                 ) && (
                   <a
                     href={
                       getExternalTrackingLink(
-                        viewing.courierName
+                        viewing.courierName,
+                        viewing.trackingId
                       )!
                     }
                     target="_blank"
@@ -1278,17 +1339,34 @@ const AdminOrders: React.FC = () => {
                         alt=""
                       />
                     )}
-                    <span>
-                      {it.name} (x{it.qty})
-                    </span>
+                    <div style={{ display: 'flex', flexDirection: 'column' }}>
+                      <span>
+                        {it.name} (x{it.qty})
+                      </span>
+                      <small style={{ color: '#64748b', fontSize: '12px', marginTop: '2px' }}>
+                        SKU: {it.sku || it.productId?.sku || "N/A"}
+                      </small>
+                    </div>
                   </div>
                   <span className="ao-modal-item-price">
                     ₹{(it.price * it.qty).toFixed(2)}
                   </span>
                 </div>
               ))}
-              <div className="ao-modal-total">
-                Grand Total: ₹{viewing.total}
+              
+              <div className="ao-modal-total" style={{ display: 'flex', flexDirection: 'column', alignItems: 'flex-end', gap: '5px' }}>
+                <span style={{ fontSize: '14px', color: '#475569' }}>Total Amount: ₹{viewing.total}</span>
+                {viewing.paymentMode === "COD" && (viewing.advancePaid || 0) > 0 && (
+                  <>
+                    <span style={{ color: '#16a34a', fontSize: '14px' }}>Advance Paid: ₹{viewing.advancePaid}</span>
+                    <span style={{ color: '#dc2626', fontWeight: 'bold', fontSize: '14px' }}>
+                      To Collect (COD): ₹{viewing.remainingAmount ?? (viewing.total - viewing.advancePaid!)}
+                    </span>
+                  </>
+                )}
+                <span style={{ fontSize: '18px', fontWeight: 'bold', marginTop: '5px' }}>
+                  Grand Total: ₹{viewing.total}
+                </span>
               </div>
             </div>
           </div>
@@ -1321,7 +1399,6 @@ const AdminOrders: React.FC = () => {
             <div className="ao-ship-form" style={{ display: 'flex', flexDirection: 'column', gap: '15px', marginTop: '15px' }}>
               <div>
                 <label style={{ display: 'block', marginBottom: '5px', fontWeight: 'bold' }}>Courier</label>
-                {/* 🔒 Select box disabled, only Delhivery is shown */}
                 <select
                   value="Delhivery"
                   disabled
@@ -1331,13 +1408,33 @@ const AdminOrders: React.FC = () => {
                 </select>
               </div>
 
+              {shipOrder?.paymentMode !== "ONLINE" && (
+                <div style={{ background: '#fff7ed', padding: '15px', borderRadius: '6px', border: '1px solid #fdba74' }}>
+                  <label style={{ display: 'block', marginBottom: '5px', fontWeight: 'bold', fontSize: '13px', color: '#9a3412' }}>
+                    Advance Received Manually (₹)
+                  </label>
+                  <input
+                    type="number"
+                    min="0"
+                    max={shipOrder.total}
+                    value={manualAdvance || ''}
+                    onChange={(e) => setManualAdvance(Number(e.target.value))}
+                    style={{ width: '100%', padding: '8px', border: '1px solid #fdba74', borderRadius: '4px' }}
+                    placeholder="e.g. 1000"
+                  />
+                  <div style={{ marginTop: '8px', fontSize: '14px', fontWeight: 'bold', color: '#c2410c' }}>
+                    Delhivery will collect: ₹{shipOrder.total - (manualAdvance || 0)}
+                  </div>
+                </div>
+              )}
+
               {/* ✅ Delhivery Box System */}
               <div style={{ background: '#f8fafc', padding: '15px', borderRadius: '6px', border: '1px solid #e2e8f0' }}>
                 <p style={{ fontSize: '13px', color: '#475569', marginBottom: '10px', fontWeight: 'bold' }}>
                   📦 Pack Details (Auto-generates AWB via API)
                 </p>
                 
-                {(['SMALL', 'MEDIUM', 'LARGE'] as const).map((size) => (
+                {(['A28', 'A06', 'A08', 'A31'] as const).map((size) => (
                   <div key={size} style={{ display: 'flex', gap: '10px', alignItems: 'center', marginBottom: '8px' }}>
                     <span style={{ width: '70px', fontSize: '13px', fontWeight: '600' }}>{size}</span>
                     <input

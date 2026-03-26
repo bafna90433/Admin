@@ -7,17 +7,19 @@ import * as XLSX from "xlsx";
 import { saveAs } from "file-saver";
 
 /* ================= CONFIG ================= */
+// 👇 YAHAN PAR LOCALHOST HATA KAR LIVE BACKEND URL DAAL DIYA HAI 👇
 const API_BASE =
   (import.meta as any).env?.VITE_API_URL ||
   (process as any).env?.VITE_API_URL ||
   (process as any).env?.REACT_APP_API_URL ||
-  "http://localhost:5000/api";
+  "https://bafnatoys-backend-production.up.railway.app/api";
 
 const MEDIA_BASE =
   (import.meta as any).env?.VITE_MEDIA_URL ||
   (process as any).env?.VITE_MEDIA_URL ||
   (process as any).env?.REACT_APP_MEDIA_URL ||
-  "http://localhost:5000";
+  "https://bafnatoys-backend-production.up.railway.app";
+/* ========================================= */
 
 /* --- Types --- */
 type OrderItem = {

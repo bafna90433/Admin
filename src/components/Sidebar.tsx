@@ -19,6 +19,7 @@ import {
   FiSettings,
   FiStar,
   FiShield, // ✅ Naya icon add kiya hai Trust Settings ke liye
+  FiUserPlus, // ✅ Naya icon Admin Create form ke liye
 } from "react-icons/fi";
 import { MdOutlineSpaceDashboard } from "react-icons/md";
 import { TbCategory } from "react-icons/tb";
@@ -245,6 +246,14 @@ const Sidebar: React.FC<SidebarProps> = ({ sidebarOpen, closeSidebar }) => {
               icon={FiSettings}
               label="Settings & Config"
               gradient="gray"
+            />
+
+            {/* ✅ NAYA LINK: Manage Admins add kiya gaya hai */}
+            <NavItem
+              to="/admin/create-admin"
+              icon={FiUserPlus}
+              label="Manage Admins"
+              gradient="purple"
             />
           </div>
         </div>

@@ -1,4 +1,4 @@
-// src/App.tsx  ✅ FINAL (Reviews & Unified Banners Route Added)
+// src/App.tsx  ✅ FINAL (Reviews & Unified Banners Route Added + Create Admin)
 import React from "react";
 import {
   BrowserRouter as Router,
@@ -50,6 +50,9 @@ import AdminReviews from "./components/AdminReviews";
 
 // 🔐 Admin Login
 import AdminLogin from "./components/AdminLogin";
+
+// ✅ NAYA COMPONENT IMPORT KIYA HAI
+import CreateAdmin from "./components/CreateAdmin";
 
 // 🔒 Admin Route Guard
 const AdminGuard: React.FC<{ children: React.ReactNode }> = ({ children }) => {
@@ -132,6 +135,10 @@ const App: React.FC = () => {
 
           {/* Customer Sales Report */}
           <Route path="sales-report" element={<CustomerSales />} />
+
+          {/* ✅ NAYA ROUTE YAHAN ADD KIYA HAI */}
+          <Route path="create-admin" element={<CreateAdmin />} />
+
         </Route>
 
         {/* 404 fallback */}

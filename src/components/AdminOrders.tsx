@@ -5,6 +5,7 @@ import "../styles/AdminOrdersModern.css";
 
 import * as XLSX from "xlsx";
 import { saveAs } from "file-saver";
+import Swal from "sweetalert2"; // ✅ SweetAlert2 for modern popups
 
 /* ================= CONFIG ================= */
 const API_BASE =
@@ -150,7 +151,7 @@ const statusLabel = (s: OrderStatus) => {
 
 /* --- Export Functions --- */
 
-// ✅ Bahar Wala (All Orders) - Itemized format based on screenshot
+// ✅ Bahar Wala (All Orders) - Itemized format based on screenshot + Status
 const exportAllOrders = (orders: Order[]) => {
   const rows = orders.flatMap((o) => {
     const addr = o.shippingAddress;
@@ -163,6 +164,7 @@ const exportAllOrders = (orders: Order[]) => {
       Item: it.name,
       SKU: it.sku || it.productId?.sku || "-",
       Qty: it.qty,
+      Status: statusLabel(o.status), // ✅ Added Status here
       CreatedAt: formatExcelDate(o.createdAt),
     }));
   });
@@ -174,7 +176,7 @@ const exportAllOrders = (orders: Order[]) => {
   saveAs(new Blob([buf], { type: "application/octet-stream" }), "Bafnatoys_All_Orders_Items.xlsx");
 };
 
-// ✅ Andar Wala (Single Order) - Single Row financial summary without blank column
+// ✅ Andar Wala (Single Order) - Single Row financial summary + Status
 const exportSingleOrder = (order: Order) => {
   const addr = order.shippingAddress;
   const finalShippingCity = addr?.isDifferentShipping ? addr.shippingCity : addr?.city;
@@ -182,6 +184,7 @@ const exportSingleOrder = (order: Order) => {
 
   const rows = [{
     OrderNumber: order.orderNumber || order._id.slice(-6),
+    Status: statusLabel(order.status), // ✅ Added Status here
     Total: order.total,
     Advance_Paid: order.advancePaid || 0,
     Remaining_Amount: order.remainingAmount ?? (order.paymentMode === 'COD' ? order.total : 0),
@@ -265,7 +268,10 @@ const AdminOrders: React.FC = () => {
   const [shipCourier, setShipCourier] = useState<string>(COURIERS[0]);
   const [shipTracking, setShipTracking] = useState<string>("");
   const [shipErr, setShipErr] = useState<string>("");
+  
+  // ✅ Advance Edit Password Lock State
   const [manualAdvance, setManualAdvance] = useState<number>(0); 
+  const [isAdvanceUnlocked, setIsAdvanceUnlocked] = useState<boolean>(false);
 
   const [boxes, setBoxes] = useState({
     A28: { qty: 0, weight: 0 },
@@ -390,9 +396,8 @@ const AdminOrders: React.FC = () => {
 
   /* ===== Status Update ===== */
   const updateStatus = async (id: string, status: OrderStatus) => {
-    // ✅ CANCEL FUNCTION KO FALSE KAR DIYA YAHAN PAR
     if (status === "cancelled") {
-      alert("❌ Order cancellation is disabled.");
+      Swal.fire("Disabled", "❌ Order cancellation is disabled.", "warning");
       return;
     }
 
@@ -444,33 +449,57 @@ const AdminOrders: React.FC = () => {
         );
       }
     } catch (e: any) {
-      alert(e?.response?.data?.message || "Update failed");
+      Swal.fire("Error", e?.response?.data?.message || "Update failed", "error");
     } finally {
       setActOn(null);
     }
   };
 
+  /* ===== Delete Order with Password Popup ===== */
   const deleteOrder = async (id: string) => {
-    const password = window.prompt("⚠️ Admin Password required to delete this order:");
-    
-    if (password === null) return; 
-    
+    const { value: password } = await Swal.fire({
+      title: "⚠️ Admin Access Required",
+      text: "Please enter the admin password to delete this order:",
+      input: "password",
+      inputPlaceholder: "Enter password",
+      icon: "warning",
+      showCancelButton: true,
+      confirmButtonColor: "#dc2626",
+      confirmButtonText: "Yes, Delete it!",
+      inputValidator: (value) => {
+        if (!value) {
+          return "You need to write something!";
+        }
+      }
+    });
+
+    if (!password) return;
+
     if (password !== "Adminbafnatoys") {
-      alert("❌ Incorrect password! Only Admins can delete orders.");
+      Swal.fire("Access Denied", "❌ Incorrect password! Only Admins can delete orders.", "error");
       return;
     }
 
-    if (!window.confirm("Are you sure you want to permanently delete this order?")) return;
-
     try {
+      Swal.fire({
+        title: "Deleting...",
+        text: "Please wait while the order is being deleted.",
+        allowOutsideClick: false,
+        didOpen: () => {
+          Swal.showLoading();
+        }
+      });
+
       await axios.delete(`${API_BASE}/orders/${id}`, {
         headers: authHeaders(),
       });
+      
       setAllOrders((prev) => prev.filter((o) => o._id !== id));
       if (viewing?._id === id) setViewing(null);
-      alert("✅ Order deleted successfully.");
+
+      Swal.fire("Deleted!", "✅ Order deleted successfully.", "success");
     } catch (e: any) {
-      alert(e?.response?.data?.message || "Delete failed");
+      Swal.fire("Delete Failed", e?.response?.data?.message || "Could not delete the order.", "error");
     }
   };
 
@@ -490,6 +519,7 @@ const AdminOrders: React.FC = () => {
     setShipTracking(o.trackingId?.trim() || "");
     
     setManualAdvance(o.advancePaid || 0); 
+    setIsAdvanceUnlocked(false); // ✅ Modal open hote hi lock kardo
     setShipOpen(true);
   };
 
@@ -497,6 +527,36 @@ const AdminOrders: React.FC = () => {
     setShipOpen(false);
     setShipOrder(null);
     setShipErr("");
+    setIsAdvanceUnlocked(false); // ✅ Modal close hote hi lock kardo
+  };
+
+  // ✅ Password check for editing Manual Advance
+  const handleUnlockAdvance = async () => {
+    const { value: password } = await Swal.fire({
+      title: "🔒 Admin Verification",
+      text: "Enter admin password to edit manual advance amount:",
+      input: "password",
+      inputPlaceholder: "Enter password",
+      icon: "warning",
+      showCancelButton: true,
+      confirmButtonColor: "#2563eb",
+      confirmButtonText: "Unlock",
+    });
+
+    if (!password) return;
+
+    if (password === "Adminbafnatoys") {
+      setIsAdvanceUnlocked(true);
+      Swal.fire({
+        title: "Unlocked!",
+        text: "You can now edit the advance amount.",
+        icon: "success",
+        timer: 1500,
+        showConfirmButton: false
+      });
+    } else {
+      Swal.fire("Access Denied", "❌ Incorrect password!", "error");
+    }
   };
 
   const submitShip = async () => {
@@ -573,7 +633,12 @@ const AdminOrders: React.FC = () => {
       }
 
       closeShipModal();
-      alert("✅ Shipped Successfully!");
+      Swal.fire({
+        title: "Shipped Successfully!",
+        icon: "success",
+        timer: 1500,
+        showConfirmButton: false
+      });
     } catch (e: any) {
       setShipErr(
         e?.response?.data?.message || "Shipping update failed"
@@ -892,7 +957,7 @@ const AdminOrders: React.FC = () => {
                           <option value="delivered">
                             Delivered
                           </option>
-                          {/* ✅ Yahan se Cancelled ka option hata diya hai */}
+                          {/* ✅ Cancelled hidden */}
                         </select>
                       </td>
                       <td>
@@ -1058,7 +1123,6 @@ const AdminOrders: React.FC = () => {
                       <option value="processing">Confirmed</option>
                       <option value="shipped">Shipped</option>
                       <option value="delivered">Delivered</option>
-                      {/* ✅ Yahan se bhi Cancelled ka option hata diya hai */}
                     </select>
                     <button
                       className={`ao-ship-btn ${
@@ -1360,18 +1424,43 @@ const AdminOrders: React.FC = () => {
                 </select>
               </div>
 
+              {/* ✅ Advance Amount Section with Password Lock */}
               {shipOrder?.paymentMode !== "ONLINE" && (
                 <div style={{ background: '#fff7ed', padding: '15px', borderRadius: '6px', border: '1px solid #fdba74' }}>
-                  <label style={{ display: 'block', marginBottom: '5px', fontWeight: 'bold', fontSize: '13px', color: '#9a3412' }}>
-                    Advance Received Manually (₹)
-                  </label>
+                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '5px' }}>
+                    <label style={{ fontWeight: 'bold', fontSize: '13px', color: '#9a3412', margin: 0 }}>
+                      Advance Received Manually (₹)
+                    </label>
+                    {!isAdvanceUnlocked && (
+                      <button
+                        type="button"
+                        onClick={handleUnlockAdvance}
+                        style={{ 
+                          background: 'none', border: 'none', color: '#ea580c', 
+                          cursor: 'pointer', fontSize: '12px', fontWeight: 'bold', 
+                          display: 'flex', alignItems: 'center', gap: '4px', padding: 0 
+                        }}
+                      >
+                        🔒 Click to Unlock
+                      </button>
+                    )}
+                  </div>
+                  
                   <input
                     type="number"
                     min="0"
                     max={shipOrder.total}
                     value={manualAdvance || ''}
                     onChange={(e) => setManualAdvance(Number(e.target.value))}
-                    style={{ width: '100%', padding: '8px', border: '1px solid #fdba74', borderRadius: '4px' }}
+                    disabled={!isAdvanceUnlocked} // ✅ Disabled when locked
+                    style={{ 
+                      width: '100%', 
+                      padding: '8px', 
+                      border: '1px solid #fdba74', 
+                      borderRadius: '4px',
+                      backgroundColor: isAdvanceUnlocked ? '#fff' : '#ffedd5', // visually disabled
+                      cursor: isAdvanceUnlocked ? 'text' : 'not-allowed'
+                    }}
                     placeholder="e.g. 1000"
                   />
                   <div style={{ marginTop: '8px', fontSize: '14px', fontWeight: 'bold', color: '#c2410c' }}>

@@ -7,7 +7,6 @@ import * as XLSX from "xlsx";
 import { saveAs } from "file-saver";
 
 /* ================= CONFIG ================= */
-// 👇 YAHAN PAR LOCALHOST HATA KAR LIVE BACKEND URL DAAL DIYA HAI 👇
 const API_BASE =
   (import.meta as any).env?.VITE_API_URL ||
   (process as any).env?.VITE_API_URL ||
@@ -77,8 +76,8 @@ type Order = {
   items: OrderItem[];
   total: number;
   paymentMode?: PaymentMode;
-  advancePaid?: number; // ✅ Added this to read from DB
-  remainingAmount?: number; // ✅ Added this to read from DB
+  advancePaid?: number;
+  remainingAmount?: number;
   status: OrderStatus;
   shippingAddress?: ShippingAddress;
   isShipped?: boolean;
@@ -107,17 +106,6 @@ const resolveImage = (img?: string): string => {
   if (img.startsWith("/uploads") || img.startsWith("/images"))
     return `${MEDIA_BASE}${img}`;
   return `${MEDIA_BASE}/uploads/${encodeURIComponent(img)}`;
-};
-
-const toInners = (it: OrderItem): number => {
-  if (it.inners && it.inners > 0) return it.inners;
-  const perInner =
-    it.innerQty && it.innerQty > 0
-      ? it.innerQty
-      : it.nosPerInner && it.nosPerInner > 0
-      ? it.nosPerInner
-      : 12;
-  return Math.ceil((it.qty || 0) / perInner);
 };
 
 const norm = (v?: string | number) =>
@@ -154,85 +142,58 @@ const getExternalTrackingLink = (courier?: string, trackingId?: string) => {
   return null;
 };
 
+// ✅ System Pending Orders Treat as "Confirmed" Everywhere
 const statusLabel = (s: OrderStatus) => {
-  if (s === "processing") return "Confirmed";
+  if (s === "processing" || s === "pending") return "Confirmed";
   return s.charAt(0).toUpperCase() + s.slice(1);
 };
 
 /* --- Export Functions --- */
-const exportAllOrders = (orders: Order[]) => {
-  const rows = orders.map((o) => {
-    const wa = normalizeWhatsApp91(o.customerId?.whatsapp || o.customerId?.otpMobile);
-    const addr = o.shippingAddress;
-    
-    const finalShippingAddress = addr?.isDifferentShipping 
-      ? `${addr.shippingStreet || ""}, ${addr.shippingArea || ""}`
-      : `${addr?.street || ""}, ${addr?.area || ""}`;
-    const finalShippingCity = addr?.isDifferentShipping ? addr.shippingCity : addr?.city;
-    const finalShippingState = addr?.isDifferentShipping ? addr.shippingState : addr?.state;
-    const finalShippingPincode = addr?.isDifferentShipping ? addr.shippingPincode : addr?.pincode;
 
-    return {
+// ✅ Bahar Wala (All Orders) - Itemized format based on screenshot
+const exportAllOrders = (orders: Order[]) => {
+  const rows = orders.flatMap((o) => {
+    const addr = o.shippingAddress;
+    const finalShippingCity = addr?.isDifferentShipping ? addr.shippingCity : addr?.city;
+
+    return o.items.map((it) => ({
       OrderNumber: o.orderNumber || o._id.slice(-6),
-      Status: statusLabel(o.status as OrderStatus) + (o.status === "cancelled" && o.cancelledBy ? ` (${o.cancelledBy})` : ""),
-      Total: o.total,
-      Advance_Paid: o.advancePaid || 0, // ✅ Excel me Advance dikhega
-      Remaining_Amount: o.remainingAmount ?? (o.paymentMode === 'COD' ? o.total : 0), // ✅ Excel me Balance dikhega
-      Payment_Mode: paymentLabel(o.paymentMode),
-      CreatedAt: formatExcelDate(o.createdAt),
       Shop: addr?.shopName || o.customerId?.shopName || "", 
-      GST_Number: addr?.gstNumber || "-", 
-      Phone: o.customerId?.otpMobile || "",
-      WhatsApp: wa || "",
-      ShippingName: addr?.fullName || "",
-      ShippingPhone: addr?.phone || "",
-      ShippingAddress: finalShippingAddress,
-      ShippingCity: finalShippingCity || "",
-      ShippingState: finalShippingState || "",
-      ShippingPincode: finalShippingPincode || "",
-      TotalPackets: o.items.reduce((sum, it) => sum + toInners(it), 0),
-      TrackingID: o.trackingId || "-",
-      Courier: o.courierName || "-",
-    };
+      "city name": finalShippingCity || "",
+      Item: it.name,
+      SKU: it.sku || it.productId?.sku || "-",
+      Qty: it.qty,
+      CreatedAt: formatExcelDate(o.createdAt),
+    }));
   });
+
   const ws = XLSX.utils.json_to_sheet(rows);
   const wb = XLSX.utils.book_new();
   XLSX.utils.book_append_sheet(wb, ws, "Orders");
   const buf = XLSX.write(wb, { bookType: "xlsx", type: "array" });
-  saveAs(new Blob([buf], { type: "application/octet-stream" }), "Bafnatoys_All_Orders.xlsx");
+  saveAs(new Blob([buf], { type: "application/octet-stream" }), "Bafnatoys_All_Orders_Items.xlsx");
 };
 
+// ✅ Andar Wala (Single Order) - Single Row financial summary without blank column
 const exportSingleOrder = (order: Order) => {
-  const createdAt = formatExcelDate(order.createdAt);
-  const wa = normalizeWhatsApp91(order.customerId?.whatsapp || order.customerId?.otpMobile);
   const addr = order.shippingAddress;
+  const finalShippingCity = addr?.isDifferentShipping ? addr.shippingCity : addr?.city;
+  const finalShippingState = addr?.isDifferentShipping ? addr.shippingState : addr?.state;
 
-  const finalShippingAddress = addr?.isDifferentShipping 
-      ? `${addr.shippingStreet || ""}, ${addr.shippingArea || ""}`
-      : `${addr?.street || ""}, ${addr?.area || ""}`;
-
-  const rows = order.items.map((it) => ({
+  const rows = [{
     OrderNumber: order.orderNumber || order._id.slice(-6),
-    Status: statusLabel(order.status),
+    Total: order.total,
+    Advance_Paid: order.advancePaid || 0,
+    Remaining_Amount: order.remainingAmount ?? (order.paymentMode === 'COD' ? order.total : 0),
     Payment_Mode: paymentLabel(order.paymentMode),
-    Advance_Paid: order.advancePaid || 0, // ✅
-    Remaining_Amount: order.remainingAmount ?? (order.paymentMode === 'COD' ? order.total : 0), // ✅
+    CreatedAt: formatExcelDate(order.createdAt),
     Shop: addr?.shopName || order.customerId?.shopName || "", 
-    GST_Number: addr?.gstNumber || "-", 
-    Phone: order.customerId?.otpMobile || "",
-    WhatsApp: wa || "",
-    ShippingName: addr?.fullName || "",
-    ShippingAddress: finalShippingAddress,
-    Item: it.name,
-    SKU: it.sku || it.productId?.sku || "-",
-    Qty: it.qty,
-    Price: it.price,
-    Total: it.price * it.qty,
-    Packets: toInners(it),
-    CreatedAt: createdAt,
+    ShippingCity: finalShippingCity || "",
+    ShippingState: finalShippingState || "",
     TrackingID: order.trackingId || "-",
     Courier: order.courierName || "-",
-  }));
+  }];
+  
   const ws = XLSX.utils.json_to_sheet(rows);
   const wb = XLSX.utils.book_new();
   XLSX.utils.book_append_sheet(wb, ws, "Order");
@@ -262,7 +223,6 @@ const generateInvoice = (order: Order) => {
 
   const paymentText = paymentLabel(order.paymentMode);
   
-  // ✅ ADDED ADVANCE PAYMENT DETAILS IN INVOICE HTML
   let paymentDetailsHtml = `Payment: ${paymentText}`;
   if (order.paymentMode === "COD" && (order.advancePaid || 0) > 0) {
     paymentDetailsHtml += `<br><span style="color: #16a34a;">Advance Paid: ₹${order.advancePaid}</span><br><strong style="color: #dc2626;">To Collect: ₹${order.remainingAmount ?? (order.total - order.advancePaid!)}</strong>`;
@@ -273,7 +233,7 @@ const generateInvoice = (order: Order) => {
   printWindow.document.close();
 };
 
-/* --- ✅ COURIERS UPDATED: ONLY DELHIVERY --- */
+/* --- COURIERS --- */
 const COURIERS = ["Delhivery"] as const;
 
 /* --- Per-page Options --- */
@@ -290,20 +250,16 @@ const AdminOrders: React.FC = () => {
   const [activeTab, setActiveTab] = useState<string>("all");
   const [debounced, setDebounced] = useState("");
 
-  // Pagination
   const [currentPage, setCurrentPage] = useState(1);
   const [perPage, setPerPage] = useState(20);
 
-  // View mode
   const [viewMode, setViewMode] = useState<"card" | "table">("card");
 
-  // Server pagination tracking
   const [serverPage, setServerPage] = useState(1);
   const [hasMore, setHasMore] = useState(true);
   const [totalFromServer, setTotalFromServer] = useState(0);
   const SERVER_LIMIT = 200; 
 
-  // Ship modal
   const [shipOpen, setShipOpen] = useState(false);
   const [shipOrder, setShipOrder] = useState<Order | null>(null);
   const [shipCourier, setShipCourier] = useState<string>(COURIERS[0]);
@@ -311,7 +267,6 @@ const AdminOrders: React.FC = () => {
   const [shipErr, setShipErr] = useState<string>("");
   const [manualAdvance, setManualAdvance] = useState<number>(0); 
 
-  // State for Delhivery Boxes
   const [boxes, setBoxes] = useState({
     A28: { qty: 0, weight: 0 },
     A06: { qty: 0, weight: 0 },
@@ -435,12 +390,15 @@ const AdminOrders: React.FC = () => {
 
   /* ===== Status Update ===== */
   const updateStatus = async (id: string, status: OrderStatus) => {
+    // ✅ CANCEL FUNCTION KO FALSE KAR DIYA YAHAN PAR
+    if (status === "cancelled") {
+      alert("❌ Order cancellation is disabled.");
+      return;
+    }
+
     try {
       setActOn(id);
-      const payload =
-        status === "cancelled"
-          ? { status, cancelledBy: "Admin" }
-          : { status };
+      const payload = { status };
 
       const { data } = await axios.patch<Order>(
         `${API_BASE}/orders/${id}/status`,
@@ -492,11 +450,10 @@ const AdminOrders: React.FC = () => {
     }
   };
 
-  /* 👇 YAHAN DELETE ORDER ME PASSWORD PROTECTION ADD KI HAI 👇 */
   const deleteOrder = async (id: string) => {
     const password = window.prompt("⚠️ Admin Password required to delete this order:");
     
-    if (password === null) return; // Agar user ne Cancel click kiya
+    if (password === null) return; 
     
     if (password !== "Adminbafnatoys") {
       alert("❌ Incorrect password! Only Admins can delete orders.");
@@ -522,7 +479,6 @@ const AdminOrders: React.FC = () => {
     setShipOrder(o);
     setShipErr("");
     
-    // Reset Boxes for new modal open
     setBoxes({
       A28: { qty: 0, weight: 0 },
       A06: { qty: 0, weight: 0 },
@@ -533,7 +489,6 @@ const AdminOrders: React.FC = () => {
     setShipCourier(COURIERS[0]); 
     setShipTracking(o.trackingId?.trim() || "");
     
-    // Yahan order se purana advance utha ke set karenge modal me
     setManualAdvance(o.advancePaid || 0); 
     setShipOpen(true);
   };
@@ -633,9 +588,10 @@ const AdminOrders: React.FC = () => {
     let list = allOrders;
 
     if (activeTab !== "all") {
-      const mapped =
-        activeTab === "confirmed" ? "processing" : activeTab;
-      list = list.filter((o) => o.status === mapped);
+      list = list.filter((o) => {
+        if (activeTab === "confirmed") return o.status === "processing" || o.status === "pending";
+        return o.status === activeTab;
+      });
     }
 
     const q = debounced.trim().toLowerCase();
@@ -727,8 +683,7 @@ const AdminOrders: React.FC = () => {
         <div className="ao-stats-row">
           {[
             { label: "Total", value: stats.total, color: "#2563eb" },
-            { label: "Pending", value: stats.pending, color: "#ca8a04" },
-            { label: "Confirmed", value: stats.processing, color: "#2563eb" },
+            { label: "Confirmed", value: stats.processing + stats.pending, color: "#2563eb" },
             { label: "Shipped", value: stats.shipped, color: "#16a34a" },
             { label: "Delivered", value: stats.delivered, color: "#059669" },
             { label: "Cancelled", value: stats.cancelled, color: "#dc2626" },
@@ -747,7 +702,6 @@ const AdminOrders: React.FC = () => {
           <div className="ao-tabs">
             {[
               { key: "all", label: "All" },
-              { key: "pending", label: "Pending" },
               { key: "confirmed", label: "Confirmed" },
               { key: "shipped", label: "Shipped" },
               { key: "delivered", label: "Delivered" },
@@ -872,7 +826,7 @@ const AdminOrders: React.FC = () => {
               <tbody>
                 {paginatedOrders.map((o) => {
                   return (
-                    <tr key={o._id} className={`ao-tr-${o.status}`}>
+                    <tr key={o._id} className={`ao-tr-${o.status === "pending" ? "processing" : o.status}`}>
                       <td className="ao-td-mono">
                         #{o.orderNumber || o._id.slice(-6)}
                       </td>
@@ -922,7 +876,7 @@ const AdminOrders: React.FC = () => {
                       <td>
                         <select
                           className="ao-status-sel"
-                          value={o.status}
+                          value={o.status === "pending" ? "processing" : o.status}
                           disabled={actOn === o._id}
                           onChange={(e) =>
                             updateStatus(
@@ -931,7 +885,6 @@ const AdminOrders: React.FC = () => {
                             )
                           }
                         >
-                          <option value="pending">Pending</option>
                           <option value="processing">
                             Confirmed
                           </option>
@@ -939,9 +892,7 @@ const AdminOrders: React.FC = () => {
                           <option value="delivered">
                             Delivered
                           </option>
-                          <option value="cancelled">
-                            Cancelled
-                          </option>
+                          {/* ✅ Yahan se Cancelled ka option hata diya hai */}
                         </select>
                       </td>
                       <td>
@@ -993,7 +944,7 @@ const AdminOrders: React.FC = () => {
               );
               return (
                 <div
-                  className={`ao-card ao-status-${o.status}`}
+                  className={`ao-card ao-status-${o.status === "pending" ? "processing" : o.status}`}
                   key={o._id}
                 >
                   <div className="ao-card-top">
@@ -1001,7 +952,7 @@ const AdminOrders: React.FC = () => {
                       #{o.orderNumber || o._id.slice(-6)}
                     </span>
                     <div className="ao-card-badges">
-                      <span className={`ao-badge ${o.status}`}>
+                      <span className={`ao-badge ${o.status === "pending" ? "processing" : o.status}`}>
                         {statusLabel(o.status)}
                       </span>
                       {o.wa?.orderConfirmedSent && (
@@ -1095,7 +1046,7 @@ const AdminOrders: React.FC = () => {
                     </button>
                     <select
                       className="ao-status-sel"
-                      value={o.status}
+                      value={o.status === "pending" ? "processing" : o.status}
                       disabled={actOn === o._id}
                       onChange={(e) =>
                         updateStatus(
@@ -1104,11 +1055,10 @@ const AdminOrders: React.FC = () => {
                         )
                       }
                     >
-                      <option value="pending">Pending</option>
                       <option value="processing">Confirmed</option>
                       <option value="shipped">Shipped</option>
                       <option value="delivered">Delivered</option>
-                      <option value="cancelled">Cancelled</option>
+                      {/* ✅ Yahan se bhi Cancelled ka option hata diya hai */}
                     </select>
                     <button
                       className={`ao-ship-btn ${

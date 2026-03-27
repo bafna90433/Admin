@@ -3,8 +3,8 @@ import { useNavigate } from "react-router-dom";
 import axios from "axios";
 import "../styles/AdminLogin.css";
 
-// --- ✅ CONFIGURATION (Local testing) ---
-const API_BASE = "http://localhost:5000/api";
+// ✅ FIX: Changed to your LIVE Railway Backend URL
+const API_BASE = "https://bafnatoys-backend-production.up.railway.app/api";
 
 const AdminLogin: React.FC = () => {
   const navigate = useNavigate();
@@ -37,7 +37,7 @@ const AdminLogin: React.FC = () => {
       // ✅ 1. Token save karo
       localStorage.setItem("adminToken", data.token);
       
-      // ✅ 2. Admin ka pura data (role, permissions, naam) save karo - YEH SABSE ZAROORI HAI
+      // ✅ 2. Admin ka pura data (role, permissions, naam) save karo
       if (data.admin) {
         localStorage.setItem("adminData", JSON.stringify(data.admin));
       }
@@ -125,7 +125,7 @@ const AdminLogin: React.FC = () => {
   );
 };
 
-// Icons (Same as before)
+// Icons 
 const EyeIcon = ({ visible }: { visible: boolean }) => (
   <svg width="20" height="20" viewBox="0 0 24 24" fill="none">
     {visible ? (

@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import axios from 'axios';
-import { FiTrash2, FiUserPlus, FiShield, FiUsers, FiEdit } from 'react-icons/fi'; // ✅ FiEdit add kiya hai
+import { FiTrash2, FiUserPlus, FiShield, FiUsers, FiEdit } from 'react-icons/fi';
 
 const CreateAdmin = () => {
   const [username, setUsername] = useState('');
@@ -14,7 +14,8 @@ const CreateAdmin = () => {
   // ✅ Edit state track karne ke liye
   const [editId, setEditId] = useState<string | null>(null); 
 
-  const API_BASE = "http://localhost:5000/api";
+  // ✅ FIX: Changed to your LIVE Railway Backend URL
+  const API_BASE = "https://bafnatoys-backend-production.up.railway.app/api";
 
   const availablePermissions = [
     // Dashboard

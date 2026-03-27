@@ -25,6 +25,8 @@ interface ProductPayload {
   stock: number; unit: string; description: string;
   category: string; images: string[];
   tagline?: string; packSize?: string; relatedProducts?: string[];
+  piecesPerUnit?: number; // ✅
+  isBulkOnly?: boolean;   // ✅
 }
 
 type GalleryImage = { file?: File; url: string; isExisting: boolean; };
@@ -34,9 +36,11 @@ const ProductForm: React.FC = () => {
   const navigate = useNavigate();
   const editMode = Boolean(id);
 
+  // ✅ Initialize with new bulk fields
   const [form, setForm] = useState({
     name: "", sku: "", mrp: "", price: "", stock: "", unit: "",
     description: "", tagline: "", packSize: "", category: "",
+    piecesPerUnit: "1", isBulkOnly: false // Added here
   });
 
   const [gallery, setGallery] = useState<GalleryImage[]>([]);
@@ -78,6 +82,8 @@ const ProductForm: React.FC = () => {
           description: data.description || "", tagline: data.tagline || "",
           packSize: data.packSize || "",
           category: typeof data.category === "string" ? data.category : data.category?._id || "",
+          piecesPerUnit: data.piecesPerUnit?.toString() || "1", // ✅
+          isBulkOnly: data.isBulkOnly || false                  // ✅
         });
         setGallery(
           (data.images || []).map((img: any) => ({
@@ -92,7 +98,11 @@ const ProductForm: React.FC = () => {
           })));
         }
       } else {
-        setForm({ name: "", sku: "", mrp: "", price: "", stock: "", unit: "", description: "", tagline: "", packSize: "", category: "" });
+        setForm({ 
+          name: "", sku: "", mrp: "", price: "", stock: "", unit: "", 
+          description: "", tagline: "", packSize: "", category: "",
+          piecesPerUnit: "1", isBulkOnly: false
+        });
         setGallery([]);
         setRelatedDisplay([]);
       }
@@ -163,19 +173,27 @@ const ProductForm: React.FC = () => {
       await axios.delete(`${API_BASE}/products/${id}`);
       toast.success("Product deleted!", { icon: "🗑️", style: { borderRadius: "12px", background: "#1e293b", color: "#fff" } });
       navigate("/admin/products/new");
-      setForm({ name: "", sku: "", mrp: "", price: "", stock: "", unit: "", description: "", tagline: "", packSize: "", category: "" });
+      setForm({ 
+        name: "", sku: "", mrp: "", price: "", stock: "", unit: "", 
+        description: "", tagline: "", packSize: "", category: "",
+        piecesPerUnit: "1", isBulkOnly: false
+      });
       setGallery([]); setRelatedDisplay([]);
     } catch (err: any) {
       toast.error(err.message || "Delete failed");
     } finally { setDeleting(false); setDelModal(false); setDelPwd(""); }
   };
 
+  // ✅ Updated handleChange to handle checkbox correctly
   const handleChange = (e: ChangeEvent<HTMLInputElement | HTMLSelectElement | HTMLTextAreaElement>) => {
-    const { name, value } = e.target;
-    setForm((prev) => ({ ...prev, [name]: value }));
+    const { name, value, type } = e.target;
+    if (type === "checkbox") {
+      setForm((prev) => ({ ...prev, [name]: (e.target as HTMLInputElement).checked }));
+    } else {
+      setForm((prev) => ({ ...prev, [name]: value }));
+    }
   };
 
-  // ✅ Only WEBP allowed
   const handleGalleryFiles = (e: ChangeEvent<HTMLInputElement>) => {
     if (!e.target.files) return;
 
@@ -252,6 +270,7 @@ const ProductForm: React.FC = () => {
         else { finalImagesOrder.push(uploadedUrls[uploadIndex]); uploadIndex++; }
       }
 
+      // ✅ Included the new fields in payload
       const payload: ProductPayload = {
         name: form.name, sku: form.sku, mrp: Number(form.mrp) || 0,
         price: Number(form.price), stock: Number(form.stock) || 0,
@@ -260,6 +279,8 @@ const ProductForm: React.FC = () => {
         packSize: form.packSize.trim() || undefined,
         category: form.category, images: finalImagesOrder,
         relatedProducts: relatedDisplay.map((p) => p._id),
+        piecesPerUnit: Number(form.piecesPerUnit) || 1, // ✅
+        isBulkOnly: form.isBulkOnly                     // ✅
       };
 
       if (editMode && id) {
@@ -413,7 +434,7 @@ const ProductForm: React.FC = () => {
               </div>
             </div>
 
-            {/* ✅ Pricing Card — ₹ symbol used instead of $ */}
+            {/* ✅ Pricing Card — Added Bulk Fields */}
             <div className="pf-card">
               <div className="pf-card-header">
                 <div className="pf-card-icon pricing"><span className="pf-rupee-icon">₹</span></div>
@@ -434,13 +455,27 @@ const ProductForm: React.FC = () => {
                     <input type="number" name="stock" value={form.stock} onChange={handleChange} placeholder="0" className="pf-input" />
                   </div>
                   <div className="pf-field">
-                    <label className="pf-label"><FiPackage size={12} /> Unit</label>
-                    <input type="text" name="unit" value={form.unit} onChange={handleChange} placeholder="e.g., Packet" className="pf-input" />
+                    <label className="pf-label"><FiPackage size={12} /> Unit Type</label>
+                    <input type="text" name="unit" value={form.unit} onChange={handleChange} placeholder="e.g., Box, Tray" className="pf-input" />
+                  </div>
+                </div>
+                
+                {/* ✅ Added the Pieces Input and Checkbox below Pricing */}
+                <div className="pf-row-2" style={{ marginTop: '15px' }}>
+                  <div className="pf-field">
+                    <label className="pf-label">Pieces in Unit</label>
+                    <input type="number" name="piecesPerUnit" value={form.piecesPerUnit} onChange={handleChange} placeholder="e.g., 24" className="pf-input" />
+                  </div>
+                  <div className="pf-field" style={{ display: 'flex', alignItems: 'center', marginTop: '22px' }}>
+                    <label className="pf-label" style={{ display: 'flex', alignItems: 'center', gap: '8px', cursor: 'pointer', margin: 0 }}>
+                      <input type="checkbox" name="isBulkOnly" checked={form.isBulkOnly} onChange={handleChange} style={{ width: '18px', height: '18px', cursor: 'pointer' }} />
+                      <span style={{ fontSize: '14px', fontWeight: 600 }}>Strict Bulk Buy (Must buy full unit)</span>
+                    </label>
                   </div>
                 </div>
 
                 {form.mrp && form.price && Number(form.mrp) > Number(form.price) && (
-                  <div className="pf-discount-info">
+                  <div className="pf-discount-info" style={{ marginTop: '15px' }}>
                     <FiInfo size={13} />
                     <span>Discount: <strong>{Math.round(((Number(form.mrp) - Number(form.price)) / Number(form.mrp)) * 100)}% off</strong> (Save ₹{(Number(form.mrp) - Number(form.price)).toLocaleString()})</span>
                   </div>
@@ -451,7 +486,6 @@ const ProductForm: React.FC = () => {
 
           {/* RIGHT */}
           <div className="pf-col-side">
-            {/* ✅ Images Card — WEBP only */}
             <div className="pf-card">
               <div className="pf-card-header">
                 <div className="pf-card-icon images"><FiImage size={16} /></div>

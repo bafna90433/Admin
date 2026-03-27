@@ -1,4 +1,4 @@
-import React from "react";
+import React, { useEffect, useState } from "react";
 import { Link, useLocation, useNavigate } from "react-router-dom";
 import {
   FiPackage,
@@ -18,8 +18,8 @@ import {
   FiGrid,
   FiSettings,
   FiStar,
-  FiShield, // ✅ Naya icon add kiya hai Trust Settings ke liye
-  FiUserPlus, // ✅ Naya icon Admin Create form ke liye
+  FiShield,
+  FiUserPlus,
 } from "react-icons/fi";
 import { MdOutlineSpaceDashboard } from "react-icons/md";
 import { TbCategory } from "react-icons/tb";
@@ -33,6 +33,15 @@ interface SidebarProps {
 const Sidebar: React.FC<SidebarProps> = ({ sidebarOpen, closeSidebar }) => {
   const { pathname } = useLocation();
   const navigate = useNavigate();
+  const [adminData, setAdminData] = useState<any>(null);
+
+  // ✅ 1. Get user data from local storage on component mount
+  useEffect(() => {
+    const storedData = localStorage.getItem("adminData");
+    if (storedData) {
+      setAdminData(JSON.parse(storedData));
+    }
+  }, []);
 
   const isActive = (path: string) =>
     pathname === path || pathname.startsWith(path);
@@ -40,9 +49,23 @@ const Sidebar: React.FC<SidebarProps> = ({ sidebarOpen, closeSidebar }) => {
   const handleLogout = () => {
     if (window.confirm("Are you sure you want to logout?")) {
       localStorage.removeItem("adminToken");
+      localStorage.removeItem("adminData");
       navigate("/admin/login");
     }
   };
+
+  // ✅ 2. Role and Permission Checker Helper
+  const hasAccess = (requiredPermission: string) => {
+    if (!adminData) return false;
+    if (adminData.role === "superadmin") return true; 
+    return adminData.permissions?.includes(requiredPermission);
+  };
+
+  // ✅ 3. Section Visibility Checkers (Poore 16 permissions ke liye update kar diya)
+  const showDashboard = hasAccess("dashboard") || hasAccess("analytics") || hasAccess("orders") || hasAccess("returns");
+  const showInventory = hasAccess("products") || hasAccess("add_product") || hasAccess("inventory") || hasAccess("categories");
+  const showMarketing = hasAccess("home_builder") || hasAccess("banners") || hasAccess("trust_banners") || hasAccess("whatsapp");
+  const showManagement = hasAccess("customers") || hasAccess("reviews") || hasAccess("finance") || hasAccess("settings") || adminData?.role === "superadmin";
 
   const ChevronIcon = () => (
     <div className="nav-chevron-final">
@@ -123,152 +146,207 @@ const Sidebar: React.FC<SidebarProps> = ({ sidebarOpen, closeSidebar }) => {
 
         {/* Navigation */}
         <div className="sidebar-scroll-final">
-          <div className="nav-section-final">
-            <h4 className="section-header-final">Dashboard</h4>
-            <NavItem
-              to="/admin/dashboard"
-              icon={MdOutlineSpaceDashboard}
-              label="Analytics Overview"
-              gradient="purple"
-            />
+          
+          {/* DASHBOARD SECTION */}
+          {showDashboard && (
+            <div className="nav-section-final">
+              <h4 className="section-header-final">Dashboard</h4>
+              
+              {hasAccess("dashboard") && (
+                <NavItem
+                  to="/admin/dashboard"
+                  icon={MdOutlineSpaceDashboard}
+                  label="Analytics Overview"
+                  gradient="purple"
+                />
+              )}
+              
+              {hasAccess("analytics") && (
+                <NavItem
+                  to="/admin/analytics"
+                  icon={FiTrendingUp}
+                  label="Website Traffic"
+                  gradient="cyan"
+                />
+              )}
 
-            <NavItem
-              to="/admin/analytics"
-              icon={FiTrendingUp}
-              label="Website Traffic"
-              gradient="cyan"
-            />
+              {hasAccess("orders") && (
+                <NavItem
+                  to="/admin/orders"
+                  icon={FiPackage}
+                  label="Order Management"
+                  gradient="blue"
+                />
+              )}
 
-            <NavItem
-              to="/admin/orders"
-              icon={FiPackage}
-              label="Order Management"
-              gradient="blue"
-            />
+              {hasAccess("returns") && (
+                <NavItem
+                  to="/admin/returns"
+                  icon={FiCornerUpLeft}
+                  label="Return Requests"
+                  gradient="red"
+                />
+              )}
+            </div>
+          )}
 
-            <NavItem
-              to="/admin/returns"
-              icon={FiCornerUpLeft}
-              label="Return Requests"
-              gradient="red"
-            />
-          </div>
+          {/* INVENTORY SECTION */}
+          {showInventory && (
+            <div className="nav-section-final">
+              <h4 className="section-header-final">Inventory</h4>
+              
+              {hasAccess("products") && (
+                <NavItem
+                  to="/admin/products"
+                  icon={FiBox}
+                  label="All Products"
+                  gradient="green"
+                />
+              )}
+              
+              {hasAccess("add_product") && (
+                <NavItem
+                  to="/admin/products/new"
+                  icon={FiPlus}
+                  label="Add Product"
+                  gradient="pink"
+                />
+              )}
+              
+              {hasAccess("inventory") && (
+                <NavItem
+                  to="/admin/inventory"
+                  icon={FiActivity}
+                  label="Stock & Sales"
+                  gradient="red"
+                />
+              )}
 
-          <div className="nav-section-final">
-            <h4 className="section-header-final">Inventory</h4>
-            <NavItem
-              to="/admin/products"
-              icon={FiBox}
-              label="All Products"
-              gradient="green"
-            />
+              {hasAccess("categories") && (
+                <NavItem
+                  to="/admin/categories"
+                  icon={TbCategory}
+                  label="Categories"
+                  gradient="orange"
+                />
+              )}
+            </div>
+          )}
 
-            <NavItem
-              to="/admin/products/new"
-              icon={FiPlus}
-              label="Add Product"
-              gradient="pink"
-            />
+          {/* MARKETING SECTION */}
+          {showMarketing && (
+            <div className="nav-section-final">
+              <h4 className="section-header-final">Marketing</h4>
+              
+              {hasAccess("home_builder") && (
+                <NavItem
+                  to="/admin/home-builder"
+                  icon={FiGrid}
+                  label="Home Builder"
+                  gradient="orange"
+                />
+              )}
+              
+              {hasAccess("banners") && (
+                <NavItem
+                  to="/admin/banners"
+                  icon={FiImage}
+                  label="Banner Management"
+                  gradient="teal"
+                />
+              )}
+              
+              {hasAccess("trust_banners") && (
+                <NavItem
+                  to="/admin/trust-settings"
+                  icon={FiShield}
+                  label="Trust & Factory Banners"
+                  gradient="blue"
+                />
+              )}
+              
+              {hasAccess("whatsapp") && (
+                <NavItem
+                  to="/admin/whatsapp"
+                  icon={FiMessageSquare}
+                  label="WhatsApp Campaigns"
+                  gradient="green"
+                />
+              )}
+            </div>
+          )}
 
-            <NavItem
-              to="/admin/inventory"
-              icon={FiActivity}
-              label="Stock & Sales"
-              gradient="red"
-            />
+          {/* MANAGEMENT SECTION */}
+          {showManagement && (
+            <div className="nav-section-final">
+              <h4 className="section-header-final">Management</h4>
+              
+              {hasAccess("customers") && (
+                <NavItem
+                  to="/admin/registrations"
+                  icon={FiUsers}
+                  label="Customer Database"
+                  gradient="indigo"
+                />
+              )}
+              
+              {hasAccess("reviews") && (
+                <NavItem
+                  to="/admin/reviews"
+                  icon={FiStar}
+                  label="Product Reviews"
+                  gradient="yellow"
+                />
+              )}
 
-            <NavItem
-              to="/admin/categories"
-              icon={TbCategory}
-              label="Categories"
-              gradient="orange"
-            />
-          </div>
+              {hasAccess("finance") && (
+                <NavItem
+                  to="/admin/payment-shipping"
+                  icon={FiCreditCard}
+                  label="Finance & Shipping"
+                  gradient="yellow"
+                />
+              )}
+              
+              {hasAccess("settings") && (
+                <NavItem
+                  to="/admin/settings"
+                  icon={FiSettings}
+                  label="Settings & Config"
+                  gradient="gray"
+                />
+              )}
 
-          <div className="nav-section-final">
-            <h4 className="section-header-final">Marketing</h4>
-
-            <NavItem
-              to="/admin/home-builder"
-              icon={FiGrid}
-              label="Home Builder"
-              gradient="orange"
-            />
-
-            <NavItem
-              to="/admin/banners"
-              icon={FiImage}
-              label="Banner Management"
-              gradient="teal"
-            />
-
-            {/* ✅ NAYA ROUTE ADD KIYA HAI YAHAN */}
-            <NavItem
-              to="/admin/trust-settings"
-              icon={FiShield}
-              label="Trust & Factory Banners"
-              gradient="blue"
-            />
-
-            <NavItem
-              to="/admin/whatsapp"
-              icon={FiMessageSquare}
-              label="WhatsApp Campaigns"
-              gradient="green"
-            />
-          </div>
-
-          <div className="nav-section-final">
-            <h4 className="section-header-final">Management</h4>
-            <NavItem
-              to="/admin/registrations"
-              icon={FiUsers}
-              label="Customer Database"
-              gradient="indigo"
-            />
-
-            <NavItem
-              to="/admin/reviews"
-              icon={FiStar}
-              label="Product Reviews"
-              gradient="yellow"
-            />
-
-            <NavItem
-              to="/admin/payment-shipping"
-              icon={FiCreditCard}
-              label="Finance & Shipping"
-              gradient="yellow"
-            />
-
-            <NavItem
-              to="/admin/settings"
-              icon={FiSettings}
-              label="Settings & Config"
-              gradient="gray"
-            />
-
-            {/* ✅ NAYA LINK: Manage Admins add kiya gaya hai */}
-            <NavItem
-              to="/admin/create-admin"
-              icon={FiUserPlus}
-              label="Manage Admins"
-              gradient="purple"
-            />
-          </div>
+              {/* ONLY SUPERADMIN CAN SEE THIS */}
+              {adminData?.role === "superadmin" && (
+                <NavItem
+                  to="/admin/create-admin"
+                  icon={FiUserPlus}
+                  label="Manage Admins"
+                  gradient="purple"
+                />
+              )}
+            </div>
+          )}
         </div>
 
         {/* Footer */}
         <div className="sidebar-footer-final">
           <div className="admin-profile-card">
             <div className="profile-avatar-final">
-              <div className="avatar-initials">AT</div>
+              <div className="avatar-initials">
+                {adminData?.username ? adminData.username.substring(0, 2).toUpperCase() : "AT"}
+              </div>
             </div>
 
             <div className="profile-info-final">
-              <div className="profile-name-final">Admin Team</div>
+              <div className="profile-name-final" style={{ textTransform: 'capitalize' }}>
+                {adminData?.username || "Admin Team"}
+              </div>
               <div className="profile-role-final">
-                <span className="role-badge">Super Admin</span>
+                <span className="role-badge" style={{ textTransform: 'capitalize' }}>
+                  {adminData?.role === "superadmin" ? "Super Admin" : "Sub Admin"}
+                </span>
                 <span className="version">v2.4.0</span>
               </div>
             </div>

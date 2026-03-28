@@ -1,6 +1,6 @@
 import React, { useEffect, useState } from "react";
 import { Link } from "react-router-dom";
-import axios from "axios"; // ✅ Changed: Import axios directly
+import axios from "axios";
 import "../styles/Dashboard.css";
 import OrderModal from "./OrderModal";
 import {
@@ -13,28 +13,41 @@ import {
   FiTrendingUp,
   FiMapPin,
   FiActivity,
-  FiList
+  FiList,
+  FiCalendar,
+  FiClock,
+  FiDollarSign,
+  FiEye,
+  FiChevronRight,
+  FiRefreshCw,
+  FiBarChart2,
+  FiAward,
+  FiZap,
+  FiExternalLink,
+  FiBox,
+  FiHash,
+  FiUser,
 } from "react-icons/fi";
 
-// --- ✅ CONFIGURATION (Live URL Fix) ---
+/* ===== CONFIG ===== */
 const API_BASE =
-  process.env.VITE_API_URL ||
-  process.env.REACT_APP_API_URL ||
+  (import.meta as any).env?.VITE_API_URL ||
+  (process as any).env?.REACT_APP_API_URL ||
   "https://bafnatoys-backend-production.up.railway.app/api";
 
 const MEDIA_BASE =
-  process.env.VITE_MEDIA_URL ||
-  process.env.REACT_APP_MEDIA_URL ||
+  (import.meta as any).env?.VITE_MEDIA_URL ||
+  (process as any).env?.REACT_APP_MEDIA_URL ||
   "https://bafnatoys-backend-production.up.railway.app";
 
-// ✅ Order Type
+/* ===== TYPES ===== */
 type Order = {
   _id: string;
   orderNumber?: string;
   createdAt?: string;
   items?: Array<{ qty: number; price: number; name?: string }>;
   total: number;
-  status: string; // Status rahega par hum dikhayenge nahi
+  status: string;
   customerId?: {
     firmName?: string;
     shopName?: string;
@@ -56,6 +69,7 @@ type TrafficData = {
   count: number;
 };
 
+/* ===== HELPERS ===== */
 const currency = new Intl.NumberFormat("en-IN", {
   style: "currency",
   currency: "INR",
@@ -65,37 +79,77 @@ const currency = new Intl.NumberFormat("en-IN", {
 const resolveImage = (img?: string) => {
   if (!img) return "/placeholder.png";
   if (img.startsWith("http")) return img;
-  // ✅ Changed: Use local MEDIA_BASE
   return `${MEDIA_BASE}${img.startsWith("/") ? "" : "/"}${img}`;
 };
 
+const formatDate = (dateString?: string) => {
+  if (!dateString) return "—";
+  return new Date(dateString).toLocaleDateString("en-IN", {
+    day: "2-digit",
+    month: "short",
+    year: "numeric",
+  });
+};
+
+const formatTime = (dateString?: string) => {
+  if (!dateString) return "";
+  return new Date(dateString).toLocaleTimeString("en-IN", {
+    hour: "2-digit",
+    minute: "2-digit",
+  });
+};
+
+const getGreeting = () => {
+  const h = new Date().getHours();
+  if (h < 12) return "Good Morning";
+  if (h < 17) return "Good Afternoon";
+  return "Good Evening";
+};
+
+const rankColors = ["#f59e0b", "#94a3b8", "#cd7f32"];
+const rankEmojis = ["🥇", "🥈", "🥉"];
+
+/* ===== COMPONENT ===== */
 const Dashboard: React.FC = () => {
   const [productsCount, setProductsCount] = useState(0);
   const [customersCount, setCustomersCount] = useState(0);
   const [ordersCount, setOrdersCount] = useState(0);
+  const [totalRevenue, setTotalRevenue] = useState(0);
   const [totalVisitors, setTotalVisitors] = useState(0);
   const [trafficData, setTrafficData] = useState<TrafficData[]>([]);
   const [recentOrders, setRecentOrders] = useState<Order[]>([]);
   const [topProducts, setTopProducts] = useState<TopProduct[]>([]);
   const [loading, setLoading] = useState(true);
+  const [refreshing, setRefreshing] = useState(false);
   const [selectedOrder, setSelectedOrder] = useState<Order | null>(null);
 
-  const load = async () => {
+  const load = async (isRefresh = false) => {
     try {
-      // ✅ Changed: Using axios with API_BASE for all requests
-      const [prodRes, custRes, orderRes, topProdRes, trafficRes] = await Promise.all([
-        axios.get(`${API_BASE}/products`),
-        axios.get(`${API_BASE}/admin/customers`),
-        axios.get<Order[]>(`${API_BASE}/orders`),
-        axios.get<TopProduct[]>(`${API_BASE}/orders/analytics/top-selling`),
-        axios.get(`${API_BASE}/analytics/stats`).catch(() => ({ data: { totalVisitors: 0, dailyStats: [] } })),
-      ]);
+      if (isRefresh) setRefreshing(true);
+
+      const [prodRes, custRes, orderRes, topProdRes, trafficRes] =
+        await Promise.all([
+          axios.get(`${API_BASE}/products`),
+          axios.get(`${API_BASE}/admin/customers`),
+          axios.get<Order[]>(`${API_BASE}/orders`),
+          axios
+            .get<TopProduct[]>(`${API_BASE}/orders/analytics/top-selling`)
+            .catch(() => ({ data: [] })),
+          axios
+            .get(`${API_BASE}/analytics/stats`)
+            .catch(() => ({
+              data: { totalVisitors: 0, dailyStats: [] },
+            })),
+        ]);
 
       setProductsCount(prodRes.data?.length || 0);
       setCustomersCount((custRes.data || []).length);
 
-      const orders = Array.isArray(orderRes.data) ? orderRes.data : [];
+      const orders: Order[] = Array.isArray(orderRes.data)
+        ? orderRes.data
+        : [];
       setOrdersCount(orders.length);
+      setTotalRevenue(orders.reduce((s, o) => s + (o.total || 0), 0));
 
       setRecentOrders(
         [...orders]
@@ -104,128 +158,231 @@ const Dashboard: React.FC = () => {
               new Date(b.createdAt || 0).getTime() -
               new Date(a.createdAt || 0).getTime()
           )
-          .slice(0, 10)
+          .slice(0, 8)
       );
 
-      setTopProducts(topProdRes.data || []);
-      
+      setTopProducts((topProdRes.data || []).slice(0, 5));
+
       if (trafficRes.data) {
         setTotalVisitors(trafficRes.data.totalVisitors || 0);
         setTrafficData(trafficRes.data.dailyStats || []);
       }
-
     } catch (e) {
       console.error(e);
     } finally {
       setLoading(false);
+      setRefreshing(false);
     }
   };
 
   useEffect(() => {
     load();
-    const interval = setInterval(load, 30000);
+    const interval = setInterval(() => load(), 30000);
     return () => clearInterval(interval);
   }, []);
 
-  const formatDate = (dateString?: string) => {
-    if (!dateString) return "-";
-    return new Date(dateString).toLocaleDateString("en-IN", {
-      day: "2-digit",
-      month: "short",
-      year: "numeric",
-    });
-  };
+  const maxTraffic = Math.max(...trafficData.map((d) => d.count), 1);
+  const todayStr = new Date().toLocaleDateString("en-IN", {
+    weekday: "long",
+    day: "numeric",
+    month: "long",
+    year: "numeric",
+  });
 
-  const maxTraffic = Math.max(...trafficData.map(d => d.count), 1);
+  if (loading) {
+    return (
+      <div className="db-loading">
+        <div className="db-loading-spinner" />
+        <p>Loading dashboard…</p>
+      </div>
+    );
+  }
 
   return (
-    <div className="dashboard-container">
-      <header className="dashboard-header">
-        <div>
-          <h2>Dashboard Overview</h2>
-          <p className="text-muted">
-            Welcome back, Admin. Here's your business at a glance.
-          </p>
+    <div className="db-wrapper">
+      {/* ===== HEADER ===== */}
+      <header className="db-header">
+        <div className="db-header-left">
+          <div className="db-header-greeting">
+            <h1>{getGreeting()}, Admin 👋</h1>
+            <p>Here's what's happening with your business today.</p>
+          </div>
         </div>
-        <div className="header-date">
-          📅{" "}
-          {new Date().toLocaleDateString("en-IN", {
-            weekday: "long",
-            day: "numeric",
-            month: "long",
-            year: "numeric",
-          })}
+        <div className="db-header-right">
+          <div className="db-date-chip">
+            <FiCalendar size={14} />
+            <span>{todayStr}</span>
+          </div>
+          <button
+            className={`db-refresh-btn ${refreshing ? "spinning" : ""}`}
+            onClick={() => load(true)}
+            disabled={refreshing}
+            title="Refresh Data"
+          >
+            <FiRefreshCw size={16} />
+          </button>
         </div>
       </header>
 
-      {/* Stats Grid */}
-      <div className="stats-grid">
-        <StatCard title="Total Visitors" value={totalVisitors} icon={<FiActivity />} color="blue" link="#" />
-        <StatCard title="Total Customers" value={customersCount} icon={<FiUsers />} color="green" link="/admin/registrations" />
-        <StatCard title="Total Orders" value={ordersCount} icon={<FiShoppingCart />} color="purple" link="/admin/orders" />
-        <StatCard title="Top Product Sold" value={topProducts[0]?.totalSold || 0} icon={<FiTrendingUp />} color="orange" link="#" />
+      {/* ===== STATS CARDS ===== */}
+      <div className="db-stats">
+        <Link to="#" className="db-stat-card db-stat-visitors">
+          <div className="db-stat-icon-wrap">
+            <div className="db-stat-icon">
+              <FiActivity size={22} />
+            </div>
+          </div>
+          <div className="db-stat-info">
+            <span className="db-stat-label">Total Visitors</span>
+            <span className="db-stat-value">
+              {totalVisitors.toLocaleString()}
+            </span>
+          </div>
+          <div className="db-stat-decoration" />
+        </Link>
+
+        <Link to="/admin/registrations" className="db-stat-card db-stat-customers">
+          <div className="db-stat-icon-wrap">
+            <div className="db-stat-icon">
+              <FiUsers size={22} />
+            </div>
+          </div>
+          <div className="db-stat-info">
+            <span className="db-stat-label">Total Customers</span>
+            <span className="db-stat-value">
+              {customersCount.toLocaleString()}
+            </span>
+          </div>
+          <div className="db-stat-decoration" />
+        </Link>
+
+        <Link to="/admin/orders" className="db-stat-card db-stat-orders">
+          <div className="db-stat-icon-wrap">
+            <div className="db-stat-icon">
+              <FiShoppingCart size={22} />
+            </div>
+          </div>
+          <div className="db-stat-info">
+            <span className="db-stat-label">Total Orders</span>
+            <span className="db-stat-value">
+              {ordersCount.toLocaleString()}
+            </span>
+          </div>
+          <div className="db-stat-decoration" />
+        </Link>
+
+        <Link to="/admin/orders" className="db-stat-card db-stat-revenue">
+          <div className="db-stat-icon-wrap">
+            <div className="db-stat-icon">
+              <FiDollarSign size={22} />
+            </div>
+          </div>
+          <div className="db-stat-info">
+            <span className="db-stat-label">Total Revenue</span>
+            <span className="db-stat-value">{currency.format(totalRevenue)}</span>
+          </div>
+          <div className="db-stat-decoration" />
+        </Link>
       </div>
 
-      <div className="content-grid-dashboard">
-        
-        {/* ✅ Left Column: STATUS COLUMN REMOVED */}
-        <div className="main-content">
-          <section className="card recent-orders">
-            <div className="card-header">
-              <h3>📦 Recent Orders</h3>
-              <Link to="/admin/orders" className="view-all-link">
-                View All Orders <FiArrowRight />
+      {/* ===== MAIN GRID ===== */}
+      <div className="db-grid">
+        {/* LEFT: Recent Orders */}
+        <div className="db-main">
+          <section className="db-card db-orders-card">
+            <div className="db-card-head">
+              <div className="db-card-title">
+                <div className="db-card-title-icon db-icon-purple">
+                  <FiPackage size={18} />
+                </div>
+                <div>
+                  <h3>Recent Orders</h3>
+                  <span className="db-card-subtitle">
+                    Latest {recentOrders.length} orders
+                  </span>
+                </div>
+              </div>
+              <Link to="/admin/orders" className="db-card-link">
+                View All <FiArrowRight size={14} />
               </Link>
             </div>
 
-            <div className="table-responsive">
-              <table className="dashboard-table">
+            <div className="db-table-wrap">
+              <table className="db-table">
                 <thead>
                   <tr>
-                    <th>Order Info</th>
-                    <th>Customer</th>
-                    <th style={{ textAlign: "right" }}>Amount</th>
-                    {/* ❌ Status Column Removed */}
+                    <th>
+                      <FiHash size={12} /> Order
+                    </th>
+                    <th>
+                      <FiUser size={12} /> Customer
+                    </th>
+                    <th>
+                      <FiClock size={12} /> Date
+                    </th>
+                    <th className="db-th-right">Amount</th>
                   </tr>
                 </thead>
-
                 <tbody>
-                  {loading ? (
-                    <tr><td colSpan={3} className="text-center p-4">Loading Data...</td></tr>
-                  ) : recentOrders.length === 0 ? (
-                    <tr><td colSpan={3} className="text-center p-4 text-muted">No orders found.</td></tr>
+                  {recentOrders.length === 0 ? (
+                    <tr>
+                      <td colSpan={4} className="db-table-empty">
+                        <FiBox size={32} />
+                        <span>No orders found</span>
+                      </td>
+                    </tr>
                   ) : (
-                    recentOrders.map((o) => (
-                      <tr key={o._id} onClick={() => setSelectedOrder(o)} className="hover-row">
-                        {/* Order ID & Date */}
+                    recentOrders.map((o, idx) => (
+                      <tr
+                        key={o._id}
+                        onClick={() => setSelectedOrder(o)}
+                        className="db-table-row"
+                        style={{ animationDelay: `${idx * 40}ms` }}
+                      >
                         <td>
-                          <div className="font-weight-bold text-dark">
-                            #{o.orderNumber || o._id.slice(-6).toUpperCase()}
-                          </div>
-                          <div className="text-muted small" style={{ fontSize: "11px" }}>
-                            {formatDate(o.createdAt)}
+                          <div className="db-order-id">
+                            <span className="db-order-hash">
+                              #{o.orderNumber || o._id.slice(-6).toUpperCase()}
+                            </span>
+                            <span className="db-order-items">
+                              {o.items?.length || 0} items
+                            </span>
                           </div>
                         </td>
-
-                        {/* Customer */}
                         <td>
-                          <div className="font-weight-medium text-dark">
-                            {o.customerId?.shopName || "Guest User"}
-                          </div>
-                          <div className="text-muted small" style={{ fontSize: "11px", display: "flex", gap: "6px", alignItems: "center" }}>
-                            <FiMapPin size={10} /> {o.customerId?.city || "Unknown City"}
+                          <div className="db-customer-cell">
+                            <div className="db-customer-avatar">
+                              {(
+                                o.customerId?.shopName ||
+                                "G"
+                              )[0].toUpperCase()}
+                            </div>
+                            <div className="db-customer-info">
+                              <span className="db-customer-name">
+                                {o.customerId?.shopName || "Guest"}
+                              </span>
+                              <span className="db-customer-city">
+                                <FiMapPin size={10} />
+                                {o.customerId?.city || "Unknown"}
+                              </span>
+                            </div>
                           </div>
                         </td>
-
-                        {/* Amount */}
-                        <td style={{ textAlign: "right" }}>
-                          <div className="font-weight-bold">{currency.format(o.total)}</div>
-                          <div className="text-muted small" style={{ fontSize: "11px" }}>
-                            {o.items?.length || 0} Items
+                        <td>
+                          <div className="db-date-cell">
+                            <span className="db-date-val">
+                              {formatDate(o.createdAt)}
+                            </span>
+                            <span className="db-time-val">
+                              {formatTime(o.createdAt)}
+                            </span>
                           </div>
                         </td>
-                        
-                        {/* ❌ Status Cell Removed */}
+                        <td className="db-td-right">
+                          <span className="db-amount">
+                            {currency.format(o.total)}
+                          </span>
+                        </td>
                       </tr>
                     ))
                   )}
@@ -235,59 +392,121 @@ const Dashboard: React.FC = () => {
           </section>
         </div>
 
-        {/* Right Column: Traffic & Top Selling */}
-        <div className="side-content">
-          
-          {/* Traffic Graph */}
-          <section className="card traffic-stats mb-4">
-            <div className="card-header">
-              <h3>📊 Website Traffic (7 Days)</h3>
+        {/* RIGHT SIDEBAR */}
+        <div className="db-side">
+          {/* Traffic */}
+          <section className="db-card db-traffic-card">
+            <div className="db-card-head">
+              <div className="db-card-title">
+                <div className="db-card-title-icon db-icon-blue">
+                  <FiBarChart2 size={18} />
+                </div>
+                <div>
+                  <h3>Website Traffic</h3>
+                  <span className="db-card-subtitle">Last 7 days</span>
+                </div>
+              </div>
+              <div className="db-traffic-total">
+                <FiEye size={14} />
+                <span>{totalVisitors.toLocaleString()}</span>
+              </div>
             </div>
-            <div className="traffic-chart-container" style={{ padding: '20px', display: 'flex', alignItems: 'flex-end', height: '180px', gap: '8px' }}>
-                {trafficData.length === 0 ? (
-                    <p className="text-muted text-center w-100">No traffic data yet.</p>
-                ) : (
-                    trafficData.map((data) => (
-                        <div key={data.date} style={{ flex: 1, display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '4px' }}>
-                            <div className="bar-value" style={{ fontSize: '10px', fontWeight: 'bold', color: '#2c5aa0' }}>{data.count}</div>
-                            <div 
-                                className="bar" 
-                                style={{ 
-                                    width: '100%', 
-                                    backgroundColor: '#3b82f6', 
-                                    borderRadius: '4px', 
-                                    height: `${(data.count / maxTraffic) * 100}%`,
-                                    minHeight: '4px',
-                                    transition: 'height 0.5s ease-in-out',
-                                    opacity: 0.8
-                                }}
-                                title={`${data.date}: ${data.count} visitors`}
-                            ></div>
-                            <div className="bar-date" style={{ fontSize: '9px', color: '#64748b' }}>{data.date.slice(8)}</div>
+
+            <div className="db-chart">
+              {trafficData.length === 0 ? (
+                <div className="db-chart-empty">
+                  <FiBarChart2 size={28} />
+                  <span>No traffic data yet</span>
+                </div>
+              ) : (
+                <div className="db-bars">
+                  {trafficData.map((d, i) => {
+                    const pct = (d.count / maxTraffic) * 100;
+                    const day = new Date(d.date).toLocaleDateString(
+                      "en-IN",
+                      { weekday: "short" }
+                    );
+                    return (
+                      <div
+                        key={d.date}
+                        className="db-bar-col"
+                        title={`${d.date}: ${d.count} visitors`}
+                      >
+                        <span className="db-bar-value">{d.count}</span>
+                        <div className="db-bar-track">
+                          <div
+                            className="db-bar-fill"
+                            style={{
+                              height: `${Math.max(pct, 6)}%`,
+                              animationDelay: `${i * 80}ms`,
+                            }}
+                          />
                         </div>
-                    ))
-                )}
+                        <span className="db-bar-label">{day}</span>
+                      </div>
+                    );
+                  })}
+                </div>
+              )}
             </div>
           </section>
 
           {/* Top Selling */}
-          <section className="card top-selling">
-            <div className="card-header">
-              <h3>🏆 Top Selling</h3>
+          <section className="db-card db-top-card">
+            <div className="db-card-head">
+              <div className="db-card-title">
+                <div className="db-card-title-icon db-icon-amber">
+                  <FiAward size={18} />
+                </div>
+                <div>
+                  <h3>Top Selling</h3>
+                  <span className="db-card-subtitle">Best performers</span>
+                </div>
+              </div>
             </div>
-            <div className="top-products-list">
+
+            <div className="db-top-list">
               {topProducts.length === 0 ? (
-                <p className="text-muted text-center p-4">No sales data yet.</p>
+                <div className="db-top-empty">
+                  <FiTrendingUp size={28} />
+                  <span>No sales data yet</span>
+                </div>
               ) : (
-                topProducts.map((prod, index) => (
-                  <div key={prod._id} className="top-product-item">
-                    <div className="rank">#{index + 1}</div>
-                    <img src={resolveImage(prod.image)} alt={prod.name} className="top-prod-img" onError={(e) => ((e.target as HTMLImageElement).src = "/placeholder.png")} />
-                    <div className="top-prod-info">
-                      <span className="prod-name" title={prod.name}>{prod.name}</span>
-                      <span className="prod-stats">{prod.totalSold} sold</span>
+                topProducts.map((prod, i) => (
+                  <div
+                    key={prod._id}
+                    className="db-top-item"
+                    style={{ animationDelay: `${i * 60}ms` }}
+                  >
+                    <div className="db-top-rank">
+                      {i < 3 ? (
+                        <span className="db-rank-emoji">
+                          {rankEmojis[i]}
+                        </span>
+                      ) : (
+                        <span className="db-rank-num">#{i + 1}</span>
+                      )}
                     </div>
-                    <div className="prod-revenue">{currency.format(prod.totalRevenue)}</div>
+                    <img
+                      src={resolveImage(prod.image)}
+                      alt={prod.name}
+                      className="db-top-img"
+                      onError={(e) =>
+                        ((e.target as HTMLImageElement).src =
+                          "/placeholder.png")
+                      }
+                    />
+                    <div className="db-top-info">
+                      <span className="db-top-name" title={prod.name}>
+                        {prod.name}
+                      </span>
+                      <span className="db-top-sold">
+                        <FiPackage size={10} /> {prod.totalSold} sold
+                      </span>
+                    </div>
+                    <div className="db-top-revenue">
+                      {currency.format(prod.totalRevenue)}
+                    </div>
                   </div>
                 ))
               )}
@@ -295,43 +514,85 @@ const Dashboard: React.FC = () => {
           </section>
 
           {/* Quick Actions */}
-          <section className="card quick-actions mt-4">
-            <div className="card-header">
-              <h3>⚡ Quick Actions</h3>
+          <section className="db-card db-actions-card">
+            <div className="db-card-head">
+              <div className="db-card-title">
+                <div className="db-card-title-icon db-icon-emerald">
+                  <FiZap size={18} />
+                </div>
+                <div>
+                  <h3>Quick Actions</h3>
+                  <span className="db-card-subtitle">Common shortcuts</span>
+                </div>
+              </div>
             </div>
-            <div className="actions-list">
-              <Link to="/admin/products/new" className="action-item">
-                <div className="icon-box bg-blue"><FiPlus /></div>
-                <span>Add New Product</span>
+
+            <div className="db-actions-list">
+              <Link to="/admin/products/new" className="db-action-item">
+                <div className="db-action-icon db-action-blue">
+                  <FiPlus size={18} />
+                </div>
+                <div className="db-action-text">
+                  <span className="db-action-name">Add New Product</span>
+                  <span className="db-action-desc">
+                    Create a new product listing
+                  </span>
+                </div>
+                <FiChevronRight size={16} className="db-action-arrow" />
               </Link>
-              <Link to="/admin/banners/upload" className="action-item">
-                <div className="icon-box bg-purple"><FiImage /></div>
-                <span>Update App Banners</span>
+
+              <Link to="/admin/banners/upload" className="db-action-item">
+                <div className="db-action-icon db-action-purple">
+                  <FiImage size={18} />
+                </div>
+                <div className="db-action-text">
+                  <span className="db-action-name">Update Banners</span>
+                  <span className="db-action-desc">
+                    Manage app banner images
+                  </span>
+                </div>
+                <FiChevronRight size={16} className="db-action-arrow" />
               </Link>
-              <Link to="/admin/orders" className="action-item">
-                <div className="icon-box bg-green"><FiList /></div>
-                <span>Manage Orders</span>
+
+              <Link to="/admin/orders" className="db-action-item">
+                <div className="db-action-icon db-action-green">
+                  <FiList size={18} />
+                </div>
+                <div className="db-action-text">
+                  <span className="db-action-name">Manage Orders</span>
+                  <span className="db-action-desc">
+                    View and process all orders
+                  </span>
+                </div>
+                <FiChevronRight size={16} className="db-action-arrow" />
+              </Link>
+
+              <Link to="/admin/registrations" className="db-action-item">
+                <div className="db-action-icon db-action-orange">
+                  <FiUsers size={18} />
+                </div>
+                <div className="db-action-text">
+                  <span className="db-action-name">View Customers</span>
+                  <span className="db-action-desc">
+                    See registered customers
+                  </span>
+                </div>
+                <FiChevronRight size={16} className="db-action-arrow" />
               </Link>
             </div>
           </section>
         </div>
       </div>
 
+      {/* ORDER MODAL */}
       {selectedOrder && (
-        <OrderModal order={selectedOrder} onClose={() => setSelectedOrder(null)} />
+        <OrderModal
+          order={selectedOrder}
+          onClose={() => setSelectedOrder(null)}
+        />
       )}
     </div>
   );
 };
-
-const StatCard = ({ title, value, icon, color, link }: any) => (
-  <Link to={link} className={`stat-card border-${color}`}>
-    <div className="stat-info">
-      <span className="stat-title">{title}</span>
-      <h3 className="stat-value">{value}</h3>
-    </div>
-    <div className={`stat-icon bg-${color}`}>{icon}</div>
-  </Link>
-);
 
 export default Dashboard;

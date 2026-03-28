@@ -76,6 +76,9 @@ type Order = {
   customerId?: CustomerLite;
   items: OrderItem[];
   total: number;
+  itemsPrice?: number;     // ✅ ADDED
+  shippingPrice?: number;  // ✅ ADDED
+  discountAmount?: number; // ✅ ADDED
   paymentMode?: PaymentMode;
   advancePaid?: number;
   remainingAmount?: number;
@@ -231,7 +234,25 @@ const generateInvoice = (order: Order) => {
     paymentDetailsHtml += `<br><span style="color: #16a34a;">Advance Paid: ₹${order.advancePaid}</span><br><strong style="color: #dc2626;">To Collect: ₹${order.remainingAmount ?? (order.total - order.advancePaid!)}</strong>`;
   }
   
-  const content = `<!DOCTYPE html><html><head><title>Invoice - ${order.orderNumber || order._id.slice(-6)}</title><style>body{font-family:'Segoe UI',Arial,sans-serif;padding:20px;background:#fff;color:#333}.invoice-container{max-width:850px;margin:0 auto;border:1px solid #ddd;padding:30px}.header{text-align:center;margin-bottom:25px;border-bottom:3px solid #2c5aa0;padding-bottom:15px}.header img{max-height:70px}.invoice-details{display:flex;justify-content:space-between;gap:14px;margin-bottom:25px}.detail-section{width:32%}.detail-section h3{font-size:15px;color:#2c5aa0;border-bottom:1px solid #ddd;margin-bottom:5px}table{width:100%;border-collapse:collapse;margin:20px 0;font-size:14px}th{background:#2c5aa0;color:#fff;padding:10px;text-align:left}td{padding:10px;border-bottom:1px solid #eee}.footer{margin-top:40px;text-align:center;font-size:12px;color:#777}@media print{.btn-hide{display:none}}</style></head><body><div class="invoice-container"><div class="header"><img src="https://res.cloudinary.com/dpdecxqb9/image/upload/v1758783697/bafnatoys/lwccljc9kkosfv9wnnrq.png" alt="BafnaToys"/><p>1-12, Thondamuthur Road, Coimbatore - 641007<br>+91 9043347300 | bafnatoysphotos@gmail.com</p><h2>PRO FORMA INVOICE</h2></div><div class="invoice-details"><div class="detail-section"><h3>Bill To</h3><p><strong>${addr?.shopName || order.customerId?.shopName || "-"}</strong><br>GST: ${addr?.gstNumber || "-"}<br>Mobile: ${order.customerId?.otpMobile || "-"}<br>WhatsApp: ${wa || "-"}</p></div><div class="detail-section"><h3>Ship To</h3><p>${shippingHtml}</p></div><div class="detail-section"><h3>Order Details</h3><p>Invoice: ${order.orderNumber}<br>Date: ${currentDate}<br>${paymentDetailsHtml}<br>${order.trackingId ? `AWB: ${order.trackingId}` : ""}</p></div></div><table><thead><tr><th>Product</th><th>Qty</th><th>Rate</th><th>Amount</th></tr></thead><tbody>${order.items.map((it) => `<tr><td>${it.name}<br><small style="color:#777;">SKU: ${it.sku || it.productId?.sku || "-"}</small></td><td>${it.qty}</td><td>₹${it.price}</td><td>₹${it.qty * it.price}</td></tr>`).join("")}</tbody><tfoot><tr><td colspan="3" align="right"><strong>Total</strong></td><td><strong>₹${order.total}</strong></td></tr></tfoot></table><div class="footer"><p>Thank you for choosing BafnaToys!</p></div></div><div style="text-align:center;margin-top:20px" class="btn-hide"><button onclick="window.print()" style="padding:10px 20px;background:#2c5aa0;color:white;border:none;cursor:pointer">Print Invoice</button></div></body></html>`;
+  // ✅ Create Items List
+  const itemsHtml = order.items.map((it) => `<tr><td>${it.name}<br><small style="color:#777;">SKU: ${it.sku || it.productId?.sku || "-"}</small></td><td>${it.qty}</td><td>₹${it.price}</td><td>₹${it.qty * it.price}</td></tr>`).join("");
+
+  // ✅ Add Shipping & Discount Rows dynamically if applicable
+  let extraRows = "";
+  if (order.shippingPrice || order.discountAmount) {
+    const subtotal = order.itemsPrice || order.items.reduce((s, i) => s + (i.qty * i.price), 0);
+    extraRows += `<tr><td colspan="3" align="right" style="padding: 5px 10px;"><strong>Subtotal</strong></td><td style="padding: 5px 10px;">₹${subtotal}</td></tr>`;
+    
+    if (order.shippingPrice) {
+      extraRows += `<tr><td colspan="3" align="right" style="padding: 5px 10px;"><strong>Shipping Charges</strong></td><td style="padding: 5px 10px;">₹${order.shippingPrice}</td></tr>`;
+    }
+    
+    if (order.discountAmount) {
+      extraRows += `<tr><td colspan="3" align="right" style="padding: 5px 10px;"><strong>Discount</strong></td><td style="padding: 5px 10px; color: #16a34a;">-₹${order.discountAmount}</td></tr>`;
+    }
+  }
+
+  const content = `<!DOCTYPE html><html><head><title>Invoice - ${order.orderNumber || order._id.slice(-6)}</title><style>body{font-family:'Segoe UI',Arial,sans-serif;padding:20px;background:#fff;color:#333}.invoice-container{max-width:850px;margin:0 auto;border:1px solid #ddd;padding:30px}.header{text-align:center;margin-bottom:25px;border-bottom:3px solid #2c5aa0;padding-bottom:15px}.header img{max-height:70px}.invoice-details{display:flex;justify-content:space-between;gap:14px;margin-bottom:25px}.detail-section{width:32%}.detail-section h3{font-size:15px;color:#2c5aa0;border-bottom:1px solid #ddd;margin-bottom:5px}table{width:100%;border-collapse:collapse;margin:20px 0;font-size:14px}th{background:#2c5aa0;color:#fff;padding:10px;text-align:left}td{padding:10px;border-bottom:1px solid #eee}.footer{margin-top:40px;text-align:center;font-size:12px;color:#777}@media print{.btn-hide{display:none}}</style></head><body><div class="invoice-container"><div class="header"><img src="https://res.cloudinary.com/dpdecxqb9/image/upload/v1758783697/bafnatoys/lwccljc9kkosfv9wnnrq.png" alt="BafnaToys"/><p>1-12, Thondamuthur Road, Coimbatore - 641007<br>+91 9043347300 | bafnatoysphotos@gmail.com</p><h2>PRO FORMA INVOICE</h2></div><div class="invoice-details"><div class="detail-section"><h3>Bill To</h3><p><strong>${addr?.shopName || order.customerId?.shopName || "-"}</strong><br>GST: ${addr?.gstNumber || "-"}<br>Mobile: ${order.customerId?.otpMobile || "-"}<br>WhatsApp: ${wa || "-"}</p></div><div class="detail-section"><h3>Ship To</h3><p>${shippingHtml}</p></div><div class="detail-section"><h3>Order Details</h3><p>Invoice: ${order.orderNumber}<br>Date: ${currentDate}<br>${paymentDetailsHtml}<br>${order.trackingId ? `AWB: ${order.trackingId}` : ""}</p></div></div><table><thead><tr><th>Product</th><th>Qty</th><th>Rate</th><th>Amount</th></tr></thead><tbody>${itemsHtml}</tbody><tfoot>${extraRows}<tr><td colspan="3" align="right" style="padding: 10px;"><strong>Grand Total</strong></td><td style="padding: 10px;"><strong>₹${order.total}</strong></td></tr></tfoot></table><div class="footer"><p>Thank you for choosing BafnaToys!</p></div></div><div style="text-align:center;margin-top:20px" class="btn-hide"><button onclick="window.print()" style="padding:10px 20px;background:#2c5aa0;color:white;border:none;cursor:pointer">Print Invoice</button></div></body></html>`;
   printWindow.document.write(content);
   printWindow.document.close();
 };
@@ -1371,7 +1392,17 @@ const AdminOrders: React.FC = () => {
               ))}
               
               <div className="ao-modal-total" style={{ display: 'flex', flexDirection: 'column', alignItems: 'flex-end', gap: '5px' }}>
-                <span style={{ fontSize: '14px', color: '#475569' }}>Total Amount: ₹{viewing.total}</span>
+                {/* ✅ Added dynamic price breakdown in modal */}
+                <span style={{ fontSize: '14px', color: '#475569' }}>Items Subtotal: ₹{viewing.itemsPrice || viewing.items.reduce((s,i)=>s+(i.qty*i.price),0)}</span>
+                
+                {(viewing.shippingPrice || 0) > 0 && (
+                  <span style={{ fontSize: '14px', color: '#475569' }}>Shipping Charges: ₹{viewing.shippingPrice}</span>
+                )}
+                
+                {(viewing.discountAmount || 0) > 0 && (
+                  <span style={{ fontSize: '14px', color: '#16a34a' }}>Discount: -₹{viewing.discountAmount}</span>
+                )}
+
                 {viewing.paymentMode === "COD" && (viewing.advancePaid || 0) > 0 && (
                   <>
                     <span style={{ color: '#16a34a', fontSize: '14px' }}>Advance Paid: ₹{viewing.advancePaid}</span>

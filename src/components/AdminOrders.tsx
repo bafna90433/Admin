@@ -216,29 +216,61 @@ const exportAllOrders = (orders: Order[]) => {
   );
 };
 
+// --- UPDATED THIS FUNCTION ---
 const exportSingleOrder = (order: Order) => {
   const addr = order.shippingAddress;
-  const rows = [
-    {
+  
+  // Create a row for each item in the order
+  const rows = order.items.map((it) => ({
+    OrderNumber: order.orderNumber || order._id.slice(-6),
+    Product_Name: it.name,
+    SKU: it.sku || it.productId?.sku || "—",
+    Qty: it.qty,
+    Price: it.price,
+    Item_Total: it.qty * it.price,
+    Order_Status: statusLabel(order.status),
+    Grand_Total: order.total,
+    Advance_Paid: order.advancePaid || 0,
+    Remaining_Amount:
+      order.remainingAmount ??
+      (order.paymentMode === "COD" ? order.total : 0),
+    Payment_Mode: paymentLabel(order.paymentMode),
+    Order_Date: fmtDate(order.createdAt),
+    Shop_Name: addr?.shopName || order.customerId?.shopName || "",
+    City: shippingCity(addr),
+    State: shippingState(addr),
+    TrackingID: order.trackingId || "—",
+    Courier: order.courierName || "—",
+  }));
+
+  // Fallback if the order somehow has no items
+  if (rows.length === 0) {
+    rows.push({
       OrderNumber: order.orderNumber || order._id.slice(-6),
-      Status: statusLabel(order.status),
-      Total: order.total,
+      Product_Name: "No Items",
+      SKU: "—",
+      Qty: 0,
+      Price: 0,
+      Item_Total: 0,
+      Order_Status: statusLabel(order.status),
+      Grand_Total: order.total,
       Advance_Paid: order.advancePaid || 0,
-      Remaining:
+      Remaining_Amount:
         order.remainingAmount ??
         (order.paymentMode === "COD" ? order.total : 0),
-      Payment: paymentLabel(order.paymentMode),
-      CreatedAt: fmtDate(order.createdAt),
-      Shop: addr?.shopName || order.customerId?.shopName || "",
+      Payment_Mode: paymentLabel(order.paymentMode),
+      Order_Date: fmtDate(order.createdAt),
+      Shop_Name: addr?.shopName || order.customerId?.shopName || "",
       City: shippingCity(addr),
       State: shippingState(addr),
       TrackingID: order.trackingId || "—",
       Courier: order.courierName || "—",
-    },
-  ];
+    });
+  }
+
   const ws = XLSX.utils.json_to_sheet(rows);
   const wb = XLSX.utils.book_new();
-  XLSX.utils.book_append_sheet(wb, ws, "Order");
+  XLSX.utils.book_append_sheet(wb, ws, "Order_Details");
   const buf = XLSX.write(wb, { bookType: "xlsx", type: "array" });
   saveAs(
     new Blob([buf], { type: "application/octet-stream" }),
@@ -1465,7 +1497,7 @@ const AdminOrders: React.FC = () => {
                         fillRule="evenodd"
                         d="M4 4a2 2 0 012-2h8a2 2 0 012 2v12a1 1 0 01-.553.894l-4 2A1 1 0 0111 18V8.414a1 1 0 00-.293-.707l-2-2A1 1 0 019 5H5V4z"
                         clipRule="evenodd"
-                      />
+                        />
                     </svg>
                     Billing Info
                   </h4>

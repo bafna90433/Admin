@@ -103,8 +103,9 @@ const BOX_WEIGHTS_KG: Record<string, number> = {
   A06: 10.75,
   A08: 15.68,
   A31: 34.18,
+  A18: 2.42, 
 };
-const BOX_SIZES = ["A28", "A06", "A08", "A31"] as const;
+const BOX_SIZES = ["A28", "A06", "A08", "A31", "A18"] as const; 
 type BoxSize = (typeof BOX_SIZES)[number];
 
 /* ================= HELPERS ================= */
@@ -216,11 +217,9 @@ const exportAllOrders = (orders: Order[]) => {
   );
 };
 
-// --- UPDATED THIS FUNCTION ---
 const exportSingleOrder = (order: Order) => {
   const addr = order.shippingAddress;
   
-  // Create a row for each item in the order
   const rows = order.items.map((it) => ({
     OrderNumber: order.orderNumber || order._id.slice(-6),
     Product_Name: it.name,
@@ -243,7 +242,6 @@ const exportSingleOrder = (order: Order) => {
     Courier: order.courierName || "—",
   }));
 
-  // Fallback if the order somehow has no items
   if (rows.length === 0) {
     rows.push({
       OrderNumber: order.orderNumber || order._id.slice(-6),
@@ -343,7 +341,17 @@ td{padding:10px 14px;border-bottom:1px solid #f1f5f9}
 .summary td{border:none;padding:6px 14px;font-size:13px;color:#475569}
 .grand td{border-top:2px solid #1e3a5f;padding:12px 14px;font-size:15px}
 .inv-foot{text-align:center;padding:20px;background:#f8fafc;border-top:1px solid #e2e8f0;font-size:12px;color:#94a3b8}
-@media print{.no-print{display:none!important}body{padding:0}.inv{border:none;border-radius:0}}
+
+@media print{
+  .no-print{display:none!important}
+  body{padding:0;-webkit-print-color-adjust:exact;print-color-adjust:exact}
+  .inv{border:none;border-radius:0}
+  .inv-head{background:transparent!important;padding:20px 0!important;border-bottom:2px solid #dc2626}
+  /* Ye line image ko RED colour filter deti hai print me */
+  .inv-head img{filter:brightness(0) saturate(100%) invert(27%) sepia(91%) saturate(3011%) hue-rotate(348deg) brightness(93%) contrast(93%)!important}
+  .inv-head h1{color:#1e293b!important}
+  .inv-head p{color:#64748b!important}
+}
 </style></head><body>
 <div class="inv">
 <div class="inv-head">
@@ -410,6 +418,7 @@ const AdminOrders: React.FC = () => {
     A06: { qty: 0, weight: 0 },
     A08: { qty: 0, weight: 0 },
     A31: { qty: 0, weight: 0 },
+    A18: { qty: 0, weight: 0 }, 
   });
 
   /* --- box handler --- */
@@ -606,6 +615,7 @@ const AdminOrders: React.FC = () => {
       A06: { qty: 0, weight: 0 },
       A08: { qty: 0, weight: 0 },
       A31: { qty: 0, weight: 0 },
+      A18: { qty: 0, weight: 0 },
     });
     setShipCourier(COURIERS[0]);
     setShipTracking(o.trackingId?.trim() || "");

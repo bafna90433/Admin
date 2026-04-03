@@ -1,10 +1,10 @@
-import React, { useEffect, useState, useCallback, useRef } from "react";
+import React, { useEffect, useState, useCallback, useRef, useMemo } from "react";
 import toast, { Toaster } from "react-hot-toast";
 import {
   FiEdit2, FiTrash2, FiPlus, FiSave, FiX, FiArrowUp, FiArrowDown,
   FiImage, FiSearch, FiRefreshCw, FiLayers, FiGrid, FiList,
-  FiLink, FiShield, FiKey, FiHash, FiPackage, FiEye,
-  FiChevronDown, FiChevronUp, FiUpload, FiAlertCircle, FiCheck
+  FiLink, FiShield, FiKey, FiPackage, FiEye,
+  FiUpload, FiCheck
 } from "react-icons/fi";
 import axios from "axios";
 import "../styles/CategoryList.css";
@@ -27,11 +27,12 @@ interface Category {
 interface Product {
   _id: string;
   category: string | { _id: string };
+  price?: number; // Added for smart category counting
 }
 
 const CategoryList: React.FC = () => {
   const [categories, setCategories] = useState<Category[]>([]);
-  const [categoryCounts, setCategoryCounts] = useState<Record<string, number>>({});
+  const [allProducts, setAllProducts] = useState<Product[]>([]); // Storing all products
 
   const [newCategory, setNewCategory] = useState("");
   const [newLink, setNewLink] = useState("");
@@ -93,23 +94,46 @@ const CategoryList: React.FC = () => {
   const fetchProducts = useCallback(async () => {
     try {
       const { data } = await axios.get(`${API_BASE}/products`);
-      const counts: Record<string, number> = {};
-      data.forEach((prod: Product) => {
-        const catId = typeof prod.category === "string" ? prod.category : prod.category?._id;
-        if (catId) counts[catId] = (counts[catId] || 0) + 1;
-      });
-      setCategoryCounts(counts);
+      // Just save raw products; we'll compute counts dynamically
+      const productsArray = Array.isArray(data) ? data : data.products || data.docs || [];
+      setAllProducts(productsArray);
     } catch { /* ignore */ }
   }, []);
 
   useEffect(() => { fetchCategories(); fetchProducts(); }, [fetchCategories, fetchProducts]);
 
-  // Filtered
+  // ⭐ SMART CATEGORY COUNT LOGIC
+  const categoryCounts = useMemo(() => {
+    const counts: Record<string, number> = {};
+    categories.forEach(cat => {
+      const catNameLower = cat.name.toLowerCase().trim();
+      
+      // 1. Check if it's a Smart Category (e.g., "Under 99" OR just "99")
+      const isSmartFilter = catNameLower.includes("under") || /^\d+$/.test(catNameLower);
+
+      if (isSmartFilter) {
+        const priceLimit = parseInt(catNameLower.replace(/[^0-9]/g, ""), 10);
+        if (!isNaN(priceLimit)) {
+          counts[cat._id] = allProducts.filter(p => (p.price || 0) <= priceLimit).length;
+          return;
+        }
+      }
+      
+      // 2. Normal Category Count
+      counts[cat._id] = allProducts.filter(p => {
+        const pCatId = typeof p.category === "string" ? p.category : p.category?._id;
+        return pCatId === cat._id;
+      }).length;
+    });
+    return counts;
+  }, [categories, allProducts]);
+
+  // Filtered Categories based on search
   const filtered = debounced
     ? categories.filter((c) => c.name.toLowerCase().includes(debounced.toLowerCase()))
     : categories;
 
-  const totalProducts = Object.values(categoryCounts).reduce((a, b) => a + b, 0);
+  const totalProducts = allProducts.length;
 
   // File handler — WEBP only
   const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>, isEdit = false) => {
@@ -201,7 +225,7 @@ const CategoryList: React.FC = () => {
       await axios.delete(`${API_BASE}/categories/${delId}`);
       toast.success("Category deleted!", { icon: "🗑️", style: { borderRadius: "12px", background: "#1e293b", color: "#fff" } });
       await fetchCategories();
-      await fetchProducts();
+      await fetchProducts(); // Refresh counts
     } catch {
       toast.error("Failed to delete category");
     } finally { setDeleting(false); setDelId(null); setDelPwd(""); }

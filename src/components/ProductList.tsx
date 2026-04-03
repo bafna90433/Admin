@@ -8,7 +8,8 @@ import {
   FiRefreshCw, FiGrid, FiList, FiFilter, FiSliders,
   FiHash, FiCopy, FiBox, FiTag, FiDollarSign, FiLayers,
   FiImage, FiMinimize2, FiMaximize2, FiShield, FiKey,
-  FiStar, FiMonitor, FiSmartphone, FiLayout, FiAlertTriangle, FiCheckSquare
+  FiStar, FiMonitor, FiSmartphone, FiLayout, FiAlertTriangle, FiCheckSquare,
+  FiDownloadCloud // ✅ Added Download Icon
 } from "react-icons/fi";
 import "../styles/ProductList.css";
 
@@ -53,6 +54,7 @@ export default function ProductList() {
   const [products, setProducts] = useState<Product[]>([]);
   const [categories, setCategories] = useState<Category[]>([]);
   const [loading, setLoading] = useState(true);
+  const [downloadingPdf, setDownloadingPdf] = useState(false); // ✅ Download PDF State
   const [error, setError] = useState<string | null>(null);
   
   const [search, setSearch] = useState("");
@@ -132,6 +134,38 @@ export default function ProductList() {
     return () => clearTimeout(t);
   }, [search]);
 
+  // ✅ Download PDF Function
+  const handleDownloadCatalogue = async () => {
+    try {
+      setDownloadingPdf(true);
+      import("react-hot-toast").then(({ default: toast }) => toast.loading("Generating PDF... (Takes ~30 secs)"));
+
+      const response = await axios.get(`${API_BASE}/products/download-catalogue/pdf`, {
+        responseType: "blob", // Very important to get binary file data
+      });
+
+      const url = window.URL.createObjectURL(new Blob([response.data]));
+      const link = document.createElement("a");
+      link.href = url;
+      link.setAttribute("download", `BafnaToys_Catalogue_${new Date().toISOString().split('T')[0]}.pdf`);
+      document.body.appendChild(link);
+      link.click();
+      document.body.removeChild(link);
+
+      import("react-hot-toast").then(({ default: toast }) => {
+        toast.dismiss();
+        toast.success("Catalogue downloaded!");
+      });
+    } catch (error) {
+      import("react-hot-toast").then(({ default: toast }) => {
+        toast.dismiss();
+        toast.error("Failed to generate catalogue.");
+      });
+    } finally {
+      setDownloadingPdf(false);
+    }
+  };
+
   // Save Grid Settings
   const saveGridSettings = async (pc: number, mobile: number) => {
     setGridPC(pc);
@@ -199,7 +233,7 @@ export default function ProductList() {
   const clearFilters = () => { setSearch(""); setCategoryFilter("all"); setStockFilter("all"); };
 
   // ════════════════════════════════════════════════════════════
-  // ✅ FIXED: SELECTION AND BULK MOVE TO TOP LOGIC
+  // SELECTION AND BULK MOVE TO TOP LOGIC
   // ════════════════════════════════════════════════════════════
   const toggleSelection = (id: string) => {
     setSelectedIds((prev) => 
@@ -215,16 +249,13 @@ export default function ProductList() {
       const copy = [...prev];
 
       if (listMode === "global") {
-        // GLOBAL MODE: Absolute top of all products
         const selected = copy.filter(p => selectedIds.includes(p._id));
         const unselected = copy.filter(p => !selectedIds.includes(p._id));
         const newOrder = [...selected, ...unselected];
         updatedPayload = newOrder.map((p, i) => ({ ...p, order: i }));
       } else {
-        // CATEGORY MODE: Top of their respective categories ONLY
         updatedPayload = [...copy];
         
-        // Group by category to process individually
         const groups: Record<string, Product[]> = {};
         updatedPayload.forEach(p => {
           const cId = p.category?._id || "unassigned";
@@ -237,7 +268,6 @@ export default function ProductList() {
           const hasSelected = groupProducts.some(p => selectedIds.includes(p._id));
           
           if (hasSelected) {
-            // Keep original order values to maintain global bounds
             const originalOrders = groupProducts.map(p => p.order || 0).sort((a, b) => a - b);
             
             const selectedInGroup = groupProducts.filter(p => selectedIds.includes(p._id));
@@ -252,11 +282,9 @@ export default function ProductList() {
           }
         });
 
-        // Re-sort payload by updated order
         updatedPayload.sort((a, b) => (a.order || 0) - (b.order || 0));
       }
 
-      // Fire API asynchronously
       axios.put(`${API_BASE}/products/reorder`, {
         products: updatedPayload.map((p) => ({ _id: p._id, order: p.order }))
       }).then(() => {
@@ -270,7 +298,6 @@ export default function ProductList() {
       return updatedPayload;
     });
   };
-  // ════════════════════════════════════════════════════════════
 
   // Delete Handlers
   const handleDelete = async (id: string) => setDelId(id);
@@ -410,10 +437,7 @@ export default function ProductList() {
   };
 
   const toggleExpand = (catName: string) => setExpanded((prev) => ({ ...prev, [catName]: !prev[catName] }));
-  const expandAll = () => { const all: Record<string, boolean> = {}; Object.keys(groupedProducts).forEach((k) => (all[k] = true)); setExpanded(all); };
-  const collapseAll = () => setExpanded({});
-  const allExpanded = Object.keys(groupedProducts).length > 0 && Object.keys(groupedProducts).every((k) => expanded[k]);
-
+  
   const copy = (text: string, label: string) => {
     navigator.clipboard.writeText(text);
     import("react-hot-toast").then(({ default: toast }) =>
@@ -421,9 +445,6 @@ export default function ProductList() {
     );
   };
 
-  // =========================================================================
-  // RENDER FRONTEND LIVE PREVIEW CARD (GLOBAL VIEW)
-  // =========================================================================
   const renderFrontendCard = (p: Product) => {
     const stock = p.stock || 0;
     const price = Number(p.price || 0);
@@ -445,7 +466,6 @@ export default function ProductList() {
         onDragEnd={() => handleDragEnd(p._id)}
       >
         <div className="f-card-badges">
-          {/* Checkbox */}
           <input 
             type="checkbox" 
             className="pl-checkbox-custom" 
@@ -468,19 +488,15 @@ export default function ProductList() {
             <span className="f-min-qty"><FiAlertCircle size={10}/> Min: {p.innerQty || 3}</span>
             {stock > 0 ? <span className="f-in-stock"><FiCheckCircle size={10}/> In Stock</span> : <span className="f-out-stock">Out of Stock</span>}
           </div>
-          
           <h4 className="f-card-title">{p.name}</h4>
-          
           <div className="f-card-rating">
             <span className="f-star">5.0 <FiStar size={10} fill="currentColor"/></span>
             <span className="f-rev-count">(12 Reviews)</span>
           </div>
-
           <div className="f-card-tags">
             <span className="f-tag-yellow"><FiTag size={10}/> Per Packet Price</span>
             <span className="f-tag-blue"><FiPackage size={10}/> Per packet {p.innerQty || 6} pcs</span>
           </div>
-
           <div className="f-card-footer">
             <span className="f-price">₹{price}</span>
             <div className="f-admin-actions">
@@ -488,7 +504,6 @@ export default function ProductList() {
               <button onClick={(e) => { e.stopPropagation(); setDelId(p._id); }} className="f-btn-del"><FiTrash2 size={14}/></button>
             </div>
           </div>
-          
           <div className="f-card-add-btn">
             <FiMenu size={14} /> Drag to Move
           </div>
@@ -497,9 +512,6 @@ export default function ProductList() {
     );
   };
 
-  // =========================================================================
-  // RENDER STANDARD CATEGORY VIEW (TABLE OR CARD)
-  // =========================================================================
   const renderCategoryItem = (p: Product, index: number, catName: string, listLength: number) => {
     const isEditing = editingCategory?.productId === p._id;
     const currentCat = p.category?._id || "";
@@ -523,7 +535,6 @@ export default function ProductList() {
           onDrop={(e) => handleDropCategory(e, p._id, catName)}
           onDragEnd={() => handleDragEnd(p._id)}
         >
-          {/* Checkbox */}
           <td className="pl-td-check">
             <input 
               type="checkbox" 
@@ -571,7 +582,6 @@ export default function ProductList() {
           onDrop={(e) => handleDropCategory(e, p._id, catName)}
           onDragEnd={() => handleDragEnd(p._id)}
         >
-          {/* Checkbox */}
           <div style={{ position: 'absolute', top: '10px', left: '10px', zIndex: 10 }}>
             <input 
               type="checkbox" 
@@ -661,7 +671,7 @@ export default function ProductList() {
         </div>
       )}
 
-      {/* Top Section */}
+      {/* ⭐ Top Section (Added Catalogue Download Button) */}
       <section className="pl-top">
         <div className="pl-top-row">
           <div className="pl-top-left">
@@ -669,8 +679,24 @@ export default function ProductList() {
             <span className="pl-count">{stats.total} items</span>
           </div>
           <div className="pl-top-right">
-            <button className="pl-top-btn" onClick={fetchData} disabled={loading} title="Refresh"><FiRefreshCw size={16} className={loading ? "pl-spinning" : ""} /></button>
-            <button className="pl-top-btn pl-top-add" onClick={() => navigate("/admin/products/new")}><FiPlus size={16} /><span>Add Product</span></button>
+            {/* ✅ DOWNLOAD CATALOGUE BUTTON */}
+            <button 
+              className="pl-top-btn" 
+              onClick={handleDownloadCatalogue} 
+              disabled={downloadingPdf || loading} 
+              title="Download PDF Catalogue"
+              style={{ background: "#4f46e5", color: "#fff", border: "none" }}
+            >
+              <FiDownloadCloud size={16} className={downloadingPdf ? "pl-spinning" : ""} />
+              <span style={{ marginLeft: "6px" }}>{downloadingPdf ? "Generating..." : "Download Catalogue"}</span>
+            </button>
+
+            <button className="pl-top-btn" onClick={fetchData} disabled={loading} title="Refresh">
+              <FiRefreshCw size={16} className={loading ? "pl-spinning" : ""} />
+            </button>
+            <button className="pl-top-btn pl-top-add" onClick={() => navigate("/admin/products/new")}>
+              <FiPlus size={16} /><span>Add Product</span>
+            </button>
           </div>
         </div>
       </section>
@@ -834,11 +860,9 @@ export default function ProductList() {
                                   className="pl-checkbox-custom"
                                   onChange={(e) => {
                                     if(e.target.checked) {
-                                      // Only select from currently visible filtered items
                                       const newIds = new Set([...selectedIds, ...catProducts.map(p => p._id)]);
                                       setSelectedIds(Array.from(newIds));
                                     } else {
-                                      // Unselect only these category items
                                       const catIds = catProducts.map(p => p._id);
                                       setSelectedIds(selectedIds.filter(id => !catIds.includes(id)));
                                     }

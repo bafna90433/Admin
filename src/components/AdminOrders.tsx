@@ -30,6 +30,7 @@ type OrderItem = {
   inners?: number;
   nosPerInner?: number;
   sku?: string;
+  mrp?: number; // ✅ Added MRP here
 };
 
 type CustomerLite = {
@@ -202,6 +203,7 @@ const exportAllOrders = (orders: Order[]) => {
       City: shippingCity(o.shippingAddress),
       Item: it.name,
       SKU: it.sku || it.productId?.sku || "—",
+      MRP: it.mrp || it.productId?.mrp || "—", // ✅ Added MRP Here
       Qty: it.qty,
       Status: statusLabel(o.status),
       CreatedAt: fmtDate(o.createdAt),
@@ -224,6 +226,7 @@ const exportSingleOrder = (order: Order) => {
     OrderNumber: order.orderNumber || order._id.slice(-6),
     Product_Name: it.name,
     SKU: it.sku || it.productId?.sku || "—",
+    MRP: it.mrp || it.productId?.mrp || "—", // ✅ Added MRP Here
     Qty: it.qty,
     Price: it.price,
     Item_Total: it.qty * it.price,
@@ -247,6 +250,7 @@ const exportSingleOrder = (order: Order) => {
       OrderNumber: order.orderNumber || order._id.slice(-6),
       Product_Name: "No Items",
       SKU: "—",
+      MRP: "—", // ✅ Added MRP Here
       Qty: 0,
       Price: 0,
       Item_Total: 0,

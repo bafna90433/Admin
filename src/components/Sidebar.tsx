@@ -11,7 +11,6 @@ import {
   FiImage,
   FiCreditCard,
   FiChevronRight,
-  FiSearch,
   FiActivity,
   FiCornerUpLeft,
   FiTrendingUp,
@@ -35,7 +34,6 @@ const Sidebar: React.FC<SidebarProps> = ({ sidebarOpen, closeSidebar }) => {
   const navigate = useNavigate();
   const [adminData, setAdminData] = useState<any>(null);
 
-  // ✅ 1. Get user data from local storage on component mount
   useEffect(() => {
     const storedData = localStorage.getItem("adminData");
     if (storedData) {
@@ -54,14 +52,12 @@ const Sidebar: React.FC<SidebarProps> = ({ sidebarOpen, closeSidebar }) => {
     }
   };
 
-  // ✅ 2. Role and Permission Checker Helper
   const hasAccess = (requiredPermission: string) => {
     if (!adminData) return false;
     if (adminData.role === "superadmin") return true; 
     return adminData.permissions?.includes(requiredPermission);
   };
 
-  // ✅ 3. Section Visibility Checkers (Poore 16 permissions ke liye update kar diya)
   const showDashboard = hasAccess("dashboard") || hasAccess("analytics") || hasAccess("orders") || hasAccess("returns");
   const showInventory = hasAccess("products") || hasAccess("add_product") || hasAccess("inventory") || hasAccess("categories");
   const showMarketing = hasAccess("home_builder") || hasAccess("banners") || hasAccess("trust_banners") || hasAccess("whatsapp");
@@ -95,7 +91,6 @@ const Sidebar: React.FC<SidebarProps> = ({ sidebarOpen, closeSidebar }) => {
         <div className="nav-item-wrapper">
           <div className="nav-icon-wrapper">
             <Icon className="nav-icon-final" />
-            {active && <div className="nav-glow" data-gradient={gradient} />}
           </div>
           <span className="nav-label-final">{label}</span>
           {active && <ChevronIcon />}
@@ -117,13 +112,12 @@ const Sidebar: React.FC<SidebarProps> = ({ sidebarOpen, closeSidebar }) => {
           <div className="logo-container-final">
             <img
               src="https://res.cloudinary.com/dpdecxqb9/image/upload/v1758783697/bafnatoys/lwccljc9kkosfv9wnnrq.png"
-              alt="Bafna Toys"
+              alt="Bafna Toys Logo"
               className="logo-image-final"
             />
           </div>
 
           <div className="brand-info-final">
-            <h1 className="brand-name-final">Bafna Toys</h1>
             <p className="brand-subtitle-final">
               <span className="status-dot-final online" /> Admin Dashboard
             </p>
@@ -132,16 +126,6 @@ const Sidebar: React.FC<SidebarProps> = ({ sidebarOpen, closeSidebar }) => {
           <button className="mobile-close-final" onClick={closeSidebar}>
             <FiX />
           </button>
-        </div>
-
-        {/* Search Bar */}
-        <div className="sidebar-search-final">
-          <FiSearch className="search-icon-final" />
-          <input
-            type="text"
-            placeholder="Search modules..."
-            className="search-input-final"
-          />
         </div>
 
         {/* Navigation */}

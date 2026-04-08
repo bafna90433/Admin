@@ -146,6 +146,15 @@ const fmtShortDate = (iso?: string) =>
       })
     : "—";
 
+const fmtExcelDate = (iso?: string) =>
+  iso
+    ? new Date(iso).toLocaleDateString("en-IN", {
+        day: "numeric",
+        month: "short",
+        year: "numeric",
+      })
+    : "—";
+
 const paymentLabel = (mode?: PaymentMode) =>
   mode === "ONLINE" ? "Paid Online" : "Cash on Delivery";
 
@@ -195,20 +204,21 @@ const shippingState = (addr?: ShippingAddress) =>
 
 /* ================= EXPORT HELPERS ================= */
 const exportAllOrders = (orders: Order[]) => {
+  // ✅ Kept ONLY the specific columns you asked for
   const rows = orders.flatMap((o) =>
     o.items.map((it) => ({
       OrderNumber: o.orderNumber || o._id.slice(-6),
-      Shop:
-        o.shippingAddress?.shopName || o.customerId?.shopName || "",
-      City: shippingCity(o.shippingAddress),
-      Item: it.name,
+      Product_Name: it.name,
       SKU: it.sku || it.productId?.sku || "—",
-      MRP: it.mrp || it.productId?.mrp || "—", // ✅ Added MRP Here
+      MRP: it.mrp || it.productId?.mrp || "—",
       Qty: it.qty,
-      Status: statusLabel(o.status),
-      CreatedAt: fmtDate(o.createdAt),
+      Order_Date: fmtExcelDate(o.createdAt),
+      Shop_Name: o.shippingAddress?.shopName || o.customerId?.shopName || "",
+      City: shippingCity(o.shippingAddress),
+      State: shippingState(o.shippingAddress),
     }))
   );
+  
   const ws = XLSX.utils.json_to_sheet(rows);
   const wb = XLSX.utils.book_new();
   XLSX.utils.book_append_sheet(wb, ws, "Orders");
@@ -222,27 +232,17 @@ const exportAllOrders = (orders: Order[]) => {
 const exportSingleOrder = (order: Order) => {
   const addr = order.shippingAddress;
   
+  // ✅ Kept ONLY the specific columns you asked for
   const rows = order.items.map((it) => ({
     OrderNumber: order.orderNumber || order._id.slice(-6),
     Product_Name: it.name,
     SKU: it.sku || it.productId?.sku || "—",
-    MRP: it.mrp || it.productId?.mrp || "—", // ✅ Added MRP Here
+    MRP: it.mrp || it.productId?.mrp || "—",
     Qty: it.qty,
-    Price: it.price,
-    Item_Total: it.qty * it.price,
-    Order_Status: statusLabel(order.status),
-    Grand_Total: order.total,
-    Advance_Paid: order.advancePaid || 0,
-    Remaining_Amount:
-      order.remainingAmount ??
-      (order.paymentMode === "COD" ? order.total : 0),
-    Payment_Mode: paymentLabel(order.paymentMode),
-    Order_Date: fmtDate(order.createdAt),
+    Order_Date: fmtExcelDate(order.createdAt),
     Shop_Name: addr?.shopName || order.customerId?.shopName || "",
     City: shippingCity(addr),
     State: shippingState(addr),
-    TrackingID: order.trackingId || "—",
-    Courier: order.courierName || "—",
   }));
 
   if (rows.length === 0) {
@@ -250,23 +250,12 @@ const exportSingleOrder = (order: Order) => {
       OrderNumber: order.orderNumber || order._id.slice(-6),
       Product_Name: "No Items",
       SKU: "—",
-      MRP: "—", // ✅ Added MRP Here
+      MRP: "—",
       Qty: 0,
-      Price: 0,
-      Item_Total: 0,
-      Order_Status: statusLabel(order.status),
-      Grand_Total: order.total,
-      Advance_Paid: order.advancePaid || 0,
-      Remaining_Amount:
-        order.remainingAmount ??
-        (order.paymentMode === "COD" ? order.total : 0),
-      Payment_Mode: paymentLabel(order.paymentMode),
-      Order_Date: fmtDate(order.createdAt),
+      Order_Date: fmtExcelDate(order.createdAt),
       Shop_Name: addr?.shopName || order.customerId?.shopName || "",
       City: shippingCity(addr),
       State: shippingState(addr),
-      TrackingID: order.trackingId || "—",
-      Courier: order.courierName || "—",
     });
   }
 

@@ -9,23 +9,22 @@ import {
   FiCheckCircle,
   FiEdit2, 
   FiSave,   
-  FiX       
+  FiX        
 } from "react-icons/fi";
 
 import "../styles/BannerManagement.css";
 
 // --- ✅ CONFIGURATION ---
 const API_BASE =
-  process.env.VITE_API_URL ||
-  process.env.REACT_APP_API_URL ||
+  (import.meta as any).env?.VITE_API_URL ||
+  (process as any).env?.VITE_API_URL ||
+  (process as any).env?.REACT_APP_API_URL ||
   "https://bafnatoys-backend-production.up.railway.app/api";
 
 const MEDIA_BASE =
-  process.env.VITE_MEDIA_URL ||
-  process.env.REACT_APP_MEDIA_URL ||
+  (import.meta as any).env?.VITE_MEDIA_URL ||
+  (process as any).env?.REACT_APP_MEDIA_URL ||
   "https://bafnatoys-backend-production.up.railway.app";
-
-const cloudName = (import.meta as any).env?.VITE_CLOUDINARY_CLOUD_NAME || "";
 
 interface Banner {
   _id: string;
@@ -34,23 +33,19 @@ interface Banner {
   enabled: boolean;
 }
 
-// Helper to resolve image URLs
+// ✅ Helper to resolve image URLs (Cleaned up for ImageKit / General URLs)
 const resolveUrl = (u?: string) => {
   if (!u) return undefined;
-  if (/^https?:\/\//i.test(u)) return u;
-  if (u.startsWith("/api/uploads/") || u.startsWith("/uploads/")) {
-    const path = u.replace(/^\/api/, "");
-    const root = API_BASE.replace(/\/api\/?$/, "").replace(/\/+$/, "");
-    return `${root}${path}`;
-  }
+  if (/^https?:\/\//i.test(u)) return u; // Direct ImageKit or absolute URLs
+  
+  // Fallback for relative paths
   if (MEDIA_BASE) {
     const base = MEDIA_BASE.replace(/\/+$/, "");
     return `${base}/${u.replace(/^\/+/, "")}`;
   }
-  if (cloudName && /^[^/.]+\//.test(u)) {
-    return `https://res.cloudinary.com/${cloudName}/image/upload/${u.replace(/^\/+/, "")}`;
-  }
-  return u;
+  
+  const root = API_BASE.replace(/\/api\/?$/, "").replace(/\/+$/, "");
+  return `${root}${u.startsWith("/") ? u : `/${u}`}`;
 };
 
 const BannerManagement: React.FC = () => {
@@ -206,8 +201,13 @@ const BannerManagement: React.FC = () => {
       setProgress(0);
       setUploadMessage("");
 
+      const token = localStorage.getItem("adminToken"); // Fallback auth
+
       await axios.post(`${API_BASE}/banners`, formData, {
-        headers: { "Content-Type": "multipart/form-data" },
+        headers: { 
+          "Content-Type": "multipart/form-data",
+          "Authorization": `Bearer ${token}`
+        },
         onUploadProgress: (event) => {
           const percent = Math.round((event.loaded * 100) / (event.total || 1));
           setProgress(percent);

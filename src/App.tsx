@@ -48,6 +48,9 @@ import AdminSettings from "./components/AdminSettings";
 // ✅ NEW: Review Management
 import AdminReviews from "./components/AdminReviews";
 
+// ✅ NEW: Mobile App UI Control
+import MobileControl from "./components/MobileControl";
+
 // 🔐 Admin Login
 import AdminLogin from "./components/AdminLogin";
 
@@ -136,8 +139,8 @@ const App: React.FC = () => {
           {/* Customer Sales Report */}
           <Route path="sales-report" element={<CustomerSales />} />
 
-          {/* ✅ NAYA ROUTE YAHAN ADD KIYA HAI */}
           <Route path="create-admin" element={<CreateAdmin />} />
+          <Route path="mobile-control" element={<MobileControl />} />
 
         </Route>
 

@@ -19,6 +19,7 @@ import {
   FiStar,
   FiShield,
   FiUserPlus,
+  FiSmartphone,
 } from "react-icons/fi";
 import { MdOutlineSpaceDashboard } from "react-icons/md";
 import { TbCategory } from "react-icons/tb";
@@ -257,6 +258,13 @@ const Sidebar: React.FC<SidebarProps> = ({ sidebarOpen, closeSidebar }) => {
                   gradient="green"
                 />
               )}
+
+              <NavItem
+                to="/admin/mobile-control"
+                icon={FiSmartphone}
+                label="Mobile App UI"
+                gradient="purple"
+              />
             </div>
           )}
 

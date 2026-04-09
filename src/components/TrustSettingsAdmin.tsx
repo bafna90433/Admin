@@ -149,7 +149,6 @@ const TrustSettingsAdmin: React.FC = () => {
     dragVisualItem.current = position;
     if (e.dataTransfer) {
       e.dataTransfer.effectAllowed = "move";
-      // Firefox requires data to be set to drag
       e.dataTransfer.setData("text/html", ""); 
     }
   };
@@ -165,17 +164,13 @@ const TrustSettingsAdmin: React.FC = () => {
       dragVisualItem.current !== dragVisualOverItem.current
     ) {
       const newVisuals = [...factoryVisuals];
-      // Remove the dragged item
       const draggedItemContent = newVisuals.splice(dragVisualItem.current, 1)[0];
-      // Insert it at the new target position
       newVisuals.splice(dragVisualOverItem.current, 0, draggedItemContent);
       setFactoryVisuals(newVisuals);
     }
-    // Reset refs
     dragVisualItem.current = null;
     dragVisualOverItem.current = null;
   };
-  // ---------------------------------------------------
 
   // Save
   const handleSave = async () => {
@@ -187,11 +182,10 @@ const TrustSettingsAdmin: React.FC = () => {
     formData.append("facebookLink", socialLinks.facebook);
     formData.append("linkedinLink", socialLinks.linkedin);
     
-    // Explicitly clear marketplace links in DB if they were previously set
     formData.append("amazonLink", "");
     formData.append("flipkartLink", "");
     formData.append("meeshoLink", "");
-    formData.append("clearSlider", "true"); // Always clear slider since the feature is removed
+    formData.append("clearSlider", "true"); 
     formData.append("retainedSliderImages", "[]");
 
     ["factoryImage", "makeInIndiaLogo"].forEach((f) => {
@@ -207,9 +201,15 @@ const TrustSettingsAdmin: React.FC = () => {
     factoryVisuals.forEach((v) => { if (v.file) formData.append("factoryVisualImages", v.file); });
 
     try {
-      await axios.put(`${API_BASE}/trust-settings`, formData, { headers: { "Content-Type": "multipart/form-data" } });
+      const token = localStorage.getItem("adminToken"); // 👈 Auth token added
+      await axios.put(`${API_BASE}/trust-settings`, formData, { 
+        headers: { 
+          "Content-Type": "multipart/form-data",
+          "Authorization": `Bearer ${token}` 
+        } 
+      });
       toast.success("All settings saved!", { icon: "✅", style: { borderRadius: "12px", background: "#1e293b", color: "#fff" } });
-      setImages({ ...images, makeInIndiaLogo: null });
+      setImages({ ...images, makeInIndiaLogo: null, factoryImage: null });
       setLocalPreviews({});
       setHasChanges(false);
       fetchSettings();

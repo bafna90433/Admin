@@ -1,5 +1,6 @@
 import React, { useState, useEffect, useCallback, useRef } from "react";
 import axios from "axios";
+import api from "../utils/api";
 import toast, { Toaster } from "react-hot-toast";
 import {
   FiSettings, FiSave, FiImage, FiLink, FiStar, FiTrash2,
@@ -10,12 +11,6 @@ import {
   FiGlobe, FiPackage, FiEye, FiMenu
 } from "react-icons/fi";
 import "../styles/TrustSettingsAdmin.css";
-
-const API_BASE =
-  (import.meta as any).env?.VITE_API_URL ||
-  (process as any).env?.VITE_API_URL ||
-  (process as any).env?.REACT_APP_API_URL ||
-  "https://bafnatoys-backend-production.up.railway.app/api";
 
 const TrustSettingsAdmin: React.FC = () => {
   const [images, setImages] = useState<any>({
@@ -59,7 +54,7 @@ const TrustSettingsAdmin: React.FC = () => {
   const fetchSettings = useCallback(async () => {
     setLoading(true);
     try {
-      const res = await axios.get(`${API_BASE}/trust-settings`);
+      const res = await api.get(`/trust-settings`);
       setPreview(res.data || {});
       if (res.data) {
         if (res.data.retailerCount) setRetailerCount(res.data.retailerCount);
@@ -149,6 +144,7 @@ const TrustSettingsAdmin: React.FC = () => {
     dragVisualItem.current = position;
     if (e.dataTransfer) {
       e.dataTransfer.effectAllowed = "move";
+      // Firefox requires data to be set to drag
       e.dataTransfer.setData("text/html", ""); 
     }
   };
@@ -164,13 +160,17 @@ const TrustSettingsAdmin: React.FC = () => {
       dragVisualItem.current !== dragVisualOverItem.current
     ) {
       const newVisuals = [...factoryVisuals];
+      // Remove the dragged item
       const draggedItemContent = newVisuals.splice(dragVisualItem.current, 1)[0];
+      // Insert it at the new target position
       newVisuals.splice(dragVisualOverItem.current, 0, draggedItemContent);
       setFactoryVisuals(newVisuals);
     }
+    // Reset refs
     dragVisualItem.current = null;
     dragVisualOverItem.current = null;
   };
+  // ---------------------------------------------------
 
   // Save
   const handleSave = async () => {
@@ -182,10 +182,11 @@ const TrustSettingsAdmin: React.FC = () => {
     formData.append("facebookLink", socialLinks.facebook);
     formData.append("linkedinLink", socialLinks.linkedin);
     
+    // Explicitly clear marketplace links in DB if they were previously set
     formData.append("amazonLink", "");
     formData.append("flipkartLink", "");
     formData.append("meeshoLink", "");
-    formData.append("clearSlider", "true"); 
+    formData.append("clearSlider", "true"); // Always clear slider since the feature is removed
     formData.append("retainedSliderImages", "[]");
 
     ["factoryImage", "makeInIndiaLogo"].forEach((f) => {
@@ -201,15 +202,13 @@ const TrustSettingsAdmin: React.FC = () => {
     factoryVisuals.forEach((v) => { if (v.file) formData.append("factoryVisualImages", v.file); });
 
     try {
-      const token = localStorage.getItem("adminToken"); // 👈 Auth token added
-      await axios.put(`${API_BASE}/trust-settings`, formData, { 
+      await api.put(`/trust-settings`, formData, { 
         headers: { 
-          "Content-Type": "multipart/form-data",
-          "Authorization": `Bearer ${token}` 
+          "Content-Type": "multipart/form-data"
         } 
       });
       toast.success("All settings saved!", { icon: "✅", style: { borderRadius: "12px", background: "#1e293b", color: "#fff" } });
-      setImages({ ...images, makeInIndiaLogo: null, factoryImage: null });
+      setImages({ ...images, makeInIndiaLogo: null });
       setLocalPreviews({});
       setHasChanges(false);
       fetchSettings();

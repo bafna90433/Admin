@@ -27,12 +27,12 @@ interface Category {
 interface Product {
   _id: string;
   category: string | { _id: string };
-  price?: number; // Added for smart category counting
+  price?: number; 
 }
 
 const CategoryList: React.FC = () => {
   const [categories, setCategories] = useState<Category[]>([]);
-  const [allProducts, setAllProducts] = useState<Product[]>([]); // Storing all products
+  const [allProducts, setAllProducts] = useState<Product[]>([]); 
 
   const [newCategory, setNewCategory] = useState("");
   const [newLink, setNewLink] = useState("");
@@ -94,7 +94,6 @@ const CategoryList: React.FC = () => {
   const fetchProducts = useCallback(async () => {
     try {
       const { data } = await axios.get(`${API_BASE}/products`);
-      // Just save raw products; we'll compute counts dynamically
       const productsArray = Array.isArray(data) ? data : data.products || data.docs || [];
       setAllProducts(productsArray);
     } catch { /* ignore */ }
@@ -108,7 +107,6 @@ const CategoryList: React.FC = () => {
     categories.forEach(cat => {
       const catNameLower = cat.name.toLowerCase().trim();
       
-      // 1. Check if it's a Smart Category (e.g., "Under 99" OR just "99")
       const isSmartFilter = catNameLower.includes("under") || /^\d+$/.test(catNameLower);
 
       if (isSmartFilter) {
@@ -119,7 +117,6 @@ const CategoryList: React.FC = () => {
         }
       }
       
-      // 2. Normal Category Count
       counts[cat._id] = allProducts.filter(p => {
         const pCatId = typeof p.category === "string" ? p.category : p.category?._id;
         return pCatId === cat._id;
@@ -128,14 +125,12 @@ const CategoryList: React.FC = () => {
     return counts;
   }, [categories, allProducts]);
 
-  // Filtered Categories based on search
   const filtered = debounced
     ? categories.filter((c) => c.name.toLowerCase().includes(debounced.toLowerCase()))
     : categories;
 
   const totalProducts = allProducts.length;
 
-  // File handler — WEBP only
   const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>, isEdit = false) => {
     const file = e.target.files?.[0];
     if (!file) return;
@@ -159,12 +154,12 @@ const CategoryList: React.FC = () => {
     }
   };
 
-  // Create
   const handleCreate = async () => {
     if (!newCategory.trim()) return toast.error("Category name is required");
     if (!newImage) return toast.error("Category image is required (WEBP)");
 
     setSaving(true);
+    const token = localStorage.getItem("adminToken");
     const formData = new FormData();
     formData.append("name", newCategory);
     formData.append("link", newLink);
@@ -172,7 +167,10 @@ const CategoryList: React.FC = () => {
 
     try {
       await axios.post(`${API_BASE}/categories`, formData, {
-        headers: { "Content-Type": "multipart/form-data" },
+        headers: { 
+          "Content-Type": "multipart/form-data",
+          "Authorization": `Bearer ${token}`
+        },
       });
       toast.success("Category created!", { icon: "🎉", style: { borderRadius: "12px", background: "#1e293b", color: "#fff" } });
       setNewCategory(""); setNewLink(""); setNewImage(null); setPreview(null); setIsCreating(false);
@@ -182,7 +180,6 @@ const CategoryList: React.FC = () => {
     } finally { setSaving(false); }
   };
 
-  // Edit setup
   const handleEdit = (cat: Category) => {
     setEditId(cat._id);
     setEditName(cat.name);
@@ -195,10 +192,10 @@ const CategoryList: React.FC = () => {
     setEditId(null); setEditName(""); setEditLink(""); setEditImage(null); setEditPreview(null);
   };
 
-  // Update
   const handleUpdate = async (id: string) => {
     if (!editName.trim()) return toast.error("Category name cannot be empty");
     setSaving(true);
+    const token = localStorage.getItem("adminToken");
     const formData = new FormData();
     formData.append("name", editName);
     formData.append("link", editLink);
@@ -206,7 +203,10 @@ const CategoryList: React.FC = () => {
 
     try {
       await axios.put(`${API_BASE}/categories/${id}`, formData, {
-        headers: { "Content-Type": "multipart/form-data" },
+        headers: { 
+          "Content-Type": "multipart/form-data",
+          "Authorization": `Bearer ${token}`
+        },
       });
       toast.success("Category updated!", { icon: "✅", style: { borderRadius: "12px", background: "#1e293b", color: "#fff" } });
       handleCancelEdit();
@@ -216,25 +216,29 @@ const CategoryList: React.FC = () => {
     } finally { setSaving(false); }
   };
 
-  // Delete
   const confirmDelete = async () => {
     if (delPwd !== "bafnatoys") return toast.error("Wrong password");
     if (!delId) return;
     setDeleting(true);
+    const token = localStorage.getItem("adminToken");
     try {
-      await axios.delete(`${API_BASE}/categories/${delId}`);
+      await axios.delete(`${API_BASE}/categories/${delId}`, {
+        headers: { "Authorization": `Bearer ${token}` }
+      });
       toast.success("Category deleted!", { icon: "🗑️", style: { borderRadius: "12px", background: "#1e293b", color: "#fff" } });
       await fetchCategories();
-      await fetchProducts(); // Refresh counts
+      await fetchProducts(); 
     } catch {
       toast.error("Failed to delete category");
     } finally { setDeleting(false); setDelId(null); setDelPwd(""); }
   };
 
-  // Move
   const handleMove = async (id: string, direction: "up" | "down") => {
+    const token = localStorage.getItem("adminToken");
     try {
-      await axios.put(`${API_BASE}/categories/${id}/move`, { direction });
+      await axios.put(`${API_BASE}/categories/${id}/move`, { direction }, {
+        headers: { "Authorization": `Bearer ${token}` }
+      });
       await fetchCategories();
     } catch {
       toast.error("Failed to move category");

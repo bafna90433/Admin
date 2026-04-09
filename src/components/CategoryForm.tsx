@@ -59,6 +59,7 @@ const CategoryForm: React.FC<Props> = ({
       const method = categoryId ? "put" : "post";
       
       // ✅ Image bhejne ke liye FormData zaroori hai
+      const token = localStorage.getItem("adminToken");
       const formData = new FormData();
       formData.append("name", name);
       formData.append("link", link);
@@ -70,7 +71,10 @@ const CategoryForm: React.FC<Props> = ({
         method: method,
         url: url,
         data: formData,
-        headers: { "Content-Type": "multipart/form-data" },
+        headers: { 
+          "Content-Type": "multipart/form-data",
+          "Authorization": `Bearer ${token}`
+        },
       });
 
       if (onSuccess) onSuccess();

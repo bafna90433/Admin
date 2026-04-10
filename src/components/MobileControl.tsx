@@ -177,6 +177,12 @@ const MobileControl: React.FC = () => {
               onChange={(val) => handleColorChange("primaryBg", val)} 
               description="📦 Product card background color"
             />
+            <ColorInput 
+              label="Brand Text Color" 
+              value={colors.brandText || "#FF3366"} 
+              onChange={(val) => handleColorChange("brandText", val)} 
+              description="🏷️ 'Bafna Toys' logo text color"
+            />
           </div>
 
           <button

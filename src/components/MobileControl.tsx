@@ -1,6 +1,6 @@
 import React, { useEffect, useState } from "react";
 import axios from "axios";
-import { FiSmartphone, FiSave, FiRefreshCw } from "react-icons/fi";
+import { FiSmartphone, FiSave, FiRefreshCw, FiMessageCircle } from "react-icons/fi";
 import Swal from "sweetalert2";
 
 const API_BASE =
@@ -17,8 +17,17 @@ const MobileControl: React.FC = () => {
   const [loading, setLoading] = useState(false);
   const [fetching, setFetching] = useState(true);
 
+  // ✅ WhatsApp Header Button State
+  const [whatsapp, setWhatsapp] = useState({
+    enabled: false,
+    phone: "",
+    message: "Hi! I want to place an order.",
+  });
+  const [waSaving, setWaSaving] = useState(false);
+
   useEffect(() => {
     fetchTheme();
+    fetchWhatsapp();
   }, []);
 
   const fetchTheme = async () => {
@@ -32,6 +41,16 @@ const MobileControl: React.FC = () => {
       console.error("Failed to load theme", err);
     } finally {
       setFetching(false);
+    }
+  };
+
+  // ✅ Fetch WhatsApp header settings
+  const fetchWhatsapp = async () => {
+    try {
+      const res = await axios.get(`${API_BASE}/settings/mobile-whatsapp`);
+      if (res.data) setWhatsapp(res.data);
+    } catch (err) {
+      console.error("Failed to load WhatsApp settings", err);
     }
   };
 
@@ -54,6 +73,24 @@ const MobileControl: React.FC = () => {
       Swal.fire("Error", "Failed to update theme", "error");
     } finally {
       setLoading(false);
+    }
+  };
+
+  // ✅ Save WhatsApp settings
+  const handleWaSave = async () => {
+    setWaSaving(true);
+    try {
+      await axios.put(`${API_BASE}/settings/mobile-whatsapp`, whatsapp);
+      Swal.fire({
+        title: "Saved!",
+        text: "WhatsApp header button settings updated.",
+        icon: "success",
+        confirmButtonColor: "#25D366",
+      });
+    } catch (err) {
+      Swal.fire("Error", "Failed to save WhatsApp settings", "error");
+    } finally {
+      setWaSaving(false);
     }
   };
 
@@ -84,25 +121,25 @@ const MobileControl: React.FC = () => {
               label="Primary Color" 
               value={colors.primary} 
               onChange={(val) => handleColorChange("primary", val)} 
-              description="Main brand color (buttons, icons)"
+              description="Buttons, icons & ADD button"
             />
             <ColorInput 
               label="Primary Dark" 
               value={colors.primaryDark} 
               onChange={(val) => handleColorChange("primaryDark", val)} 
-              description="Header & active states"
+              description="App header background"
             />
             <ColorInput 
               label="Primary Light" 
               value={colors.primaryLight} 
               onChange={(val) => handleColorChange("primaryLight", val)} 
-              description="Border & subtle elements"
+              description="📦 Product card border color"
             />
             <ColorInput 
               label="Background Accent" 
               value={colors.primaryBg} 
               onChange={(val) => handleColorChange("primaryBg", val)} 
-              description="Light surface backgrounds"
+              description="📦 Product card background color"
             />
           </div>
 
@@ -133,6 +170,78 @@ const MobileControl: React.FC = () => {
             <FiSave />
             {loading ? "Saving..." : "Apply to Mobile App"}
           </button>
+
+          {/* ✅ WhatsApp Header Button Section */}
+          <div style={{ marginTop: "32px", padding: "24px", background: "#f0fdf4", borderRadius: "16px", border: "1.5px solid #bbf7d0" }}>
+            <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: "16px" }}>
+              <div style={{ display: "flex", alignItems: "center", gap: "10px" }}>
+                <div style={{ width: "36px", height: "36px", background: "#25D366", borderRadius: "50%", display: "flex", alignItems: "center", justifyContent: "center" }}>
+                  <FiMessageCircle size={18} color="white" />
+                </div>
+                <div>
+                  <h3 style={{ margin: 0, fontSize: "15px", fontWeight: "700", color: "#14532d" }}>WhatsApp Header Button</h3>
+                  <p style={{ margin: 0, fontSize: "12px", color: "#16a34a" }}>Show WhatsApp icon next to cart icon in app header</p>
+                </div>
+              </div>
+              {/* Toggle */}
+              <label style={{ position: "relative", display: "inline-block", width: "50px", height: "26px", cursor: "pointer" }}>
+                <input
+                  type="checkbox"
+                  checked={whatsapp.enabled}
+                  onChange={(e) => setWhatsapp(p => ({ ...p, enabled: e.target.checked }))}
+                  style={{ opacity: 0, width: 0, height: 0 }}
+                />
+                <span style={{
+                  position: "absolute", top: 0, left: 0, right: 0, bottom: 0,
+                  background: whatsapp.enabled ? "#25D366" : "#cbd5e1",
+                  borderRadius: "26px", transition: "0.3s"
+                }}>
+                  <span style={{
+                    position: "absolute", height: "20px", width: "20px", left: whatsapp.enabled ? "27px" : "3px",
+                    bottom: "3px", background: "white", borderRadius: "50%", transition: "0.3s"
+                  }} />
+                </span>
+              </label>
+            </div>
+
+            <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "12px", marginBottom: "12px" }}>
+              <div>
+                <label style={{ fontSize: "12px", fontWeight: "600", color: "#374151", display: "block", marginBottom: "6px" }}>WhatsApp Number</label>
+                <input
+                  type="text"
+                  value={whatsapp.phone}
+                  onChange={(e) => setWhatsapp(p => ({ ...p, phone: e.target.value }))}
+                  placeholder="91XXXXXXXXXX (with country code)"
+                  style={{ width: "100%", padding: "10px 12px", borderRadius: "8px", border: "1.5px solid #d1d5db", fontSize: "13px", outline: "none", boxSizing: "border-box" }}
+                />
+                <p style={{ fontSize: "11px", color: "#6b7280", marginTop: "4px" }}>Include country code, no + or spaces (e.g., 919876543210)</p>
+              </div>
+              <div>
+                <label style={{ fontSize: "12px", fontWeight: "600", color: "#374151", display: "block", marginBottom: "6px" }}>Pre-filled Message</label>
+                <input
+                  type="text"
+                  value={whatsapp.message}
+                  onChange={(e) => setWhatsapp(p => ({ ...p, message: e.target.value }))}
+                  placeholder="Hi! I want to place an order."
+                  style={{ width: "100%", padding: "10px 12px", borderRadius: "8px", border: "1.5px solid #d1d5db", fontSize: "13px", outline: "none", boxSizing: "border-box" }}
+                />
+              </div>
+            </div>
+
+            <button
+              onClick={handleWaSave}
+              disabled={waSaving}
+              style={{
+                width: "100%", padding: "12px", background: "#25D366", color: "white",
+                border: "none", borderRadius: "10px", fontWeight: "600", fontSize: "14px",
+                cursor: waSaving ? "not-allowed" : "pointer", display: "flex",
+                alignItems: "center", justifyContent: "center", gap: "8px"
+              }}
+            >
+              <FiSave />
+              {waSaving ? "Saving..." : "Save WhatsApp Settings"}
+            </button>
+          </div>
         </div>
 
         {/* Live Preview Mockup */}
@@ -155,11 +264,16 @@ const MobileControl: React.FC = () => {
               overflow: "hidden",
               position: "relative"
             }}>
-              {/* Mock App Header */}
+              {/* Mock App Header with WhatsApp */}
               <div style={{ background: colors.primaryDark, height: "60px", padding: "20px 15px", display: "flex", alignItems: "center", justifyContent: "space-between" }}>
                 <div style={{ width: "30px", height: "4px", background: "white", borderRadius: "2px" }} />
                 <div style={{ width: "80px", height: "12px", background: "rgba(255,255,255,0.5)", borderRadius: "6px" }} />
-                <div style={{ width: "24px", height: "24px", background: "rgba(255,255,255,0.2)", borderRadius: "12px" }} />
+                <div style={{ display: "flex", gap: "8px", alignItems: "center" }}>
+                  <div style={{ width: "24px", height: "24px", background: "rgba(255,255,255,0.2)", borderRadius: "12px" }} />
+                  {whatsapp.enabled && (
+                    <div style={{ width: "24px", height: "24px", background: "#25D366", borderRadius: "12px", display: "flex", alignItems: "center", justifyContent: "center", fontSize: "10px" }}>💬</div>
+                  )}
+                </div>
               </div>
 
               {/* Mock App Content */}
@@ -171,7 +285,7 @@ const MobileControl: React.FC = () => {
                 
                 <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "10px" }}>
                   {[1, 2].map((i) => (
-                    <div key={i} style={{ background: "white", padding: "10px", borderRadius: "12px", border: `1px solid ${colors.primaryLight}` }}>
+                    <div key={i} style={{ background: colors.primaryBg, padding: "10px", borderRadius: "12px", border: `1.5px solid ${colors.primaryLight}` }}>
                       <div style={{ width: "100%", height: "80px", background: "#f1f5f9", borderRadius: "8px", marginBottom: "8px" }} />
                       <div style={{ width: "100%", height: "10px", background: "#e2e8f0", borderRadius: "5px", marginBottom: "12px" }} />
                       <div style={{ width: "100%", height: "24px", background: colors.primary, borderRadius: "6px" }} />

@@ -288,7 +288,7 @@ const MobileControl: React.FC = () => {
           {/* ✅ Home Layout Selection Section */}
           <div style={{ marginTop: "32px" }}>
             <h2 style={{ fontSize: "18px", fontWeight: "600", marginBottom: "20px", color: "#334155" }}>App Home Layout</h2>
-            <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr 1fr", gap: "16px" }}>
+            <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr 1fr 1fr", gap: "16px" }}>
               {/* Layout 1 Card */}
               <div 
                 onClick={() => handleLayoutSave("layout1")}
@@ -363,6 +363,32 @@ const MobileControl: React.FC = () => {
                   <div style={{ height: "45px", width: "60%", alignSelf: "center", background: "#cbd5e1", borderRadius: "8px" }} />
                 </div>
                 <h4 style={{ margin: 0, fontSize: "13px", color: "#1e293b" }}>Discovery</h4>
+              </div>
+
+              {/* Layout 4 Card (B2B) */}
+              <div 
+                onClick={() => handleLayoutSave("layout4")}
+                style={{
+                  cursor: "pointer",
+                  borderRadius: "16px",
+                  border: `2px solid ${activeLayout === "layout4" ? "#1e293b" : "#e2e8f0"}`,
+                  background: activeLayout === "layout4" ? "#f8fafc" : "white",
+                  padding: "16px",
+                  transition: "all 0.2s",
+                  position: "relative"
+                }}
+              >
+                {activeLayout === "layout4" && (
+                  <div style={{ position: "absolute", top: "8px", right: "8px", background: "#1e293b", color: "white", fontSize: "9px", padding: "2px 6px", borderRadius: "10px", fontWeight: "700" }}>ACTIVE</div>
+                )}
+                <div style={{ height: "80px", background: "#f1f5f9", borderRadius: "8px", marginBottom: "12px", display: "flex", flexDirection: "column", padding: "8px", gap: "4px" }}>
+                  <div style={{ height: "12px", width: "40%", background: "#1e293b", borderRadius: "2px" }} />
+                  <div style={{ height: "30px", width: "100%", background: "#cbd5e1", borderRadius: "4px" }} />
+                  <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr 1fr", gap: "4px" }}>
+                    {[1, 2, 3].map(i => <div key={i} style={{ height: "20px", background: "#e2e8f0", borderRadius: "4px" }} />)}
+                  </div>
+                </div>
+                <h4 style={{ margin: 0, fontSize: "13px", color: "#1e293b" }}>B2B Wholesale</h4>
               </div>
             </div>
           </div>

@@ -58,7 +58,7 @@ const PaymentShippingSettings: React.FC = () => {
     try {
       setLoading(true);
       const [shippingRes, codRes, discountRes, reviewRes] = await Promise.allSettled([
-        axios.get(`${API_BASE}/shipping-rules`),
+        axios.get(`${API_BASE}/settings/shipping`),
         axios.get(`${API_BASE}/settings/cod`),
         axios.get(`${API_BASE}/discount-rules`),
         axios.get(`${API_BASE}/settings/reviews`),
@@ -131,7 +131,7 @@ const PaymentShippingSettings: React.FC = () => {
       }
 
       await Promise.all([
-        axios.put(`${API_BASE}/shipping-rules`, { shippingCharge: Number(shippingCharge), freeShippingThreshold: Number(freeLimit) }),
+        axios.put(`${API_BASE}/settings/shipping`, { shippingCharge: Number(shippingCharge), freeShippingThreshold: Number(freeLimit) }),
         // ✅ API call me advanceType pass kiya
         axios.put(`${API_BASE}/settings/cod`, { advanceAmount: Number(advanceAmount), advanceType, enabled: enableCOD }),
         axios.put(`${API_BASE}/discount-rules`, { rules: validRules }),

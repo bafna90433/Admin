@@ -145,6 +145,26 @@ const MobileControl: React.FC = () => {
         <p style={{ color: "#64748b", marginTop: "8px" }}>Customize your customer mobile app colors in real-time.</p>
       </div>
 
+      <div style={{ background: "#f8fafc", padding: "16px", borderRadius: "12px", border: "1px dashed #cbd5e1", marginBottom: "32px", display: "flex", alignItems: "center", justifyContent: "space-between" }}>
+        <div>
+          <h3 style={{ margin: 0, fontSize: "14px", fontWeight: "600", color: "#334155" }}>Real-Time Diagnostics</h3>
+          <p style={{ margin: 0, fontSize: "12px", color: "#64748b" }}>Click to verify your phone is receiving updates.</p>
+        </div>
+        <button
+          onClick={async () => {
+            try {
+              await axios.post(`${API_BASE}/settings/ping-sync`);
+              Swal.fire({ title: "Ping Sent!", text: "Check your mobile app logs or indicators.", icon: "info", timer: 1500, showConfirmButton: false });
+            } catch (err) {
+              Swal.fire("Error", "Failed to send ping", "error");
+            }
+          }}
+          style={{ padding: "8px 16px", background: "#334155", color: "white", border: "none", borderRadius: "8px", fontSize: "12px", fontWeight: "600", cursor: "pointer" }}
+        >
+          🚀 Test Real-Time Sync
+        </button>
+      </div>
+
       <div style={{ display: "grid", gridTemplateColumns: "1fr 320px", gap: "32px" }}>
         {/* Color Configuration */}
         <div style={{ background: "white", padding: "24px", borderRadius: "16px", boxShadow: "0 4px 6px -1px rgb(0 0 0 / 0.1)" }}>

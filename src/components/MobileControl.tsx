@@ -25,9 +25,14 @@ const MobileControl: React.FC = () => {
   });
   const [waSaving, setWaSaving] = useState(false);
 
+  // ✅ Layout Selection State
+  const [activeLayout, setActiveLayout] = useState("layout1");
+  const [layoutSaving, setLayoutSaving] = useState(false);
+
   useEffect(() => {
     fetchTheme();
     fetchWhatsapp();
+    fetchLayout();
   }, []);
 
   const fetchTheme = async () => {
@@ -51,6 +56,16 @@ const MobileControl: React.FC = () => {
       if (res.data) setWhatsapp(res.data);
     } catch (err) {
       console.error("Failed to load WhatsApp settings", err);
+    }
+  };
+
+  // ✅ Fetch current layout
+  const fetchLayout = async () => {
+    try {
+      const res = await axios.get(`${API_BASE}/settings/mobile-layout`);
+      if (res.data) setActiveLayout(res.data.layout || "layout1");
+    } catch (err) {
+      console.error("Failed to load layout settings", err);
     }
   };
 
@@ -91,6 +106,26 @@ const MobileControl: React.FC = () => {
       Swal.fire("Error", "Failed to save WhatsApp settings", "error");
     } finally {
       setWaSaving(false);
+    }
+  };
+
+  // ✅ Save layout choice
+  const handleLayoutSave = async (layoutId: string) => {
+    setLayoutSaving(true);
+    try {
+      await axios.put(`${API_BASE}/settings/mobile-layout`, { layout: layoutId });
+      setActiveLayout(layoutId);
+      Swal.fire({
+        title: "Layout Updated!",
+        text: `Switched to ${layoutId === "layout1" ? "Classic" : "Modern Grid"} layout.`,
+        icon: "success",
+        timer: 2000,
+        showConfirmButton: false,
+      });
+    } catch (err) {
+      Swal.fire("Error", "Failed to update layout", "error");
+    } finally {
+      setLayoutSaving(false);
     }
   };
 
@@ -241,6 +276,66 @@ const MobileControl: React.FC = () => {
               <FiSave />
               {waSaving ? "Saving..." : "Save WhatsApp Settings"}
             </button>
+          </div>
+
+          {/* ✅ Home Layout Selection Section */}
+          <div style={{ marginTop: "32px" }}>
+            <h2 style={{ fontSize: "18px", fontWeight: "600", marginBottom: "20px", color: "#334155" }}>App Home Layout</h2>
+            <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "20px" }}>
+              {/* Layout 1 Card */}
+              <div 
+                onClick={() => handleLayoutSave("layout1")}
+                style={{
+                  cursor: "pointer",
+                  borderRadius: "16px",
+                  border: `2px solid ${activeLayout === "layout1" ? colors.primary : "#e2e8f0"}`,
+                  background: activeLayout === "layout1" ? `${colors.primary}05` : "white",
+                  padding: "16px",
+                  transition: "all 0.2s",
+                  position: "relative"
+                }}
+              >
+                {activeLayout === "layout1" && (
+                  <div style={{ position: "absolute", top: "12px", right: "12px", background: colors.primary, color: "white", fontSize: "10px", padding: "2px 8px", borderRadius: "10px", fontWeight: "700" }}>ACTIVE</div>
+                )}
+                <div style={{ height: "100px", background: "#f1f5f9", borderRadius: "8px", marginBottom: "12px", display: "flex", flexDirection: "column", padding: "8px", gap: "6px" }}>
+                  <div style={{ height: "20px", width: "100%", background: "#6366f1", borderRadius: "4px" }} />
+                  <div style={{ display: "flex", gap: "4px" }}>
+                    {[1, 2, 3].map(i => <div key={i} style={{ height: "30px", flex: 1, background: "#cbd5e1", borderRadius: "4px" }} />)}
+                  </div>
+                  <div style={{ height: "20px", width: "60%", background: "#e2e8f0", borderRadius: "4px" }} />
+                </div>
+                <h4 style={{ margin: 0, fontSize: "14px", color: "#1e293b" }}>Classic Layout</h4>
+                <p style={{ margin: "4px 0 0", fontSize: "12px", color: "#64748b" }}>Flipkart style, big header</p>
+              </div>
+
+              {/* Layout 2 Card */}
+              <div 
+                onClick={() => handleLayoutSave("layout2")}
+                style={{
+                  cursor: "pointer",
+                  borderRadius: "16px",
+                  border: `2px solid ${activeLayout === "layout2" ? "#25D366" : "#e2e8f0"}`,
+                  background: activeLayout === "layout2" ? "#f0fdf4" : "white",
+                  padding: "16px",
+                  transition: "all 0.2s",
+                  position: "relative"
+                }}
+              >
+                {activeLayout === "layout2" && (
+                  <div style={{ position: "absolute", top: "12px", right: "12px", background: "#25D366", color: "white", fontSize: "10px", padding: "2px 8px", borderRadius: "10px", fontWeight: "700" }}>ACTIVE</div>
+                )}
+                <div style={{ height: "100px", background: "#f8fafc", borderRadius: "8px", marginBottom: "12px", display: "flex", flexDirection: "column", padding: "8px", gap: "6px" }}>
+                  <div style={{ height: "10px", width: "100%", background: "#e2e8f0", borderRadius: "4px" }} />
+                  <div style={{ height: "40px", width: "100%", background: "#cbd5e1", borderRadius: "4px" }} />
+                  <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "4px" }}>
+                    {[1, 2].map(i => <div key={i} style={{ height: "20px", background: "#e2e8f0", borderRadius: "4px" }} />)}
+                  </div>
+                </div>
+                <h4 style={{ margin: 0, fontSize: "14px", color: "#1e293b" }}>Modern Grid</h4>
+                <p style={{ margin: "4px 0 0", fontSize: "12px", color: "#64748b" }}>Clean white, 2-column grid</p>
+              </div>
+            </div>
           </div>
         </div>
 

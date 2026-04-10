@@ -3,10 +3,7 @@ import axios from "axios";
 import "../styles/AdminHomeBuilder.css";
 
 // --- ✅ CONFIGURATION (Live URL Fix) ---
-const API_BASE =
-  process.env.VITE_API_URL ||
-  process.env.REACT_APP_API_URL ||
-  "https://bafnatoys-backend-production.up.railway.app/api";
+const API_BASE = import.meta.env.VITE_API_URL || "http://localhost:5000/api";
 
 // --- ICONS ---
 const Icons = {

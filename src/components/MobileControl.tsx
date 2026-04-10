@@ -3,9 +3,7 @@ import axios from "axios";
 import { FiSmartphone, FiSave, FiRefreshCw, FiMessageCircle } from "react-icons/fi";
 import Swal from "sweetalert2";
 
-const API_BASE =
-  (typeof import.meta !== 'undefined' && (import.meta as any).env?.VITE_API_URL) ||
-  "https://bafnatoys-backend-production.up.railway.app/api";
+const API_BASE = import.meta.env.VITE_API_URL || "http://localhost:5000/api";
 
 const MobileControl: React.FC = () => {
   const [colors, setColors] = useState({

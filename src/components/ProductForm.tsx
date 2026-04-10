@@ -27,6 +27,7 @@ interface ProductPayload {
   tagline?: string; packSize?: string; relatedProducts?: string[];
   piecesPerUnit?: number; // ✅
   isBulkOnly?: boolean;   // ✅
+  minOrderQty?: number;   // ✅
 }
 
 type GalleryImage = { file?: File; url: string; isExisting: boolean; };
@@ -40,7 +41,8 @@ const ProductForm: React.FC = () => {
   const [form, setForm] = useState({
     name: "", sku: "", mrp: "", price: "", stock: "", unit: "",
     description: "", tagline: "", packSize: "", category: "",
-    piecesPerUnit: "1", isBulkOnly: false // Added here
+    piecesPerUnit: "1", isBulkOnly: false,
+    minOrderQty: "1" // Added here
   });
 
   const [gallery, setGallery] = useState<GalleryImage[]>([]);
@@ -83,7 +85,8 @@ const ProductForm: React.FC = () => {
           packSize: data.packSize || "",
           category: typeof data.category === "string" ? data.category : data.category?._id || "",
           piecesPerUnit: data.piecesPerUnit?.toString() || "1", // ✅
-          isBulkOnly: data.isBulkOnly || false                  // ✅
+          isBulkOnly: data.isBulkOnly || false,                  // ✅
+          minOrderQty: data.minOrderQty?.toString() || "1"       // ✅
         });
         setGallery(
           (data.images || []).map((img: any) => ({
@@ -101,7 +104,7 @@ const ProductForm: React.FC = () => {
         setForm({ 
           name: "", sku: "", mrp: "", price: "", stock: "", unit: "", 
           description: "", tagline: "", packSize: "", category: "",
-          piecesPerUnit: "1", isBulkOnly: false
+          piecesPerUnit: "1", isBulkOnly: false, minOrderQty: "1"
         });
         setGallery([]);
         setRelatedDisplay([]);
@@ -176,7 +179,7 @@ const ProductForm: React.FC = () => {
       setForm({ 
         name: "", sku: "", mrp: "", price: "", stock: "", unit: "", 
         description: "", tagline: "", packSize: "", category: "",
-        piecesPerUnit: "1", isBulkOnly: false
+        piecesPerUnit: "1", isBulkOnly: false, minOrderQty: "1"
       });
       setGallery([]); setRelatedDisplay([]);
     } catch (err: any) {
@@ -280,7 +283,8 @@ const ProductForm: React.FC = () => {
         category: form.category, images: finalImagesOrder,
         relatedProducts: relatedDisplay.map((p) => p._id),
         piecesPerUnit: Number(form.piecesPerUnit) || 1, // ✅
-        isBulkOnly: form.isBulkOnly                     // ✅
+        isBulkOnly: form.isBulkOnly,                    // ✅
+        minOrderQty: Number(form.minOrderQty) || 1      // ✅
       };
 
       if (editMode && id) {
@@ -461,7 +465,11 @@ const ProductForm: React.FC = () => {
                 </div>
                 
                 {/* ✅ Added the Pieces Input and Checkbox below Pricing */}
-                <div className="pf-row-2" style={{ marginTop: '15px' }}>
+                <div className="pf-row-3" style={{ marginTop: '15px' }}>
+                  <div className="pf-field">
+                    <label className="pf-label">MQ (Min Qty)</label>
+                    <input type="number" name="minOrderQty" value={form.minOrderQty} onChange={handleChange} placeholder="e.g., 10" className="pf-input" />
+                  </div>
                   <div className="pf-field">
                     <label className="pf-label">Pieces in Unit</label>
                     <input type="number" name="piecesPerUnit" value={form.piecesPerUnit} onChange={handleChange} placeholder="e.g., 24" className="pf-input" />
@@ -469,7 +477,7 @@ const ProductForm: React.FC = () => {
                   <div className="pf-field" style={{ display: 'flex', alignItems: 'center', marginTop: '22px' }}>
                     <label className="pf-label" style={{ display: 'flex', alignItems: 'center', gap: '8px', cursor: 'pointer', margin: 0 }}>
                       <input type="checkbox" name="isBulkOnly" checked={form.isBulkOnly} onChange={handleChange} style={{ width: '18px', height: '18px', cursor: 'pointer' }} />
-                      <span style={{ fontSize: '14px', fontWeight: 600 }}>Strict Bulk Buy (Must buy full unit)</span>
+                      <span style={{ fontSize: '13px', fontWeight: 600 }}>Strict Bulk Buy</span>
                     </label>
                   </div>
                 </div>

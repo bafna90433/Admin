@@ -4,8 +4,7 @@ import { FiSmartphone, FiSave, FiRefreshCw } from "react-icons/fi";
 import Swal from "sweetalert2";
 
 const API_BASE =
-  process.env.VITE_API_URL ||
-  process.env.REACT_APP_API_URL ||
+  (typeof import.meta !== 'undefined' && (import.meta as any).env?.VITE_API_URL) ||
   "https://bafnatoys-backend-production.up.railway.app/api";
 
 const MobileControl: React.FC = () => {

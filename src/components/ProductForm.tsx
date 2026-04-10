@@ -86,7 +86,7 @@ const ProductForm: React.FC = () => {
           category: typeof data.category === "string" ? data.category : data.category?._id || "",
           piecesPerUnit: data.piecesPerUnit?.toString() || "1", // ✅
           isBulkOnly: data.isBulkOnly || false,                  // ✅
-          minOrderQty: data.minOrderQty?.toString() || "1"       // ✅
+          minOrderQty: data.minOrderQty?.toString() || "0"       // ✅ 0 means Auto
         });
         setGallery(
           (data.images || []).map((img: any) => ({
@@ -104,7 +104,7 @@ const ProductForm: React.FC = () => {
         setForm({ 
           name: "", sku: "", mrp: "", price: "", stock: "", unit: "", 
           description: "", tagline: "", packSize: "", category: "",
-          piecesPerUnit: "1", isBulkOnly: false, minOrderQty: "1"
+          piecesPerUnit: "1", isBulkOnly: false, minOrderQty: "0"
         });
         setGallery([]);
         setRelatedDisplay([]);
@@ -284,7 +284,7 @@ const ProductForm: React.FC = () => {
         relatedProducts: relatedDisplay.map((p) => p._id),
         piecesPerUnit: Number(form.piecesPerUnit) || 1, // ✅
         isBulkOnly: form.isBulkOnly,                    // ✅
-        minOrderQty: Number(form.minOrderQty) || 1      // ✅
+        minOrderQty: Number(form.minOrderQty) || 0      // ✅ 0 means Auto
       };
 
       if (editMode && id) {

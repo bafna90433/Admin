@@ -1,5 +1,6 @@
 import React, { useEffect, useMemo, useState, useCallback, useRef } from "react";
 import axios from "axios";
+import api from "../utils/api";
 import toast, { Toaster } from "react-hot-toast";
 import { format, formatDistanceToNow } from "date-fns";
 import {
@@ -117,10 +118,7 @@ const AdminReturns: React.FC = () => {
   const fetchReturns = useCallback(async () => {
     try {
       setLoading(true);
-      const token = localStorage.getItem("adminToken");
-      const { data } = await axios.get(`${API_URL}/orders`, {
-        headers: { Authorization: `Bearer ${token}` },
-      });
+      const { data } = await api.get(`/orders`);
       const returnOrders: Order[] = (data || []).filter(
         (o: Order) => o.returnRequest?.isRequested === true
       );
@@ -172,11 +170,9 @@ const AdminReturns: React.FC = () => {
     if (!selectedOrder) return;
     setProcessing(true);
     try {
-      const token = localStorage.getItem("adminToken");
-      await axios.put(
-        `${API_URL}/orders/admin/return-action/${selectedOrder._id}`,
-        { status, comment: adminComment },
-        { headers: { Authorization: `Bearer ${token}` } }
+      await api.put(
+        `/orders/admin/return-action/${selectedOrder._id}`,
+        { status, comment: adminComment }
       );
       setOrders((prev) =>
         prev.map((o) =>

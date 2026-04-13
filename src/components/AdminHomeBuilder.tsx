@@ -1,5 +1,6 @@
 import React, { useEffect, useMemo, useState } from "react";
 import axios from "axios";
+import api from "../utils/api";
 import "../styles/AdminHomeBuilder.css";
 
 // --- ✅ CONFIGURATION (Live URL Fix) ---
@@ -185,9 +186,9 @@ const AdminHomeBuilder: React.FC = () => {
     const fetchData = async () => {
       try {
         const [pRes, cRes, cfgRes] = await Promise.all([
-          axios.get(`${API_BASE}/products`).catch(() => ({ data: [] })),
-          axios.get(`${API_BASE}/categories`).catch(() => ({ data: [] })),
-          axios.get(`${API_BASE}/home-config`).catch(() => ({ data: null })),
+          api.get(`/products`).catch(() => ({ data: [] })),
+          api.get(`/categories`).catch(() => ({ data: [] })),
+          api.get(`/home-config`).catch(() => ({ data: null })),
         ]);
 
         setProducts(Array.isArray(pRes.data?.products) ? pRes.data.products : Array.isArray(pRes.data) ? pRes.data : []);
@@ -226,8 +227,8 @@ const AdminHomeBuilder: React.FC = () => {
       });
 
       const res = isNew
-        ? await axios.post(`${API_BASE}/home-config`, payload)
-        : await axios.put(`${API_BASE}/home-config`, payload);
+        ? await api.post(`/home-config`, payload)
+        : await api.put(`/home-config`, payload);
 
       setCfg(normalizeCfg(res.data));
       setIsNew(false);
@@ -242,7 +243,7 @@ const AdminHomeBuilder: React.FC = () => {
   const uploadImage = async (file: File) => {
     const fd = new FormData();
     fd.append("images", file);
-    const { data } = await axios.post(`${API_BASE}/upload`, fd, {
+    const { data } = await api.post(`/upload`, fd, {
       headers: { "Content-Type": "multipart/form-data" },
     });
     return data?.urls?.[0] || data?.url || "";

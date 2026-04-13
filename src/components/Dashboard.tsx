@@ -1,6 +1,7 @@
 import React, { useEffect, useState } from "react";
 import { Link } from "react-router-dom";
 import axios from "axios";
+import api from "../utils/api";
 import "../styles/Dashboard.css";
 import OrderModal from "./OrderModal";
 import {
@@ -129,25 +130,27 @@ const Dashboard: React.FC = () => {
 
       const [prodRes, custRes, orderRes, topProdRes, trafficRes] =
         await Promise.all([
-          axios.get(`${API_BASE}/products`),
-          axios.get(`${API_BASE}/admin/customers`),
-          axios.get<Order[]>(`${API_BASE}/orders`),
-          axios
-            .get<TopProduct[]>(`${API_BASE}/orders/analytics/top-selling`)
+          api.get(`/products`),
+          api.get(`/admin/customers`),
+          api.get<{ orders: Order[]; pagination: any } | Order[]>(`/orders`),
+          api
+            .get<TopProduct[]>(`/orders/analytics/top-selling`)
             .catch(() => ({ data: [] })),
-          axios
-            .get(`${API_BASE}/analytics/stats`)
+          api
+            .get(`/analytics/stats`)
             .catch(() => ({
               data: { totalVisitors: 0, dailyStats: [] },
             })),
         ]);
 
       setProductsCount(prodRes.data?.length || 0);
-      setCustomersCount((custRes.data || []).length);
+      // customers endpoint now returns { customers, pagination }
+      const custData = custRes.data?.customers || custRes.data || [];
+      setCustomersCount(custRes.data?.pagination?.total ?? custData.length);
 
       const orders: Order[] = Array.isArray(orderRes.data)
         ? orderRes.data
-        : [];
+        : orderRes.data?.orders || [];
       setOrdersCount(orders.length);
       setTotalRevenue(orders.reduce((s, o) => s + (o.total || 0), 0));
 

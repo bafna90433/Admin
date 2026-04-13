@@ -1,5 +1,6 @@
 import React, { useEffect, useState, useMemo, useCallback, useRef } from "react";
 import axios from "axios";
+import api from "../utils/api";
 import toast, { Toaster } from "react-hot-toast";
 import { format, formatDistanceToNow } from "date-fns";
 import {
@@ -120,7 +121,7 @@ const AdminReviews: React.FC = () => {
   const fetchReviews = useCallback(async () => {
     try {
       setLoading(true);
-      const res = await axios.get(`${API_BASE}/reviews/all/list`);
+      const res = await api.get(`/reviews/all/list`);
       setReviews(res.data);
     } catch {
       toast.error("Could not load reviews");
@@ -131,7 +132,7 @@ const AdminReviews: React.FC = () => {
 
   const fetchProducts = useCallback(async () => {
     try {
-      const res = await axios.get(`${API_BASE}/products`);
+      const res = await api.get(`/products`);
       setProductsList(res.data);
     } catch { /* ignore */ }
   }, []);
@@ -212,10 +213,10 @@ const AdminReviews: React.FC = () => {
       const payload = { ...formData, isAdmin: true }; 
 
       if (isEditing && editId) {
-        await axios.put(`${API_BASE}/reviews/${editId}`, payload);
+        await api.put(`/reviews/${editId}`, payload);
         toast.success("Rating updated!", { icon: "✅", style: { borderRadius: "12px", background: "#1e293b", color: "#fff" } });
       } else {
-        await axios.post(`${API_BASE}/reviews/add`, payload);
+        await api.post(`/reviews/add`, payload);
         toast.success("Rating added!", { icon: "🎉", style: { borderRadius: "12px", background: "#1e293b", color: "#fff" } });
       }
       resetForm();
@@ -243,7 +244,7 @@ const AdminReviews: React.FC = () => {
     if (!delId) return;
     setDeleting(true);
     try {
-      await axios.delete(`${API_BASE}/reviews/${delId}`);
+      await api.delete(`/reviews/${delId}`);
       setReviews((prev) => prev.filter((r) => r._id !== delId));
       toast.success("Rating deleted!", { icon: "🗑️", style: { borderRadius: "12px", background: "#1e293b", color: "#fff" } });
     } catch {

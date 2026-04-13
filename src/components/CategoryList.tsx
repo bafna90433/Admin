@@ -7,6 +7,7 @@ import {
   FiUpload, FiCheck
 } from "react-icons/fi";
 import axios from "axios";
+import api from "../utils/api";
 import "../styles/CategoryList.css";
 
 const API_BASE =
@@ -81,7 +82,7 @@ const CategoryList: React.FC = () => {
   const fetchCategories = useCallback(async () => {
     setLoading(true);
     try {
-      const { data } = await axios.get(`${API_BASE}/categories`);
+      const { data } = await api.get(`/categories`);
       const sorted = [...data].sort((a: any, b: any) => (a.order || 0) - (b.order || 0));
       setCategories(sorted);
     } catch {
@@ -93,7 +94,7 @@ const CategoryList: React.FC = () => {
 
   const fetchProducts = useCallback(async () => {
     try {
-      const { data } = await axios.get(`${API_BASE}/products`);
+      const { data } = await api.get(`/products`);
       const productsArray = Array.isArray(data) ? data : data.products || data.docs || [];
       setAllProducts(productsArray);
     } catch { /* ignore */ }
@@ -159,17 +160,15 @@ const CategoryList: React.FC = () => {
     if (!newImage) return toast.error("Category image is required (WEBP)");
 
     setSaving(true);
-    const token = localStorage.getItem("adminToken");
     const formData = new FormData();
     formData.append("name", newCategory);
     formData.append("link", newLink);
     formData.append("image", newImage);
 
     try {
-      await axios.post(`${API_BASE}/categories`, formData, {
-        headers: { 
+      await api.post(`/categories`, formData, {
+        headers: {
           "Content-Type": "multipart/form-data",
-          "Authorization": `Bearer ${token}`
         },
       });
       toast.success("Category created!", { icon: "🎉", style: { borderRadius: "12px", background: "#1e293b", color: "#fff" } });
@@ -195,17 +194,15 @@ const CategoryList: React.FC = () => {
   const handleUpdate = async (id: string) => {
     if (!editName.trim()) return toast.error("Category name cannot be empty");
     setSaving(true);
-    const token = localStorage.getItem("adminToken");
     const formData = new FormData();
     formData.append("name", editName);
     formData.append("link", editLink);
     if (editImage) formData.append("image", editImage);
 
     try {
-      await axios.put(`${API_BASE}/categories/${id}`, formData, {
-        headers: { 
+      await api.put(`/categories/${id}`, formData, {
+        headers: {
           "Content-Type": "multipart/form-data",
-          "Authorization": `Bearer ${token}`
         },
       });
       toast.success("Category updated!", { icon: "✅", style: { borderRadius: "12px", background: "#1e293b", color: "#fff" } });
@@ -220,11 +217,8 @@ const CategoryList: React.FC = () => {
     if (delPwd !== "bafnatoys") return toast.error("Wrong password");
     if (!delId) return;
     setDeleting(true);
-    const token = localStorage.getItem("adminToken");
     try {
-      await axios.delete(`${API_BASE}/categories/${delId}`, {
-        headers: { "Authorization": `Bearer ${token}` }
-      });
+      await api.delete(`/categories/${delId}`);
       toast.success("Category deleted!", { icon: "🗑️", style: { borderRadius: "12px", background: "#1e293b", color: "#fff" } });
       await fetchCategories();
       await fetchProducts(); 
@@ -234,11 +228,8 @@ const CategoryList: React.FC = () => {
   };
 
   const handleMove = async (id: string, direction: "up" | "down") => {
-    const token = localStorage.getItem("adminToken");
     try {
-      await axios.put(`${API_BASE}/categories/${id}/move`, { direction }, {
-        headers: { "Authorization": `Bearer ${token}` }
-      });
+      await api.put(`/categories/${id}/move`, { direction });
       await fetchCategories();
     } catch {
       toast.error("Failed to move category");

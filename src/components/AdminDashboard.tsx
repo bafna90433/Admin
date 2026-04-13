@@ -3,6 +3,7 @@ import toast, { Toaster } from "react-hot-toast";
 import { utils, writeFile } from "xlsx";
 import { format, formatDistanceToNow } from "date-fns";
 import axios from "axios";
+import api from "../utils/api";
 import "../styles/AdminDashboard.css";
 import {
   FiSearch, FiX, FiMessageSquare, FiTrash2, FiDownload,
@@ -112,8 +113,10 @@ const AdminDashboard: React.FC = () => {
   const fetchCustomers = useCallback(async () => {
     try {
       setLoading(true);
-      const { data } = await axios.get<Customer[]>(`${API_BASE}/admin/customers`);
-      setRows(Array.isArray(data) ? data : []);
+      const { data } = await api.get<any>(`/admin/customers`);
+      // Handle both paginated {customers, pagination} and plain array
+      const list = data?.customers || (Array.isArray(data) ? data : []);
+      setRows(list);
       setErr(null);
     } catch (e: any) {
       setErr(e?.response?.data?.message || "Failed to load customers");
@@ -223,7 +226,7 @@ const AdminDashboard: React.FC = () => {
     if (!delId) return;
     setActing(delId);
     try {
-      await axios.delete(`${API_BASE}/admin/customer/${delId}`);
+      await api.delete(`/admin/customer/${delId}`);
       setRows((p) => p.filter((r) => r._id !== delId));
       toast.success("Customer deleted", { icon: "🗑️", style: { borderRadius: "12px", background: "#1e293b", color: "#fff" } });
     } catch (e: any) {

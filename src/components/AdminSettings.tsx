@@ -1,5 +1,6 @@
 import React, { useEffect, useState } from "react";
 import axios from "axios";
+import api from "../utils/api";
 import { FiPower, FiGlobe, FiAlertTriangle } from "react-icons/fi";
 import Swal from "sweetalert2";
 
@@ -19,7 +20,7 @@ const AdminSettings: React.FC = () => {
 
   const fetchSettings = async () => {
     try {
-      const res = await axios.get(`${API_BASE}/settings/maintenance`);
+      const res = await api.get(`/settings/maintenance`);
       if (res.data) {
         setMaintenance(res.data.enabled);
       }
@@ -47,7 +48,7 @@ const AdminSettings: React.FC = () => {
     setLoading(true);
     try {
       const newState = !maintenance;
-      await axios.put(`${API_BASE}/settings/maintenance`, {
+      await api.put(`/settings/maintenance`, {
         enabled: newState,
       });
       

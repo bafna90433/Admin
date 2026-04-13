@@ -1,5 +1,6 @@
 import React, { useEffect, useMemo, useState, useCallback } from "react";
 import axios from "axios";
+import api from "../utils/api";
 import "../styles/AdminOrdersModern.css";
 
 import * as XLSX from "xlsx";
@@ -429,9 +430,8 @@ const AdminOrders: React.FC = () => {
       if (page === 1) setLoading(true);
       else setLoadingMore(true);
 
-      const { data } = await axios.get(
-        `${API_BASE}/orders?populate=shippingAddress&page=${page}&limit=${SERVER_LIMIT}`,
-        { headers: authHeaders() }
+      const { data } = await api.get(
+        `/orders?populate=shippingAddress&page=${page}&limit=${SERVER_LIMIT}`
       );
 
       let list: Order[] = [];
@@ -477,9 +477,8 @@ const AdminOrders: React.FC = () => {
     setLoadingMore(true);
     try {
       while (true) {
-        const { data } = await axios.get(
-          `${API_BASE}/orders?populate=shippingAddress&page=${page}&limit=${SERVER_LIMIT}`,
-          { headers: authHeaders() }
+        const { data } = await api.get(
+          `/orders?populate=shippingAddress&page=${page}&limit=${SERVER_LIMIT}`
         );
         const list: Order[] = Array.isArray(data)
           ? data
@@ -526,10 +525,9 @@ const AdminOrders: React.FC = () => {
     }
     try {
       setActOn(id);
-      const { data } = await axios.patch<Order>(
-        `${API_BASE}/orders/${id}/status`,
-        { status },
-        { headers: authHeaders() }
+      const { data } = await api.patch<Order>(
+        `/orders/${id}/status`,
+        { status }
       );
       const patch = (o: Order): Order =>
         o._id === id
@@ -584,9 +582,7 @@ const AdminOrders: React.FC = () => {
         allowOutsideClick: false,
         didOpen: () => Swal.showLoading(),
       });
-      await axios.delete(`${API_BASE}/orders/${id}`, {
-        headers: authHeaders(),
-      });
+      await api.delete(`/orders/${id}`);
       setAllOrders((prev) => prev.filter((o) => o._id !== id));
       if (viewing?._id === id) setViewing(null);
       Swal.fire("Deleted!", "Order removed.", "success");
@@ -683,10 +679,9 @@ const AdminOrders: React.FC = () => {
     try {
       setShipErr("");
       setActOn(shipOrder._id);
-      const { data } = await axios.patch<Order>(
-        `${API_BASE}/orders/${shipOrder._id}/status`,
-        payload,
-        { headers: authHeaders() }
+      const { data } = await api.patch<Order>(
+        `/orders/${shipOrder._id}/status`,
+        payload
       );
 
       const patch = (o: Order): Order =>

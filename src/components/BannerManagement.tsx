@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from "react";
 import axios from "axios";
+import api from "../utils/api";
 import { 
   FiCopy, 
   FiExternalLink, 
@@ -76,7 +77,7 @@ const BannerManagement: React.FC = () => {
   const fetchBanners = async () => {
     try {
       setLoadingBanners(true);
-      const res = await axios.get(`${API_BASE}/banners/all`);
+      const res = await api.get(`/banners/all`);
       setBanners(res.data || []);
     } catch (err) {
       console.error("Failed to fetch banners", err);
@@ -93,7 +94,7 @@ const BannerManagement: React.FC = () => {
 
   const toggleEnable = async (id: string) => {
     try {
-      await axios.patch(`${API_BASE}/banners/${id}/toggle`);
+      await api.patch(`/banners/${id}/toggle`);
       fetchBanners();
       showToast("Banner status updated successfully!");
     } catch (err) {
@@ -106,7 +107,7 @@ const BannerManagement: React.FC = () => {
   const deleteBanner = async (id: string) => {
     if (!window.confirm("🚨 Are you sure you want to PERMANENTLY delete this banner? This cannot be undone.")) return;
     try {
-      await axios.delete(`${API_BASE}/banners/${id}`);
+      await api.delete(`/banners/${id}`);
       fetchBanners();
       showToast("Banner deleted successfully!");
     } catch (err) {
@@ -134,7 +135,7 @@ const BannerManagement: React.FC = () => {
 
   const saveBannerLink = async (id: string) => {
     try {
-      await axios.patch(`${API_BASE}/banners/${id}/link`, { link: editingLinkValue });
+      await api.patch(`/banners/${id}/link`, { link: editingLinkValue });
       showToast("Banner link updated successfully!");
       setEditingLinkId(null);
       fetchBanners(); 
@@ -201,12 +202,9 @@ const BannerManagement: React.FC = () => {
       setProgress(0);
       setUploadMessage("");
 
-      const token = localStorage.getItem("adminToken"); // Fallback auth
-
-      await axios.post(`${API_BASE}/banners`, formData, {
-        headers: { 
+      await api.post(`/banners`, formData, {
+        headers: {
           "Content-Type": "multipart/form-data",
-          "Authorization": `Bearer ${token}`
         },
         onUploadProgress: (event) => {
           const percent = Math.round((event.loaded * 100) / (event.total || 1));

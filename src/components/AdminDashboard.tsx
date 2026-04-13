@@ -2,8 +2,7 @@ import React, { useEffect, useMemo, useState, useCallback, useRef } from "react"
 import toast, { Toaster } from "react-hot-toast";
 import { utils, writeFile } from "xlsx";
 import { format, formatDistanceToNow } from "date-fns";
-import axios from "axios";
-import api from "../utils/api";
+import api, { API_URL } from "../utils/api";
 import "../styles/AdminDashboard.css";
 import {
   FiSearch, FiX, FiMessageSquare, FiTrash2, FiDownload,
@@ -15,16 +14,10 @@ import {
   FiZap, FiEye, FiExternalLink, FiFileText
 } from "react-icons/fi";
 
-const API_BASE =
-  (import.meta as any).env?.VITE_API_URL ||
-  (process as any).env?.VITE_API_URL ||
-  (process as any).env?.REACT_APP_API_URL ||
-  "https://bafnatoys-backend-production.up.railway.app/api";
-
 const getFileUrl = (filePath?: string) => {
   if (!filePath) return "";
   if (filePath.startsWith("http://") || filePath.startsWith("https://")) return filePath;
-  const baseUrl = API_BASE.replace(/\/api\/?$/, "");
+  const baseUrl = API_URL.replace(/\/api\/?$/, "");
   const cleanPath = filePath.replace(/\\/g, "/");
   return `${baseUrl}/${cleanPath.startsWith("/") ? cleanPath.slice(1) : cleanPath}`;
 };

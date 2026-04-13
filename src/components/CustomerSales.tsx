@@ -1,16 +1,10 @@
 import React, { useEffect, useState, useMemo, useRef } from "react";
-import axios from "axios"; // ✅ Changed: Import axios directly
-import { 
-  FiSearch, FiUser, FiEye, FiX, FiCalendar, FiMapPin, 
-  FiMessageCircle, FiShare2, FiSend, FiEdit3, FiChevronDown 
+import api from "../utils/api";
+import {
+  FiSearch, FiUser, FiEye, FiX, FiCalendar, FiMapPin,
+  FiMessageCircle, FiShare2, FiSend, FiEdit3, FiChevronDown
 } from "react-icons/fi";
-import "../styles/ProductList.css"; 
-
-// --- ✅ CONFIGURATION (Live URL Fix) ---
-const API_BASE =
-  process.env.VITE_API_URL ||
-  process.env.REACT_APP_API_URL ||
-  "https://bafnatoys-backend-production.up.railway.app/api";
+import "../styles/ProductList.css";
 
 const MEDIA_BASE =
   process.env.VITE_MEDIA_URL ||
@@ -111,10 +105,11 @@ const CustomerSales: React.FC = () => {
     setLoading(true);
     try {
       // ✅ Changed: Using axios with API_BASE
-      const { data: orders } = await axios.get(`${API_BASE}/orders`);
-      const { data: productData } = await axios.get(`${API_BASE}/products`);
-      
-      setProducts(productData.reverse()); 
+      const { data: ordersData } = await api.get(`/orders`);
+      const orders = Array.isArray(ordersData) ? ordersData : (ordersData?.orders || []);
+      const { data: productData } = await api.get(`/products`);
+
+      setProducts(productData.reverse());
 
       const customerMap: Record<string, CustomerStat> = {};
 

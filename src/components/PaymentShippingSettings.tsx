@@ -1,5 +1,5 @@
 import React, { useEffect, useState, useCallback, useRef } from "react";
-import axios from "axios";
+import api from "../utils/api";
 import toast, { Toaster } from "react-hot-toast";
 import {
   FiTruck, FiSave, FiCreditCard, FiPackage, FiInfo, FiPercent,
@@ -9,12 +9,6 @@ import {
   FiZap, FiGift, FiDollarSign, FiTrendingUp, FiEdit3
 } from "react-icons/fi";
 import "../styles/PaymentShipping.css";
-
-const API_BASE =
-  (import.meta as any).env?.VITE_API_URL ||
-  (process as any).env?.VITE_API_URL ||
-  (process as any).env?.REACT_APP_API_URL ||
-  "https://bafnatoys-backend-production.up.railway.app/api";
 
 interface DiscountRule {
   minAmount: number;
@@ -58,10 +52,10 @@ const PaymentShippingSettings: React.FC = () => {
     try {
       setLoading(true);
       const [shippingRes, codRes, discountRes, reviewRes] = await Promise.allSettled([
-        axios.get(`${API_BASE}/settings/shipping`),
-        axios.get(`${API_BASE}/settings/cod`),
-        axios.get(`${API_BASE}/discount-rules`),
-        axios.get(`${API_BASE}/settings/reviews`),
+        api.get(`/settings/shipping`),
+        api.get(`/settings/cod`),
+        api.get(`/discount-rules`),
+        api.get(`/settings/reviews`),
       ]);
 
       if (shippingRes.status === "fulfilled" && shippingRes.value.data) {
@@ -131,11 +125,11 @@ const PaymentShippingSettings: React.FC = () => {
       }
 
       await Promise.all([
-        axios.put(`${API_BASE}/settings/shipping`, { shippingCharge: Number(shippingCharge), freeShippingThreshold: Number(freeLimit) }),
+        api.put(`/settings/shipping`, { shippingCharge: Number(shippingCharge), freeShippingThreshold: Number(freeLimit) }),
         // ✅ API call me advanceType pass kiya
-        axios.put(`${API_BASE}/settings/cod`, { advanceAmount: Number(advanceAmount), advanceType, enabled: enableCOD }),
-        axios.put(`${API_BASE}/discount-rules`, { rules: validRules }),
-        axios.put(`${API_BASE}/settings/reviews`, { enabled: enableReviews }),
+        api.put(`/settings/cod`, { advanceAmount: Number(advanceAmount), advanceType, enabled: enableCOD }),
+        api.put(`/discount-rules`, { rules: validRules }),
+        api.put(`/settings/reviews`, { enabled: enableReviews }),
       ]);
 
       toast.success("All settings saved!", { icon: "✅", style: { borderRadius: "12px", background: "#1e293b", color: "#fff" } });

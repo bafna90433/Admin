@@ -1,6 +1,5 @@
 import React, { useState, useEffect } from "react";
-import axios from "axios";
-import api from "../utils/api";
+import api, { API_URL } from "../utils/api";
 import { 
   FiCopy, 
   FiExternalLink, 
@@ -14,13 +13,6 @@ import {
 } from "react-icons/fi";
 
 import "../styles/BannerManagement.css";
-
-// --- ✅ CONFIGURATION ---
-const API_BASE =
-  (import.meta as any).env?.VITE_API_URL ||
-  (process as any).env?.VITE_API_URL ||
-  (process as any).env?.REACT_APP_API_URL ||
-  "https://bafnatoys-backend-production.up.railway.app/api";
 
 const MEDIA_BASE =
   (import.meta as any).env?.VITE_MEDIA_URL ||
@@ -45,7 +37,7 @@ const resolveUrl = (u?: string) => {
     return `${base}/${u.replace(/^\/+/, "")}`;
   }
   
-  const root = API_BASE.replace(/\/api\/?$/, "").replace(/\/+$/, "");
+  const root = API_URL.replace(/\/api\/?$/, "").replace(/\/+$/, "");
   return `${root}${u.startsWith("/") ? u : `/${u}`}`;
 };
 

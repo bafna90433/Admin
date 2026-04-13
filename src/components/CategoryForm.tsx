@@ -1,12 +1,6 @@
 import React, { useState } from "react";
 import { FiSave, FiX, FiImage } from "react-icons/fi";
-import axios from "axios";
-
-// --- ✅ CONFIGURATION ---
-const API_BASE =
-  process.env.VITE_API_URL ||
-  process.env.REACT_APP_API_URL ||
-  "https://bafnatoys-backend-production.up.railway.app/api";
+import api from "../utils/api";
 
 interface Props {
   onSuccess?: () => void;
@@ -52,14 +46,13 @@ const CategoryForm: React.FC<Props> = ({
       // Agar create kar rahe hain (ID nahi hai), toh image mandatory hai
       if (!categoryId && !image) throw new Error("Category image is required");
 
-      const url = categoryId 
-        ? `${API_BASE}/categories/${categoryId}` 
-        : `${API_BASE}/categories`;
-      
+      const url = categoryId
+        ? `/categories/${categoryId}`
+        : `/categories`;
+
       const method = categoryId ? "put" : "post";
-      
+
       // ✅ Image bhejne ke liye FormData zaroori hai
-      const token = localStorage.getItem("adminToken");
       const formData = new FormData();
       formData.append("name", name);
       formData.append("link", link);
@@ -67,14 +60,11 @@ const CategoryForm: React.FC<Props> = ({
         formData.append("image", image);
       }
 
-      await axios({
+      await api({
         method: method,
         url: url,
         data: formData,
-        headers: { 
-          "Content-Type": "multipart/form-data",
-          "Authorization": `Bearer ${token}`
-        },
+        headers: { "Content-Type": "multipart/form-data" },
       });
 
       if (onSuccess) onSuccess();

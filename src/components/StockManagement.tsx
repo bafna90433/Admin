@@ -1,5 +1,5 @@
 import React, { useEffect, useState, useMemo, useCallback, useRef } from "react";
-import axios from "axios";
+import api from "../utils/api";
 import toast, { Toaster } from "react-hot-toast";
 import {
   FiBox, FiRefreshCw, FiAlertCircle, FiSearch, FiEdit2,
@@ -12,12 +12,6 @@ import {
 import { utils, writeFile } from "xlsx";
 import { format } from "date-fns";
 import "../styles/StockManagement.css";
-
-const API_BASE =
-  (import.meta as any).env?.VITE_API_URL ||
-  (process as any).env?.VITE_API_URL ||
-  (process as any).env?.REACT_APP_API_URL ||
-  "https://bafnatoys-backend-production.up.railway.app/api";
 
 const MEDIA_BASE =
   (import.meta as any).env?.VITE_MEDIA_URL ||
@@ -93,8 +87,8 @@ const StockManagement: React.FC = () => {
     setLoading(true);
     try {
       const [productsRes, ordersRes] = await Promise.all([
-        axios.get(`${API_BASE}/products`),
-        axios.get(`${API_BASE}/orders`, {
+        api.get(`/products`),
+        api.get(`/orders`, {
           headers: token ? { Authorization: `Bearer ${token}` } : undefined,
         }).catch(() => ({ data: [] })),
       ]);
@@ -226,10 +220,9 @@ const StockManagement: React.FC = () => {
         )
       );
       setEditingId(null);
-      await axios.put(
-        `${API_BASE}/products/${id}`,
-        { stock: Number(editForm.stock), unit: String(editForm.unit || "") },
-        { headers: token ? { Authorization: `Bearer ${token}` } : undefined }
+      await api.put(
+        `/products/${id}`,
+        { stock: Number(editForm.stock), unit: String(editForm.unit || "") }
       );
       toast.success("Stock updated!", {
         icon: "✅",

@@ -6,15 +6,9 @@ import {
   FiLink, FiShield, FiKey, FiPackage, FiEye,
   FiUpload, FiCheck
 } from "react-icons/fi";
-import axios from "axios";
 import api from "../utils/api";
 import "../styles/CategoryList.css";
 
-const API_BASE =
-  (import.meta as any).env?.VITE_API_URL ||
-  (process as any).env?.VITE_API_URL ||
-  (process as any).env?.REACT_APP_API_URL ||
-  "https://bafnatoys-backend-production.up.railway.app/api";
 
 interface Category {
   _id: string;

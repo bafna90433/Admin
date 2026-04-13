@@ -1,5 +1,4 @@
 import React, { useEffect, useMemo, useState, useCallback } from "react";
-import axios from "axios";
 import api from "../utils/api";
 import "../styles/AdminOrdersModern.css";
 
@@ -7,12 +6,6 @@ import * as XLSX from "xlsx";
 import { saveAs } from "file-saver";
 import Swal from "sweetalert2";
 
-/* ================= CONFIG ================= */
-const API_BASE =
-  (import.meta as any).env?.VITE_API_URL ||
-  (process as any).env?.VITE_API_URL ||
-  (process as any).env?.REACT_APP_API_URL ||
-  "https://bafnatoys-backend-production.up.railway.app/api";
 
 const MEDIA_BASE =
   (import.meta as any).env?.VITE_MEDIA_URL ||

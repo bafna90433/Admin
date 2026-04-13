@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import axios from 'axios';
+import api from '../utils/api';
 import { FiTrash2, FiUserPlus, FiShield, FiUsers, FiEdit } from 'react-icons/fi';
 
 const CreateAdmin = () => {
@@ -13,9 +13,6 @@ const CreateAdmin = () => {
   
   // ✅ Edit state track karne ke liye
   const [editId, setEditId] = useState<string | null>(null); 
-
-  // ✅ FIX: Changed to your LIVE Railway Backend URL
-  const API_BASE = "https://bafnatoys-backend-production.up.railway.app/api";
 
   const availablePermissions = [
     // Dashboard
@@ -46,7 +43,7 @@ const CreateAdmin = () => {
   const fetchAdmins = async () => {
     try {
       const token = localStorage.getItem('adminToken');
-      const response = await axios.get(`${API_BASE}/adminAuth/list`, {
+      const response = await api.get(`/adminAuth/list`, {
         headers: { Authorization: `Bearer ${token}` }
       });
       setAdmins(response.data);
@@ -100,16 +97,16 @@ const CreateAdmin = () => {
         const updateData: any = { username, permissions };
         if (password) updateData.password = password; // Agar naya password dala hai tabhi bhejo
 
-        await axios.put(
-          `${API_BASE}/adminAuth/${editId}`,
+        await api.put(
+          `/adminAuth/${editId}`,
           updateData,
           { headers: { Authorization: `Bearer ${token}` } }
         );
         setMessage('Admin updated successfully!');
       } else {
         // 🔹 CREATE LOGIC
-        await axios.post(
-          `${API_BASE}/adminAuth/create`,
+        await api.post(
+          `/adminAuth/create`,
           { username, password, permissions },
           { headers: { Authorization: `Bearer ${token}` } }
         );
@@ -133,7 +130,7 @@ const CreateAdmin = () => {
     if (!window.confirm("Are you sure you want to remove this admin?")) return;
     try {
       const token = localStorage.getItem('adminToken');
-      await axios.delete(`${API_BASE}/adminAuth/${id}`, {
+      await api.delete(`/adminAuth/${id}`, {
         headers: { Authorization: `Bearer ${token}` }
       });
       fetchAdmins();

@@ -1,6 +1,6 @@
 import React, { useEffect, useState } from "react";
 import { Link } from "react-router-dom";
-import axios from "axios";
+import api, { API_URL } from "../utils/api";
 import { io } from "socket.io-client";
 import "../styles/TrafficAnalytics.css";
 import IndiaHeatmap from "../components/IndiaHeatmap";
@@ -18,8 +18,7 @@ import {
   FiMessageCircle,
 } from "react-icons/fi";
 
-const API_BASE = (import.meta as any).env?.VITE_API_URL || "https://bafnatoys-backend-production.up.railway.app/api";
-const SOCKET_BASE = API_BASE.replace(/\/api\/?$/, "");
+const SOCKET_BASE = API_URL.replace(/\/api\/?$/, "");
 
 const TrafficAnalytics: React.FC = () => {
   const [totalVisitors, setTotalVisitors] = useState(0);
@@ -46,7 +45,7 @@ const TrafficAnalytics: React.FC = () => {
 
   const fetchData = async () => {
     try {
-      const res = await axios.get(`${API_BASE}/analytics/stats`);
+      const res = await api.get(`/analytics/stats`);
       setTotalVisitors(res.data.totalVisitors || 0);
       setDailyStats(res.data.dailyStats || []);
       setSourceStats(res.data.source || {});

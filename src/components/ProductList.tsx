@@ -1,6 +1,6 @@
 import React, { useEffect, useMemo, useState, useCallback, useRef } from "react";
 import { Link, useNavigate } from "react-router-dom";
-import axios from "axios";
+import api from "../utils/api";
 import {
   FiEdit2, FiTrash2, FiPlus, FiSearch, FiX, FiCheck,
   FiArrowUp, FiArrowDown, FiChevronDown, FiChevronUp,
@@ -12,12 +12,6 @@ import {
   FiDownloadCloud // ✅ Added Download Icon
 } from "react-icons/fi";
 import "../styles/ProductList.css";
-
-const API_BASE =
-  (import.meta as any).env?.VITE_API_URL ||
-  (process as any).env?.VITE_API_URL ||
-  (process as any).env?.REACT_APP_API_URL ||
-  "https://bafnatoys-backend-production.up.railway.app/api";
 
 const MEDIA_BASE =
   (import.meta as any).env?.VITE_MEDIA_URL ||
@@ -106,9 +100,9 @@ export default function ProductList() {
     try {
       setLoading(true);
       const [prodRes, catRes, gridRes] = await Promise.all([
-        axios.get(`${API_BASE}/products`),
-        axios.get(`${API_BASE}/categories`),
-        axios.get(`${API_BASE}/grid-layout`).catch(() => ({ data: {} }))
+        api.get(`/products`),
+        api.get(`/categories`),
+        api.get(`/grid-layout`).catch(() => ({ data: {} }))
       ]);
       const sorted = prodRes.data.sort(
         (a: Product, b: Product) => (a.order || 0) - (b.order || 0)
@@ -140,7 +134,7 @@ export default function ProductList() {
       setDownloadingPdf(true);
       import("react-hot-toast").then(({ default: toast }) => toast.loading("Generating PDF... (Takes ~30 secs)"));
 
-      const response = await axios.get(`${API_BASE}/products/download-catalogue/pdf`, {
+      const response = await api.get(`/products/download-catalogue/pdf`, {
         responseType: "blob", // Very important to get binary file data
       });
 
@@ -171,7 +165,7 @@ export default function ProductList() {
     setGridPC(pc);
     setGridMobile(mobile);
     try {
-      await axios.put(`${API_BASE}/grid-layout`, { pcColumns: pc, mobileColumns: mobile });
+      await api.put(`/grid-layout`, { pcColumns: pc, mobileColumns: mobile });
       import("react-hot-toast").then(({ default: toast }) => toast.success("Grid Layout Updated!"));
     } catch (err) {
       import("react-hot-toast").then(({ default: toast }) => toast.error("Failed to save layout to DB"));
@@ -285,7 +279,7 @@ export default function ProductList() {
         updatedPayload.sort((a, b) => (a.order || 0) - (b.order || 0));
       }
 
-      axios.put(`${API_BASE}/products/reorder`, {
+      api.put(`/products/reorder`, {
         products: updatedPayload.map((p) => ({ _id: p._id, order: p.order }))
       }).then(() => {
         import("react-hot-toast").then(({ default: toast }) => toast.success(`${selectedIds.length} items moved to top!`));
@@ -308,7 +302,7 @@ export default function ProductList() {
     if (!delId) return;
     setDeleting(true);
     try {
-      await axios.delete(`${API_BASE}/products/${delId}`);
+      await api.delete(`/products/${delId}`);
       setProducts((prev) => prev.filter((p) => p._id !== delId));
       import("react-hot-toast").then(({ default: toast }) =>
         toast.success("Product deleted", { icon: "🗑️", style: { borderRadius: "12px", background: "#1e293b", color: "#fff" } })
@@ -332,7 +326,7 @@ export default function ProductList() {
       setProducts((prev) =>
         prev.map((p) => p._id === productId ? { ...p, category: { _id: newCategoryId, name: newCategory?.name || "—" } } : p)
       );
-      await axios.put(`${API_BASE}/products/${productId}`, { category: newCategoryId });
+      await api.put(`/products/${productId}`, { category: newCategoryId });
       setEditingCategory(null);
     } catch {
       import("react-hot-toast").then(({ default: toast }) => toast.error("Failed to update category"));
@@ -343,7 +337,7 @@ export default function ProductList() {
   // Move via Arrows
   const moveProduct = async (id: string, direction: "up" | "down") => {
     try {
-      const res = await axios.put(`${API_BASE}/products/${id}/move`, { direction });
+      const res = await api.put(`/products/${id}/move`, { direction });
       if (res.data.updatedCategoryProducts) {
         const updated = res.data.updatedCategoryProducts;
         setProducts((prev) => {
@@ -406,7 +400,7 @@ export default function ProductList() {
 
     setDraggedItem(null);
     try {
-      await axios.put(`${API_BASE}/products/reorder`, {
+      await api.put(`/products/reorder`, {
         products: updatedPayload.map(p => ({ _id: p._id, order: p.order }))
       });
     } catch { fetchData(); }
@@ -430,7 +424,7 @@ export default function ProductList() {
     setDraggedItem(null);
 
     try {
-      await axios.put(`${API_BASE}/products/reorder`, {
+      await api.put(`/products/reorder`, {
         products: updatedPayload.map((p) => ({ _id: p._id, order: p.order }))
       });
     } catch { fetchData(); }

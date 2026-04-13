@@ -1,9 +1,7 @@
 import React, { useEffect, useState } from "react";
-import axios from "axios";
+import api from "../utils/api";
 import { FiSmartphone, FiSave, FiRefreshCw, FiMessageCircle } from "react-icons/fi";
 import Swal from "sweetalert2";
-
-const API_BASE = (import.meta as any).env?.VITE_API_URL || "http://localhost:5000/api";
 
 const MobileControl: React.FC = () => {
   const [colors, setColors] = useState({
@@ -37,7 +35,7 @@ const MobileControl: React.FC = () => {
   const fetchTheme = async () => {
     try {
       setFetching(true);
-      const res = await axios.get(`${API_BASE}/settings/mobile-theme`);
+      const res = await api.get(`/settings/mobile-theme`);
       if (res.data) {
         setColors(res.data);
       }
@@ -51,7 +49,7 @@ const MobileControl: React.FC = () => {
   // ✅ Fetch WhatsApp header settings
   const fetchWhatsapp = async () => {
     try {
-      const res = await axios.get(`${API_BASE}/settings/mobile-whatsapp`);
+      const res = await api.get(`/settings/mobile-whatsapp`);
       if (res.data) setWhatsapp(res.data);
     } catch (err) {
       console.error("Failed to load WhatsApp settings", err);
@@ -61,7 +59,7 @@ const MobileControl: React.FC = () => {
   // ✅ Fetch current layout
   const fetchLayout = async () => {
     try {
-      const res = await axios.get(`${API_BASE}/settings/mobile-layout`);
+      const res = await api.get(`/settings/mobile-layout`);
       if (res.data) setActiveLayout(res.data.layout || "layout1");
     } catch (err) {
       console.error("Failed to load layout settings", err);
@@ -75,7 +73,7 @@ const MobileControl: React.FC = () => {
   const handleSave = async () => {
     setLoading(true);
     try {
-      await axios.put(`${API_BASE}/settings/mobile-theme`, colors);
+      await api.put(`/settings/mobile-theme`, colors);
       Swal.fire({
         title: "Success!",
         text: "Mobile theme colors have been updated.",
@@ -94,7 +92,7 @@ const MobileControl: React.FC = () => {
   const handleWaSave = async () => {
     setWaSaving(true);
     try {
-      await axios.put(`${API_BASE}/settings/mobile-whatsapp`, whatsapp);
+      await api.put(`/settings/mobile-whatsapp`, whatsapp);
       Swal.fire({
         title: "Saved!",
         text: "WhatsApp header button settings updated.",
@@ -112,7 +110,7 @@ const MobileControl: React.FC = () => {
   const handleLayoutSave = async (layoutId: string) => {
     setLayoutSaving(true);
     try {
-      await axios.put(`${API_BASE}/settings/mobile-layout`, { layout: layoutId });
+      await api.put(`/settings/mobile-layout`, { layout: layoutId });
       setActiveLayout(layoutId);
       Swal.fire({
         title: "Layout Updated!",
@@ -153,7 +151,7 @@ const MobileControl: React.FC = () => {
         <button
           onClick={async () => {
             try {
-              await axios.post(`${API_BASE}/settings/ping-sync`);
+              await api.post(`/settings/ping-sync`);
               Swal.fire({ title: "Ping Sent!", text: "Check your mobile app logs or indicators.", icon: "info", timer: 1500, showConfirmButton: false });
             } catch (err) {
               Swal.fire("Error", "Failed to send ping", "error");

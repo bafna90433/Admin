@@ -1,10 +1,7 @@
 import React, { useState } from "react";
 import { useNavigate } from "react-router-dom";
-import axios from "axios";
+import api from "../utils/api";
 import "../styles/AdminLogin.css";
-
-// ✅ FIX: Changed to your LIVE Railway Backend URL
-const API_BASE = "https://bafnatoys-backend-production.up.railway.app/api";
 
 const AdminLogin: React.FC = () => {
   const navigate = useNavigate();
@@ -25,7 +22,7 @@ const AdminLogin: React.FC = () => {
 
     try {
       setLoading(true);
-      const { data } = await axios.post(`${API_BASE}/adminAuth/login`, {
+      const { data } = await api.post(`/adminAuth/login`, {
         username: username.trim(),
         password: password.trim(),
       });

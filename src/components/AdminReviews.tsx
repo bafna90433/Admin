@@ -1,5 +1,4 @@
 import React, { useEffect, useState, useMemo, useCallback, useRef } from "react";
-import axios from "axios";
 import api from "../utils/api";
 import toast, { Toaster } from "react-hot-toast";
 import { format, formatDistanceToNow } from "date-fns";
@@ -12,11 +11,6 @@ import {
 } from "react-icons/fi";
 import "../styles/AdminReviews.css";
 
-const API_BASE =
-  (import.meta as any).env?.VITE_API_URL ||
-  (process as any).env?.VITE_API_URL ||
-  (process as any).env?.REACT_APP_API_URL ||
-  "https://bafnatoys-backend-production.up.railway.app/api";
 
 const MEDIA_BASE =
   (import.meta as any).env?.VITE_MEDIA_URL ||

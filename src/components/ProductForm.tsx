@@ -7,14 +7,8 @@ import {
   FiChevronLeft, FiTag, FiHash, FiFileText,
   FiLayers, FiShield, FiKey, FiInfo, FiEye
 } from "react-icons/fi";
-import axios from "axios";
+import api from "../utils/api";
 import "../styles/ProductForm.css";
-
-const API_BASE =
-  (import.meta as any).env?.VITE_API_URL ||
-  (process as any).env?.VITE_API_URL ||
-  (process as any).env?.REACT_APP_API_URL ||
-  "https://bafnatoys-backend-production.up.railway.app/api";
 
 interface Category { _id: string; name: string; }
 interface ProductOption { _id: string; name: string; sku?: string; images?: string[]; }
@@ -71,11 +65,11 @@ const ProductForm: React.FC = () => {
   const fetchData = useCallback(async () => {
     setPageLoading(true);
     try {
-      const categoriesRes = await axios.get(`${API_BASE}/categories`);
+      const categoriesRes = await api.get(`/categories`);
       setCategories(categoriesRes.data);
 
       if (editMode && id) {
-        const productRes = await axios.get(`${API_BASE}/products/${id}`);
+        const productRes = await api.get(`/products/${id}`);
         const data = productRes.data;
         setForm({
           name: data.name, sku: data.sku || "",
@@ -131,7 +125,7 @@ const ProductForm: React.FC = () => {
     setSearchQuery(query);
     if (query.length > 1) {
       try {
-        const res = await axios.get(`${API_BASE}/products/search/all?query=${query}`);
+        const res = await api.get(`/products/search/all?query=${query}`);
         setSearchResults(res.data);
         setShowResults(true);
       } catch { setSearchResults([]); }
@@ -148,7 +142,7 @@ const ProductForm: React.FC = () => {
     setRelatedQuery(query);
     if (query.length > 1) {
       try {
-        const res = await axios.get(`${API_BASE}/products/search/all?query=${query}`);
+        const res = await api.get(`/products/search/all?query=${query}`);
         setRelatedResults(res.data.filter((p: ProductOption) =>
           p._id !== id && !relatedDisplay.some((r) => r._id === p._id)
         ));
@@ -173,7 +167,7 @@ const ProductForm: React.FC = () => {
     if (!id) return;
     setDeleting(true);
     try {
-      await axios.delete(`${API_BASE}/products/${id}`);
+      await api.delete(`/products/${id}`);
       toast.success("Product deleted!", { icon: "🗑️", style: { borderRadius: "12px", background: "#1e293b", color: "#fff" } });
       navigate("/admin/products/new");
       setForm({ 
@@ -262,7 +256,7 @@ const ProductForm: React.FC = () => {
       if (newImages.length) {
         const formData = new FormData();
         newImages.forEach((g) => g.file && formData.append("images", g.file));
-        const res = await axios.post(`${API_BASE}/upload`, formData, { headers: { "Content-Type": "multipart/form-data" } });
+        const res = await api.post(`/upload`, formData, { headers: { "Content-Type": "multipart/form-data" } });
         uploadedUrls = res.data.urls;
       }
 
@@ -288,10 +282,10 @@ const ProductForm: React.FC = () => {
       };
 
       if (editMode && id) {
-        await axios.put(`${API_BASE}/products/${id}`, payload);
+        await api.put(`/products/${id}`, payload);
         toast.success("Product updated!", { icon: "✅", style: { borderRadius: "12px", background: "#1e293b", color: "#fff" } });
       } else {
-        const res = await axios.post(`${API_BASE}/products`, payload);
+        const res = await api.post(`/products`, payload);
         toast.success("Product created!", { icon: "🎉", style: { borderRadius: "12px", background: "#1e293b", color: "#fff" } });
         const newId = res.data._id || res.data.id || res.data.product?._id;
         if (newId) navigate(`/admin/products/edit/${newId}`);

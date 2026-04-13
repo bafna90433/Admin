@@ -1,15 +1,9 @@
 import React, { useEffect, useState } from "react";
-import axios from "axios";
+import api, { API_URL } from "../utils/api";
 import "../styles/WhatsAppSettings.css";
 
-// --- ✅ CONFIGURATION (Live URL Fix) ---
-const API_BASE =
-  process.env.VITE_API_URL ||
-  process.env.REACT_APP_API_URL ||
-  "https://bafnatoys-backend-production.up.railway.app/api";
-
 // Backend ka root URL (uploads ke liye)
-const ROOT_BASE = API_BASE.replace(/\/api\/?$/, "");
+const ROOT_BASE = API_URL.replace(/\/api\/?$/, "");
 
 /* ------------ Types ------------ */
 type Agent = {
@@ -68,8 +62,7 @@ const AdminWhatsApp: React.FC = () => {
   useEffect(() => {
     (async () => {
       try {
-        // ✅ Changed: Use API_BASE
-        const { data } = await axios.get<Settings>(`${API_BASE}/whatsapp`);
+        const { data } = await api.get<Settings>(`/whatsapp`);
         
         data.showOnPaths ||= [];
         data.hideOnPaths ||= [];
@@ -129,7 +122,7 @@ const AdminWhatsApp: React.FC = () => {
         const fd = new FormData();
         fd.append("images", file);
         // ✅ Changed: Use API_BASE
-        const { data } = await axios.post(`${API_BASE}/upload`, fd);
+        const { data } = await api.post(`/upload`, fd);
         const rel = data?.url || data?.urls?.[0];
         if (rel) updateAgent(idx, { avatar: rel });
       } catch (e) {
@@ -164,7 +157,7 @@ const AdminWhatsApp: React.FC = () => {
         })),
       };
       // ✅ Changed: Use API_BASE
-      const { data } = await axios.put(`${API_BASE}/whatsapp`, payload);
+      const { data } = await api.put(`/whatsapp`, payload);
       setSettings(data.settings || payload);
       setMessage("Settings saved successfully!");
       setTimeout(() => setMessage(null), 3000);

@@ -1,14 +1,8 @@
 import React, { useEffect, useState } from "react";
-import axios from "axios";
 import api from "../utils/api";
 import { FiPower, FiGlobe, FiAlertTriangle } from "react-icons/fi";
 import Swal from "sweetalert2";
 
-// ✅ API Configuration
-const API_BASE =
-  process.env.VITE_API_URL ||
-  process.env.REACT_APP_API_URL ||
-  "https://bafnatoys-backend-production.up.railway.app/api";
 
 const AdminSettings: React.FC = () => {
   const [maintenance, setMaintenance] = useState<boolean>(false);

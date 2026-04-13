@@ -1,6 +1,5 @@
 import React, { useEffect, useState } from "react";
 import { Link } from "react-router-dom";
-import axios from "axios";
 import api from "../utils/api";
 import "../styles/Dashboard.css";
 import OrderModal from "./OrderModal";
@@ -30,11 +29,6 @@ import {
   FiUser,
 } from "react-icons/fi";
 
-/* ===== CONFIG ===== */
-const API_BASE =
-  (import.meta as any).env?.VITE_API_URL ||
-  (process as any).env?.REACT_APP_API_URL ||
-  "https://bafnatoys-backend-production.up.railway.app/api";
 
 const MEDIA_BASE =
   (import.meta as any).env?.VITE_MEDIA_URL ||

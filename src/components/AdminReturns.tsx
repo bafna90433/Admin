@@ -1,5 +1,4 @@
 import React, { useEffect, useMemo, useState, useCallback, useRef } from "react";
-import axios from "axios";
 import api from "../utils/api";
 import toast, { Toaster } from "react-hot-toast";
 import { format, formatDistanceToNow } from "date-fns";
@@ -119,7 +118,8 @@ const AdminReturns: React.FC = () => {
     try {
       setLoading(true);
       const { data } = await api.get(`/orders`);
-      const returnOrders: Order[] = (data || []).filter(
+      const allOrders: Order[] = Array.isArray(data) ? data : (data?.orders || []);
+      const returnOrders: Order[] = allOrders.filter(
         (o: Order) => o.returnRequest?.isRequested === true
       );
       returnOrders.sort((a, b) =>

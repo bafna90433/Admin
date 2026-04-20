@@ -3,13 +3,13 @@ import axios from "axios";
 // ✅ API Connection Configuration
 // This project uses Webpack, so we access environment variables via process.env.
 // Fallback to hardcoded production URLs if env variables are not found.
-const VITE_API_URL = 
-  (process as any).env?.VITE_API_URL || 
-  "https://bafnatoys-backend-production.up.railway.app/api";
+const VITE_API_URL =
+  (process as any).env?.VITE_API_URL ||
+  "https://api.bafnatoys.com/api";
 
-const VITE_MEDIA_URL = 
-  (process as any).env?.VITE_MEDIA_URL || 
-  "https://bafnatoys-backend-production.up.railway.app";
+const VITE_MEDIA_URL =
+  (process as any).env?.VITE_MEDIA_URL ||
+  "https://api.bafnatoys.com";
 
 export const API_URL = VITE_API_URL;
 export const MEDIA_URL = VITE_MEDIA_URL;

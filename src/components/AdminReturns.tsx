@@ -17,13 +17,13 @@ const API_URL =
   (import.meta as any).env?.VITE_API_URL ||
   (process as any).env?.VITE_API_URL ||
   (process as any).env?.REACT_APP_API_URL ||
-  "https://bafnatoys-backend-production.up.railway.app/api";
+  "https://api.bafnatoys.com/api";
 
 const MEDIA_URL =
   (import.meta as any).env?.VITE_MEDIA_URL ||
   (process as any).env?.VITE_MEDIA_URL ||
   (process as any).env?.REACT_APP_MEDIA_URL ||
-  "https://bafnatoys-backend-production.up.railway.app";
+  "https://api.bafnatoys.com";
 
 type OrderItem = {
   productId?: string;

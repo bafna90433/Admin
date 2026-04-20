@@ -21,7 +21,7 @@ import {
 const MEDIA_BASE =
   process.env.VITE_MEDIA_URL ||
   process.env.REACT_APP_MEDIA_URL ||
-  "https://bafnatoys-backend-production.up.railway.app";
+  "https://api.bafnatoys.com";
 
 interface OrderModalProps {
   order: any;

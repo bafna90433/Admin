@@ -11,7 +11,7 @@ const MEDIA_BASE =
   (import.meta as any).env?.VITE_MEDIA_URL ||
   (process as any).env?.VITE_MEDIA_URL ||
   (process as any).env?.REACT_APP_MEDIA_URL ||
-  "https://bafnatoys-backend-production.up.railway.app";
+  "https://api.bafnatoys.com";
 
 /* ================= TYPES ================= */
 type OrderItem = {

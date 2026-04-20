@@ -112,7 +112,7 @@ const Sidebar: React.FC<SidebarProps> = ({ sidebarOpen, closeSidebar }) => {
         <div className="sidebar-header-final">
           <div className="logo-container-final">
             <img
-              src="https://res.cloudinary.com/dpdecxqb9/image/upload/v1758783697/bafnatoys/lwccljc9kkosfv9wnnrq.png"
+              src="https://ik.imagekit.io/rishii/bafnatoys/Copy%20of%20Super_Car___05_vrkphh.webp?updatedAt=1775309336739&tr=w-120,h-120,f-auto,q-80"
               alt="Bafna Toys Logo"
               className="logo-image-final"
             />

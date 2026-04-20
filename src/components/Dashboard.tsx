@@ -16,7 +16,6 @@ import {
   FiList,
   FiCalendar,
   FiClock,
-  FiDollarSign,
   FiEye,
   FiChevronRight,
   FiRefreshCw,
@@ -28,6 +27,7 @@ import {
   FiHash,
   FiUser,
 } from "react-icons/fi";
+import { MdCurrencyRupee } from "react-icons/md";
 
 
 const MEDIA_BASE =
@@ -271,7 +271,7 @@ const Dashboard: React.FC = () => {
         <Link to="/admin/orders" className="db-stat-card db-stat-revenue">
           <div className="db-stat-icon-wrap">
             <div className="db-stat-icon">
-              <FiDollarSign size={22} />
+              <MdCurrencyRupee size={22} />
             </div>
           </div>
           <div className="db-stat-info">

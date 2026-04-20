@@ -265,6 +265,13 @@ const Sidebar: React.FC<SidebarProps> = ({ sidebarOpen, closeSidebar }) => {
                 label="Mobile App UI"
                 gradient="purple"
               />
+
+              <NavItem
+                to="/admin/meta-pixel"
+                icon={FiTrendingUp}
+                label="Meta Pixel (FB Ads)"
+                gradient="blue"
+              />
             </div>
           )}
 

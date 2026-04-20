@@ -51,6 +51,9 @@ import AdminReviews from "./components/AdminReviews";
 // ✅ NEW: Mobile App UI Control
 import MobileControl from "./components/MobileControl";
 
+// ✅ NEW: Meta Pixel (Facebook Ads)
+import MetaPixelSettings from "./components/MetaPixelSettings";
+
 // 🔐 Admin Login
 import AdminLogin from "./components/AdminLogin";
 
@@ -141,6 +144,7 @@ const App: React.FC = () => {
 
           <Route path="create-admin" element={<CreateAdmin />} />
           <Route path="mobile-control" element={<MobileControl />} />
+          <Route path="meta-pixel" element={<MetaPixelSettings />} />
 
         </Route>
 

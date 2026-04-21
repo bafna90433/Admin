@@ -20,6 +20,7 @@ import {
   FiShield,
   FiUserPlus,
   FiSmartphone,
+  FiShoppingCart,
 } from "react-icons/fi";
 import { MdOutlineSpaceDashboard } from "react-icons/md";
 import { TbCategory } from "react-icons/tb";
@@ -271,6 +272,13 @@ const Sidebar: React.FC<SidebarProps> = ({ sidebarOpen, closeSidebar }) => {
                 icon={FiTrendingUp}
                 label="Meta Pixel (FB Ads)"
                 gradient="blue"
+              />
+
+              <NavItem
+                to="/admin/abandoned-carts"
+                icon={FiShoppingCart}
+                label="Abandoned Carts"
+                gradient="pink"
               />
             </div>
           )}

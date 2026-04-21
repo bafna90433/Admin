@@ -54,6 +54,9 @@ import MobileControl from "./components/MobileControl";
 // ✅ NEW: Meta Pixel (Facebook Ads)
 import MetaPixelSettings from "./components/MetaPixelSettings";
 
+// ✅ NEW: Abandoned Carts (Cart Recovery via WhatsApp)
+import AdminAbandonedCarts from "./components/AdminAbandonedCarts";
+
 // 🔐 Admin Login
 import AdminLogin from "./components/AdminLogin";
 
@@ -145,6 +148,9 @@ const App: React.FC = () => {
           <Route path="create-admin" element={<CreateAdmin />} />
           <Route path="mobile-control" element={<MobileControl />} />
           <Route path="meta-pixel" element={<MetaPixelSettings />} />
+
+          {/* ✅ NEW: Abandoned Carts */}
+          <Route path="abandoned-carts" element={<AdminAbandonedCarts />} />
 
         </Route>
 

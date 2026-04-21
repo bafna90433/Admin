@@ -73,7 +73,9 @@ const currency = new Intl.NumberFormat("en-IN", {
 
 const resolveImage = (img?: string) => {
   if (!img) return "/placeholder.png";
-  if (img.startsWith("http")) return img;
+  // ✅ ImageKit / Cloudinary / any absolute URL — use as-is
+  if (img.startsWith("http://") || img.startsWith("https://")) return img;
+  // ✅ Legacy relative paths from old /uploads/... storage
   return `${MEDIA_BASE}${img.startsWith("/") ? "" : "/"}${img}`;
 };
 

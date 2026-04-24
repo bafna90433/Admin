@@ -48,6 +48,11 @@ const Sidebar: React.FC<SidebarProps> = ({ sidebarOpen, closeSidebar }) => {
     newReviewsToday: 0,
   });
 
+  const [seenCounts, setSeenCounts] = useState<any>(() => {
+    const saved = localStorage.getItem("sidebarSeenCounts");
+    return saved ? JSON.parse(saved) : {};
+  });
+
   useEffect(() => {
     const storedData = localStorage.getItem("adminData");
     if (storedData) {
@@ -102,19 +107,36 @@ const Sidebar: React.FC<SidebarProps> = ({ sidebarOpen, closeSidebar }) => {
     label,
     gradient = "blue",
     badge = 0,
+    badgeKey,
   }: {
     to: string;
     icon: any;
     label: string;
     gradient?: string;
     badge?: number;
+    badgeKey?: string;
   }) => {
     const active = isActive(to);
+
+    // Calculate effective badge count (only show if current > seen)
+    const effectiveBadge = badgeKey && badge > (seenCounts[badgeKey] || 0) 
+      ? badge - (seenCounts[badgeKey] || 0) 
+      : 0;
+
+    const handleClick = () => {
+      closeSidebar();
+      if (badgeKey) {
+        const newSeen = { ...seenCounts, [badgeKey]: badge };
+        setSeenCounts(newSeen);
+        localStorage.setItem("sidebarSeenCounts", JSON.stringify(newSeen));
+      }
+    };
+
     return (
       <Link
         to={to}
         className={`nav-item-final ${active ? "active" : ""}`}
-        onClick={closeSidebar}
+        onClick={handleClick}
         data-gradient={gradient}
       >
         <div className="nav-item-wrapper">
@@ -122,12 +144,12 @@ const Sidebar: React.FC<SidebarProps> = ({ sidebarOpen, closeSidebar }) => {
             <Icon className="nav-icon-final" />
           </div>
           <span className="nav-label-final">{label}</span>
-          {badge > 0 && (
+          {effectiveBadge > 0 && (
             <div className="nav-badge-final">
-              {badge > 99 ? "99+" : badge}
+              {effectiveBadge > 99 ? "99+" : effectiveBadge}
             </div>
           )}
-          {active && badge === 0 && <ChevronIcon />}
+          {active && effectiveBadge === 0 && <ChevronIcon />}
         </div>
       </Link>
     );
@@ -186,6 +208,7 @@ const Sidebar: React.FC<SidebarProps> = ({ sidebarOpen, closeSidebar }) => {
                   label="Website Traffic"
                   gradient="cyan"
                   badge={summary.visitorsToday}
+                  badgeKey="visitorsToday"
                 />
               )}
 
@@ -196,6 +219,7 @@ const Sidebar: React.FC<SidebarProps> = ({ sidebarOpen, closeSidebar }) => {
                   label="Order Management"
                   gradient="blue"
                   badge={summary.pendingOrders}
+                  badgeKey="pendingOrders"
                 />
               )}
 
@@ -206,6 +230,7 @@ const Sidebar: React.FC<SidebarProps> = ({ sidebarOpen, closeSidebar }) => {
                   label="Return Requests"
                   gradient="red"
                   badge={summary.pendingReturns}
+                  badgeKey="pendingReturns"
                 />
               )}
             </div>
@@ -241,6 +266,7 @@ const Sidebar: React.FC<SidebarProps> = ({ sidebarOpen, closeSidebar }) => {
                   label="Stock & Sales"
                   gradient="red"
                   badge={summary.lowStock}
+                  badgeKey="lowStock"
                 />
               )}
 
@@ -316,6 +342,7 @@ const Sidebar: React.FC<SidebarProps> = ({ sidebarOpen, closeSidebar }) => {
                 label="Abandoned Carts"
                 gradient="pink"
                 badge={summary.activeAbandonedCarts}
+                badgeKey="activeAbandonedCarts"
               />
             </div>
           )}
@@ -332,6 +359,7 @@ const Sidebar: React.FC<SidebarProps> = ({ sidebarOpen, closeSidebar }) => {
                   label="Customer Database"
                   gradient="indigo"
                   badge={summary.unapprovedCustomers}
+                  badgeKey="unapprovedCustomers"
                 />
               )}
               
@@ -342,6 +370,7 @@ const Sidebar: React.FC<SidebarProps> = ({ sidebarOpen, closeSidebar }) => {
                   label="Product Reviews"
                   gradient="yellow"
                   badge={summary.newReviewsToday}
+                  badgeKey="newReviewsToday"
                 />
               )}
 

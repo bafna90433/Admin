@@ -26,6 +26,7 @@ import {
 } from "react-icons/fi";
 import { MdOutlineSpaceDashboard } from "react-icons/md";
 import { TbCategory } from "react-icons/tb";
+import api from "../utils/api";
 import "../styles/SidebarFinal.css";
 
 interface SidebarProps {
@@ -37,12 +38,34 @@ const Sidebar: React.FC<SidebarProps> = ({ sidebarOpen, closeSidebar }) => {
   const { pathname } = useLocation();
   const navigate = useNavigate();
   const [adminData, setAdminData] = useState<any>(null);
+  const [summary, setSummary] = useState<any>({
+    pendingOrders: 0,
+    pendingReturns: 0,
+    unapprovedCustomers: 0,
+    activeAbandonedCarts: 0,
+    lowStock: 0,
+    visitorsToday: 0,
+    newReviewsToday: 0,
+  });
 
   useEffect(() => {
     const storedData = localStorage.getItem("adminData");
     if (storedData) {
       setAdminData(JSON.parse(storedData));
     }
+
+    const fetchSummary = async () => {
+      try {
+        const { data } = await api.get("/admin/summary");
+        setSummary(data);
+      } catch (err) {
+        console.error("Failed to fetch sidebar summary:", err);
+      }
+    };
+
+    fetchSummary();
+    const interval = setInterval(fetchSummary, 60000); // Refresh every 60s
+    return () => clearInterval(interval);
   }, []);
 
   const isActive = (path: string) =>
@@ -78,11 +101,13 @@ const Sidebar: React.FC<SidebarProps> = ({ sidebarOpen, closeSidebar }) => {
     icon: Icon,
     label,
     gradient = "blue",
+    badge = 0,
   }: {
     to: string;
     icon: any;
     label: string;
     gradient?: string;
+    badge?: number;
   }) => {
     const active = isActive(to);
     return (
@@ -97,7 +122,12 @@ const Sidebar: React.FC<SidebarProps> = ({ sidebarOpen, closeSidebar }) => {
             <Icon className="nav-icon-final" />
           </div>
           <span className="nav-label-final">{label}</span>
-          {active && <ChevronIcon />}
+          {badge > 0 && (
+            <div className="nav-badge-final">
+              {badge > 99 ? "99+" : badge}
+            </div>
+          )}
+          {active && badge === 0 && <ChevronIcon />}
         </div>
       </Link>
     );
@@ -155,6 +185,7 @@ const Sidebar: React.FC<SidebarProps> = ({ sidebarOpen, closeSidebar }) => {
                   icon={FiTrendingUp}
                   label="Website Traffic"
                   gradient="cyan"
+                  badge={summary.visitorsToday}
                 />
               )}
 
@@ -164,6 +195,7 @@ const Sidebar: React.FC<SidebarProps> = ({ sidebarOpen, closeSidebar }) => {
                   icon={FiPackage}
                   label="Order Management"
                   gradient="blue"
+                  badge={summary.pendingOrders}
                 />
               )}
 
@@ -173,6 +205,7 @@ const Sidebar: React.FC<SidebarProps> = ({ sidebarOpen, closeSidebar }) => {
                   icon={FiCornerUpLeft}
                   label="Return Requests"
                   gradient="red"
+                  badge={summary.pendingReturns}
                 />
               )}
             </div>
@@ -207,6 +240,7 @@ const Sidebar: React.FC<SidebarProps> = ({ sidebarOpen, closeSidebar }) => {
                   icon={FiActivity}
                   label="Stock & Sales"
                   gradient="red"
+                  badge={summary.lowStock}
                 />
               )}
 
@@ -281,6 +315,7 @@ const Sidebar: React.FC<SidebarProps> = ({ sidebarOpen, closeSidebar }) => {
                 icon={FiShoppingCart}
                 label="Abandoned Carts"
                 gradient="pink"
+                badge={summary.activeAbandonedCarts}
               />
             </div>
           )}
@@ -296,6 +331,7 @@ const Sidebar: React.FC<SidebarProps> = ({ sidebarOpen, closeSidebar }) => {
                   icon={FiUsers}
                   label="Customer Database"
                   gradient="indigo"
+                  badge={summary.unapprovedCustomers}
                 />
               )}
               
@@ -305,6 +341,7 @@ const Sidebar: React.FC<SidebarProps> = ({ sidebarOpen, closeSidebar }) => {
                   icon={FiStar}
                   label="Product Reviews"
                   gradient="yellow"
+                  badge={summary.newReviewsToday}
                 />
               )}
 

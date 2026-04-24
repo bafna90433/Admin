@@ -23,6 +23,7 @@ import {
   FiShoppingCart,
   FiDollarSign,
   FiTruck,
+  FiSend,
 } from "react-icons/fi";
 import { MdOutlineSpaceDashboard } from "react-icons/md";
 import { TbCategory } from "react-icons/tb";
@@ -317,7 +318,16 @@ const Sidebar: React.FC<SidebarProps> = ({ sidebarOpen, closeSidebar }) => {
                 <NavItem
                   to="/admin/whatsapp"
                   icon={FiMessageSquare}
-                  label="WhatsApp Campaigns"
+                  label="WhatsApp Widget"
+                  gradient="green"
+                />
+              )}
+
+              {hasAccess("whatsapp") && (
+                <NavItem
+                  to="/admin/campaigns"
+                  icon={FiSend}
+                  label="Bulk WhatsApp Campaigns"
                   gradient="green"
                 />
               )}

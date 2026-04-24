@@ -76,12 +76,12 @@ const fmtDate = (iso?: string | null) => {
 
 const LS_KEY_LAST = "campaignLastForm";
 
-const STATUS_STYLE: Record<string, { bg: string; color: string; label: string }> = {
-  draft: { bg: "#f3f4f6", color: "#374151", label: "Draft" },
-  running: { bg: "#dbeafe", color: "#1e40af", label: "Running" },
-  completed: { bg: "#d1fae5", color: "#065f46", label: "Completed" },
-  completed_with_errors: { bg: "#fef3c7", color: "#92400e", label: "Completed (errors)" },
-  cancelled: { bg: "#fee2e2", color: "#991b1b", label: "Cancelled" },
+const STATUS_STYLE: Record<string, { bg: string; color: string; label: string; dot: string }> = {
+  draft: { bg: "#f1f5f9", color: "#334155", label: "Draft", dot: "#64748b" },
+  running: { bg: "#dbeafe", color: "#1e3a8a", label: "Running", dot: "#2563eb" },
+  completed: { bg: "#dcfce7", color: "#14532d", label: "Completed", dot: "#16a34a" },
+  completed_with_errors: { bg: "#fef3c7", color: "#78350f", label: "Completed (errors)", dot: "#f59e0b" },
+  cancelled: { bg: "#fee2e2", color: "#7f1d1d", label: "Cancelled", dot: "#dc2626" },
 };
 
 const AUDIENCE_LABEL: Record<AudienceType, string> = {
@@ -91,6 +91,15 @@ const AUDIENCE_LABEL: Record<AudienceType, string> = {
   recent: "Recently Registered (30d)",
   excel: "Excel / CSV Upload",
   manual: "Manual Numbers",
+};
+
+const AUDIENCE_COLORS: Record<AudienceType, { bg: string; fg: string; border: string }> = {
+  all:      { bg: "#dcfce7", fg: "#065f46", border: "#16a34a" },
+  active30: { bg: "#dbeafe", fg: "#1e3a8a", border: "#2563eb" },
+  active90: { bg: "#ede9fe", fg: "#5b21b6", border: "#7c3aed" },
+  recent:   { bg: "#fef3c7", fg: "#92400e", border: "#f59e0b" },
+  manual:   { bg: "#fce7f3", fg: "#9d174d", border: "#ec4899" },
+  excel:    { bg: "#cffafe", fg: "#155e75", border: "#06b6d4" },
 };
 
 /* ============================== COMPONENT ============================== */
@@ -147,6 +156,11 @@ const AdminCampaigns: React.FC = () => {
     saved.bodyVariables || [""]
   );
   const [offerNote, setOfferNote] = useState<string>("");
+  // Optional body text (for live preview only — NOT sent to Meta,
+  // Meta uses the approved template body from templateName)
+  const [bodyTemplateText, setBodyTemplateText] = useState<string>(
+    saved.bodyTemplateText || ""
+  );
 
   // excel / manual audience
   const [manualRecipients, setManualRecipients] = useState<ManualRecipient[]>([]);
@@ -156,6 +170,42 @@ const AdminCampaigns: React.FC = () => {
   const [previewCount, setPreviewCount] = useState<number | null>(null);
   const [previewing, setPreviewing] = useState(false);
   const [submitting, setSubmitting] = useState(false);
+
+  // Media upload (ImageKit)
+  const [uploadingMedia, setUploadingMedia] = useState(false);
+  const onUploadMedia = async (file: File | null) => {
+    if (!file) return;
+    setUploadingMedia(true);
+    try {
+      const form = new FormData();
+      form.append("file", file);
+      const { data } = await api.post("/campaigns/upload-media", form, {
+        headers: { "Content-Type": "multipart/form-data" },
+      });
+      if (data?.success && data.url) {
+        setHeaderValue(data.url);
+        // persist so next reload keeps it
+        setTimeout(persistForm, 0);
+        Swal.fire({
+          title: "Uploaded!",
+          text: "Media URL auto-filled in Header.",
+          icon: "success",
+          timer: 1800,
+          showConfirmButton: false,
+        });
+      } else {
+        throw new Error(data?.message || "Upload failed");
+      }
+    } catch (e: any) {
+      Swal.fire(
+        "Upload failed",
+        e?.response?.data?.message || e?.message || "Try again",
+        "error"
+      );
+    } finally {
+      setUploadingMedia(false);
+    }
+  };
 
   // Persist form changes (debounced by onBlur)
   const persistForm = () => {
@@ -167,9 +217,30 @@ const AdminCampaigns: React.FC = () => {
       headerType,
       headerValue,
       bodyVariables,
+      bodyTemplateText,
     };
     localStorage.setItem(LS_KEY_LAST, JSON.stringify(snapshot));
   };
+
+  /* ------------- live preview rendering ------------- */
+  // Replace {{1}}, {{2}}... with the entered variable values
+  const renderedBody = useMemo(() => {
+    let txt = bodyTemplateText || "";
+    bodyVariables.forEach((v, i) => {
+      const re = new RegExp(`\\{\\{\\s*${i + 1}\\s*\\}\\}`, "g");
+      txt = txt.replace(re, v || `{{${i + 1}}}`);
+    });
+    return txt;
+  }, [bodyTemplateText, bodyVariables]);
+
+  const nowTime = useMemo(
+    () =>
+      new Date().toLocaleTimeString("en-IN", {
+        hour: "2-digit",
+        minute: "2-digit",
+      }),
+    []
+  );
 
   /* ------------------ excel upload (client-side parse) ------------------ */
   const onExcelFile = async (f: File | null) => {
@@ -394,40 +465,98 @@ const AdminCampaigns: React.FC = () => {
 
   /* ============================= RENDER ============================= */
   return (
-    <div style={{ padding: 20, maxWidth: 1280, margin: "0 auto" }}>
+    <div
+      style={{
+        padding: 24,
+        maxWidth: 1320,
+        margin: "0 auto",
+        fontFamily: FONT_FAMILY,
+        color: "#0f172a",
+        background: "linear-gradient(180deg, #f0fdf4 0%, #f9fafb 220px, #f9fafb 100%)",
+        minHeight: "100vh",
+      }}
+    >
       {/* Header */}
       <div
         style={{
           display: "flex",
           alignItems: "center",
           justifyContent: "space-between",
-          marginBottom: 20,
+          marginBottom: 22,
           flexWrap: "wrap",
-          gap: 12,
+          gap: 14,
+          background: "linear-gradient(135deg, #25D366 0%, #128C7E 100%)",
+          padding: "22px 24px",
+          borderRadius: 16,
+          boxShadow: "0 10px 30px -10px rgba(37, 211, 102, 0.5)",
+          color: "#fff",
         }}
       >
         <div>
-          <h1 style={{ margin: 0, fontSize: 26, fontWeight: 700 }}>
-            <FiSend style={{ marginRight: 8, verticalAlign: "middle" }} />
+          <h1
+            style={{
+              margin: 0,
+              fontSize: 28,
+              fontWeight: 800,
+              letterSpacing: -0.4,
+              display: "flex",
+              alignItems: "center",
+              gap: 10,
+            }}
+          >
+            <span
+              style={{
+                width: 44,
+                height: 44,
+                borderRadius: 12,
+                background: "rgba(255,255,255,0.22)",
+                display: "inline-flex",
+                alignItems: "center",
+                justifyContent: "center",
+                fontSize: 22,
+              }}
+            >
+              <FiSend />
+            </span>
             Bulk WhatsApp Campaigns
           </h1>
-          <p style={{ margin: "4px 0 0", color: "#6b7280" }}>
-            Send new product launch / offer messages to all customers or an uploaded list.
+          <p
+            style={{
+              margin: "6px 0 0 54px",
+              color: "rgba(255,255,255,0.92)",
+              fontSize: 14,
+              fontWeight: 500,
+            }}
+          >
+            Send new product launches &amp; offers to all customers, or upload an Excel list.
           </p>
         </div>
 
         {/* Tabs */}
-        <div style={{ display: "flex", gap: 8 }}>
+        <div
+          style={{
+            display: "flex",
+            gap: 6,
+            background: "rgba(255,255,255,0.2)",
+            padding: 5,
+            borderRadius: 12,
+            backdropFilter: "blur(6px)",
+          }}
+        >
           <button
             onClick={() => setTab("new")}
             style={{
               padding: "10px 18px",
-              borderRadius: 8,
+              borderRadius: 9,
               border: "none",
               cursor: "pointer",
-              background: tab === "new" ? "#16a34a" : "#f3f4f6",
-              color: tab === "new" ? "#fff" : "#374151",
-              fontWeight: 600,
+              background: tab === "new" ? "#fff" : "transparent",
+              color: tab === "new" ? "#128C7E" : "#fff",
+              fontWeight: 700,
+              fontSize: 14,
+              fontFamily: FONT_FAMILY,
+              transition: "all 0.2s",
+              boxShadow: tab === "new" ? "0 4px 12px rgba(0,0,0,0.1)" : "none",
             }}
           >
             <FiPlus style={{ marginRight: 6, verticalAlign: "middle" }} />
@@ -437,12 +566,16 @@ const AdminCampaigns: React.FC = () => {
             onClick={() => setTab("history")}
             style={{
               padding: "10px 18px",
-              borderRadius: 8,
+              borderRadius: 9,
               border: "none",
               cursor: "pointer",
-              background: tab === "history" ? "#16a34a" : "#f3f4f6",
-              color: tab === "history" ? "#fff" : "#374151",
-              fontWeight: 600,
+              background: tab === "history" ? "#fff" : "transparent",
+              color: tab === "history" ? "#128C7E" : "#fff",
+              fontWeight: 700,
+              fontSize: 14,
+              fontFamily: FONT_FAMILY,
+              transition: "all 0.2s",
+              boxShadow: tab === "history" ? "0 4px 12px rgba(0,0,0,0.1)" : "none",
             }}
           >
             <FiList style={{ marginRight: 6, verticalAlign: "middle" }} />
@@ -455,10 +588,22 @@ const AdminCampaigns: React.FC = () => {
       {tab === "new" && (
         <div
           style={{
+            display: "grid",
+            gridTemplateColumns:
+              typeof window !== "undefined" && window.innerWidth < 900
+                ? "1fr"
+                : "1fr 360px",
+            gap: 16,
+            alignItems: "start",
+          }}
+        >
+        <div
+          style={{
             background: "#fff",
-            borderRadius: 12,
-            padding: 24,
-            boxShadow: "0 1px 4px rgba(0,0,0,0.05)",
+            borderRadius: 16,
+            padding: 28,
+            boxShadow: "0 4px 20px -4px rgba(15, 23, 42, 0.08), 0 2px 6px rgba(15,23,42,0.04)",
+            border: "1px solid #f1f5f9",
           }}
         >
           {/* Campaign name */}
@@ -474,26 +619,38 @@ const AdminCampaigns: React.FC = () => {
 
           {/* Audience */}
           <FormRow label="Audience *">
-            <div style={{ display: "flex", flexWrap: "wrap", gap: 8 }}>
+            <div style={{ display: "flex", flexWrap: "wrap", gap: 10 }}>
               {(
                 ["all", "active30", "active90", "recent", "manual", "excel"] as AudienceType[]
-              ).map((t) => (
-                <button
-                  key={t}
-                  onClick={() => setAudienceType(t)}
-                  style={{
-                    padding: "8px 14px",
-                    border: "1px solid " + (audienceType === t ? "#16a34a" : "#d1d5db"),
-                    background: audienceType === t ? "#dcfce7" : "#fff",
-                    borderRadius: 6,
-                    cursor: "pointer",
-                    fontSize: 13,
-                  }}
-                >
-                  <FiUsers style={{ marginRight: 6, verticalAlign: "middle" }} />
-                  {AUDIENCE_LABEL[t]}
-                </button>
-              ))}
+              ).map((t) => {
+                const active = audienceType === t;
+                const palette = AUDIENCE_COLORS[t];
+                return (
+                  <button
+                    key={t}
+                    onClick={() => setAudienceType(t)}
+                    style={{
+                      padding: "10px 16px",
+                      border: `1.5px solid ${active ? palette.border : "#e5e7eb"}`,
+                      background: active ? palette.bg : "#fff",
+                      color: active ? palette.fg : "#475569",
+                      borderRadius: 10,
+                      cursor: "pointer",
+                      fontSize: 13.5,
+                      fontWeight: active ? 700 : 600,
+                      fontFamily: FONT_FAMILY,
+                      transition: "all 0.18s",
+                      boxShadow: active ? `0 4px 12px -4px ${palette.border}` : "none",
+                      display: "inline-flex",
+                      alignItems: "center",
+                      gap: 6,
+                    }}
+                  >
+                    <FiUsers />
+                    {AUDIENCE_LABEL[t]}
+                  </button>
+                );
+              })}
             </div>
           </FormRow>
 
@@ -666,19 +823,265 @@ const AdminCampaigns: React.FC = () => {
               ))}
             </div>
             {headerType !== "none" && (
-              <input
-                value={headerValue}
-                onChange={(e) => setHeaderValue(e.target.value)}
-                onBlur={persistForm}
-                placeholder={
-                  headerType === "text" ? "Header text" : "Public URL (https://...)"
-                }
-                style={{ ...inputStyle, marginTop: 8 }}
-              />
+              <div style={{ marginTop: 8 }}>
+                <input
+                  value={headerValue}
+                  onChange={(e) => setHeaderValue(e.target.value)}
+                  onBlur={persistForm}
+                  placeholder={
+                    headerType === "text"
+                      ? "Header text"
+                      : "Public URL (https://...) — or upload below"
+                  }
+                  style={inputStyle}
+                />
+
+                {/* Upload button for media headers */}
+                {headerType !== "text" && (
+                  <div
+                    style={{
+                      marginTop: 10,
+                      display: "flex",
+                      alignItems: "center",
+                      gap: 10,
+                      flexWrap: "wrap",
+                    }}
+                  >
+                    <label
+                      style={{
+                        display: "inline-flex",
+                        alignItems: "center",
+                        gap: 8,
+                        padding: "10px 18px",
+                        background: uploadingMedia
+                          ? "#e5e7eb"
+                          : "linear-gradient(135deg, #fef3c7 0%, #fde68a 100%)",
+                        color: "#78350f",
+                        border: "1.5px dashed #f59e0b",
+                        borderRadius: 10,
+                        cursor: uploadingMedia ? "not-allowed" : "pointer",
+                        fontWeight: 700,
+                        fontSize: 13.5,
+                        fontFamily: FONT_FAMILY,
+                      }}
+                    >
+                      <FiUpload />
+                      {uploadingMedia
+                        ? "Uploading to ImageKit..."
+                        : `Upload ${headerType} from computer`}
+                      <input
+                        type="file"
+                        accept={
+                          headerType === "image"
+                            ? "image/*"
+                            : headerType === "video"
+                            ? "video/*"
+                            : ".pdf,.doc,.docx"
+                        }
+                        onChange={(e) => onUploadMedia(e.target.files?.[0] || null)}
+                        disabled={uploadingMedia}
+                        style={{ display: "none" }}
+                      />
+                    </label>
+                    {headerValue && (
+                      <span
+                        style={{
+                          fontSize: 12,
+                          color: "#16a34a",
+                          fontWeight: 700,
+                          display: "inline-flex",
+                          alignItems: "center",
+                          gap: 4,
+                        }}
+                      >
+                        <FiCheckCircle /> Uploaded & URL filled
+                      </span>
+                    )}
+                  </div>
+                )}
+
+                {/* Inline thumbnail preview of the uploaded/pasted media */}
+                {headerType !== "text" && headerValue && (
+                  <div
+                    style={{
+                      marginTop: 12,
+                      padding: 12,
+                      background: "linear-gradient(135deg, #f0fdf4 0%, #ecfdf5 100%)",
+                      border: "1.5px solid #86efac",
+                      borderRadius: 12,
+                      display: "flex",
+                      alignItems: "center",
+                      gap: 14,
+                      boxShadow: "0 2px 8px -2px rgba(34, 197, 94, 0.2)",
+                    }}
+                  >
+                    {/* Thumbnail */}
+                    {headerType === "image" && (
+                      <img
+                        src={headerValue}
+                        alt="Uploaded preview"
+                        style={{
+                          width: 90,
+                          height: 90,
+                          objectFit: "cover",
+                          borderRadius: 10,
+                          border: "2px solid #fff",
+                          boxShadow: "0 2px 6px rgba(0,0,0,0.12)",
+                          flexShrink: 0,
+                        }}
+                        onError={(e) => {
+                          (e.target as HTMLImageElement).style.opacity = "0.3";
+                        }}
+                      />
+                    )}
+                    {headerType === "video" && (
+                      <video
+                        src={headerValue}
+                        controls
+                        style={{
+                          width: 140,
+                          height: 90,
+                          objectFit: "cover",
+                          borderRadius: 10,
+                          border: "2px solid #fff",
+                          background: "#000",
+                          flexShrink: 0,
+                        }}
+                      />
+                    )}
+                    {headerType === "document" && (
+                      <div
+                        style={{
+                          width: 90,
+                          height: 90,
+                          borderRadius: 10,
+                          background: "#fff",
+                          border: "2px solid #fff",
+                          boxShadow: "0 2px 6px rgba(0,0,0,0.12)",
+                          display: "flex",
+                          flexDirection: "column",
+                          alignItems: "center",
+                          justifyContent: "center",
+                          fontSize: 11,
+                          fontWeight: 700,
+                          color: "#dc2626",
+                          flexShrink: 0,
+                        }}
+                      >
+                        <div style={{ fontSize: 32 }}>📄</div>
+                        <div>PDF</div>
+                      </div>
+                    )}
+
+                    {/* Meta info */}
+                    <div style={{ flex: 1, minWidth: 0 }}>
+                      <div
+                        style={{
+                          fontSize: 13,
+                          fontWeight: 700,
+                          color: "#065f46",
+                          marginBottom: 4,
+                          display: "flex",
+                          alignItems: "center",
+                          gap: 6,
+                        }}
+                      >
+                        <FiCheckCircle />
+                        {headerType === "image"
+                          ? "Image ready"
+                          : headerType === "video"
+                          ? "Video ready"
+                          : "Document ready"}
+                      </div>
+                      <div
+                        style={{
+                          fontSize: 11.5,
+                          color: "#047857",
+                          wordBreak: "break-all",
+                          fontFamily: "monospace",
+                          background: "#fff",
+                          padding: "4px 8px",
+                          borderRadius: 6,
+                          border: "1px solid #d1fae5",
+                        }}
+                      >
+                        {headerValue.length > 70
+                          ? headerValue.slice(0, 70) + "..."
+                          : headerValue}
+                      </div>
+                      <div
+                        style={{
+                          marginTop: 8,
+                          display: "flex",
+                          gap: 6,
+                        }}
+                      >
+                        <a
+                          href={headerValue}
+                          target="_blank"
+                          rel="noopener noreferrer"
+                          style={{
+                            fontSize: 11.5,
+                            color: "#1e40af",
+                            fontWeight: 600,
+                            textDecoration: "none",
+                            padding: "4px 10px",
+                            background: "#dbeafe",
+                            borderRadius: 6,
+                          }}
+                        >
+                          🔗 Open
+                        </a>
+                        <button
+                          onClick={() => {
+                            setHeaderValue("");
+                            setTimeout(persistForm, 0);
+                          }}
+                          style={{
+                            fontSize: 11.5,
+                            color: "#991b1b",
+                            fontWeight: 600,
+                            padding: "4px 10px",
+                            background: "#fee2e2",
+                            border: "none",
+                            borderRadius: 6,
+                            cursor: "pointer",
+                          }}
+                        >
+                          🗑️ Remove
+                        </button>
+                      </div>
+                    </div>
+                  </div>
+                )}
+              </div>
             )}
           </FormRow>
 
           {/* Body Variables */}
+          {/* Preview-only body template (paste your approved template text here for live preview) */}
+          <FormRow label="Template Body Text (for live preview only — paste your approved template body)">
+            <textarea
+              value={bodyTemplateText}
+              onChange={(e) => setBodyTemplateText(e.target.value)}
+              onBlur={persistForm}
+              placeholder={
+                "e.g.\nHello {{1}}, 🎉\nWe just launched {{2}}!\nCheck it out: {{3}}\n— Bafna Toys"
+              }
+              rows={4}
+              style={{
+                ...inputStyle,
+                fontFamily: "inherit",
+                resize: "vertical",
+                minHeight: 90,
+              }}
+            />
+            <div style={{ fontSize: 11, color: "#9ca3af", marginTop: 4 }}>
+              ℹ️ This text is used only for the live preview on the right. Meta
+              will actually use the body of the approved <code>{templateName || "template"}</code>.
+            </div>
+          </FormRow>
+
           <FormRow label={`Body Variables (maps to {{1}}, {{2}}, ...)`}>
             <div style={{ display: "flex", flexDirection: "column", gap: 6 }}>
               {bodyVariables.map((v, i) => (
@@ -768,13 +1171,15 @@ const AdminCampaigns: React.FC = () => {
               onClick={doPreview}
               disabled={previewing}
               style={{
-                padding: "10px 18px",
-                background: "#f3f4f6",
-                color: "#374151",
-                border: "1px solid #d1d5db",
-                borderRadius: 6,
+                padding: "11px 20px",
+                background: "linear-gradient(135deg, #e0f2fe 0%, #bae6fd 100%)",
+                color: "#075985",
+                border: "1.5px solid #38bdf8",
+                borderRadius: 10,
                 cursor: "pointer",
-                fontWeight: 600,
+                fontWeight: 700,
+                fontFamily: FONT_FAMILY,
+                fontSize: 14,
               }}
             >
               <FiEye style={{ marginRight: 6, verticalAlign: "middle" }} />
@@ -783,14 +1188,17 @@ const AdminCampaigns: React.FC = () => {
             {previewCount !== null && (
               <span
                 style={{
-                  padding: "8px 14px",
-                  background: "#dcfce7",
+                  padding: "10px 16px",
+                  background: "linear-gradient(135deg, #dcfce7 0%, #bbf7d0 100%)",
                   color: "#065f46",
-                  borderRadius: 6,
-                  fontWeight: 600,
+                  borderRadius: 10,
+                  fontWeight: 700,
+                  fontFamily: FONT_FAMILY,
+                  fontSize: 14,
+                  border: "1.5px solid #22c55e",
                 }}
               >
-                {previewCount} recipient(s) will get this message
+                🎯 {previewCount} recipient(s) will get this message
               </span>
             )}
             <div style={{ flex: 1 }} />
@@ -798,17 +1206,25 @@ const AdminCampaigns: React.FC = () => {
               onClick={submit}
               disabled={submitting}
               style={{
-                padding: "12px 24px",
-                background: submitting ? "#9ca3af" : "#16a34a",
+                padding: "14px 28px",
+                background: submitting
+                  ? "#94a3b8"
+                  : "linear-gradient(135deg, #25D366 0%, #128C7E 100%)",
                 color: "#fff",
                 border: "none",
-                borderRadius: 6,
+                borderRadius: 12,
                 cursor: submitting ? "not-allowed" : "pointer",
-                fontWeight: 700,
-                fontSize: 15,
+                fontWeight: 800,
+                fontFamily: FONT_FAMILY,
+                fontSize: 15.5,
+                letterSpacing: 0.2,
+                boxShadow: submitting
+                  ? "none"
+                  : "0 10px 25px -8px rgba(37, 211, 102, 0.6)",
+                transition: "transform 0.15s",
               }}
             >
-              <FiSend style={{ marginRight: 6, verticalAlign: "middle" }} />
+              <FiSend style={{ marginRight: 8, verticalAlign: "middle" }} />
               {submitting ? "Sending..." : "Send Campaign"}
             </button>
           </div>
@@ -816,19 +1232,31 @@ const AdminCampaigns: React.FC = () => {
           {/* Tip */}
           <div
             style={{
-              marginTop: 16,
-              padding: 12,
-              background: "#fffbeb",
-              border: "1px solid #fde68a",
-              borderRadius: 6,
-              color: "#92400e",
+              marginTop: 18,
+              padding: 14,
+              background: "linear-gradient(135deg, #fffbeb 0%, #fef3c7 100%)",
+              border: "1.5px solid #fbbf24",
+              borderRadius: 10,
+              color: "#78350f",
               fontSize: 13,
+              fontFamily: FONT_FAMILY,
+              fontWeight: 500,
+              lineHeight: 1.5,
             }}
           >
             <FiAlertCircle style={{ marginRight: 6, verticalAlign: "middle" }} />
-            Tip: Meta WhatsApp requires the template to be pre-approved. New accounts have a
-            ~1000/day limit. Messages are throttled to ~8 per second to stay safe.
+            <b>Tip:</b> Meta WhatsApp requires the template to be pre-approved. New accounts have
+            a ~1000/day limit. Messages are throttled to ~8 per second to stay safe.
           </div>
+        </div>
+
+        {/* ================= LIVE PREVIEW (right column) ================= */}
+        <LivePreview
+          headerType={headerType}
+          headerValue={headerValue}
+          bodyText={renderedBody}
+          nowTime={nowTime}
+        />
         </div>
       )}
 
@@ -837,9 +1265,10 @@ const AdminCampaigns: React.FC = () => {
         <div
           style={{
             background: "#fff",
-            borderRadius: 12,
-            padding: 18,
-            boxShadow: "0 1px 4px rgba(0,0,0,0.05)",
+            borderRadius: 16,
+            padding: 22,
+            boxShadow: "0 4px 20px -4px rgba(15, 23, 42, 0.08), 0 2px 6px rgba(15,23,42,0.04)",
+            border: "1px solid #f1f5f9",
           }}
         >
           <div
@@ -917,12 +1346,28 @@ const AdminCampaigns: React.FC = () => {
                             style={{
                               background: st.bg,
                               color: st.color,
-                              padding: "3px 10px",
+                              padding: "5px 12px",
                               borderRadius: 999,
-                              fontSize: 12,
-                              fontWeight: 600,
+                              fontSize: 11.5,
+                              fontWeight: 700,
+                              display: "inline-flex",
+                              alignItems: "center",
+                              gap: 6,
+                              fontFamily: FONT_FAMILY,
                             }}
                           >
+                            <span
+                              style={{
+                                width: 7,
+                                height: 7,
+                                borderRadius: "50%",
+                                background: st.dot,
+                                boxShadow:
+                                  c.status === "running"
+                                    ? `0 0 0 4px ${st.dot}33`
+                                    : "none",
+                              }}
+                            />
                             {st.label}
                           </span>
                         </td>
@@ -1227,6 +1672,305 @@ const AdminCampaigns: React.FC = () => {
 };
 
 /* =============================== UI atoms =============================== */
+/* ================= WhatsApp-style live preview ================= */
+const LivePreview: React.FC<{
+  headerType: HeaderType;
+  headerValue: string;
+  bodyText: string;
+  nowTime: string;
+}> = ({ headerType, headerValue, bodyText, nowTime }) => {
+  return (
+    <div
+      style={{
+        position: "sticky",
+        top: 20,
+        background: "linear-gradient(135deg, #ffffff 0%, #f8fafc 100%)",
+        borderRadius: 18,
+        padding: 18,
+        boxShadow:
+          "0 12px 30px -8px rgba(15, 23, 42, 0.12), 0 4px 12px rgba(15,23,42,0.05)",
+        border: "1px solid #e2e8f0",
+        fontFamily: FONT_FAMILY,
+      }}
+    >
+      <h3
+        style={{
+          margin: "0 0 14px",
+          fontSize: 14,
+          color: "#0f172a",
+          fontWeight: 800,
+          display: "flex",
+          alignItems: "center",
+          gap: 8,
+          letterSpacing: -0.2,
+        }}
+      >
+        <span
+          style={{
+            background: "linear-gradient(135deg, #25D366 0%, #128C7E 100%)",
+            color: "#fff",
+            width: 26,
+            height: 26,
+            borderRadius: 8,
+            display: "inline-flex",
+            alignItems: "center",
+            justifyContent: "center",
+            fontSize: 13,
+          }}
+        >
+          <FiEye />
+        </span>
+        Live Preview
+      </h3>
+
+      {/* Phone chrome */}
+      <div
+        style={{
+          background: "#0b1410",
+          borderRadius: 26,
+          padding: 10,
+          boxShadow:
+            "inset 0 0 0 2px #1e293b, 0 20px 40px -10px rgba(0,0,0,0.25)",
+        }}
+      >
+        {/* notch */}
+        <div
+          style={{
+            height: 18,
+            background: "#000",
+            borderRadius: "14px 14px 0 0",
+            position: "relative",
+          }}
+        >
+          <div
+            style={{
+              position: "absolute",
+              top: 5,
+              left: "50%",
+              transform: "translateX(-50%)",
+              width: 60,
+              height: 8,
+              background: "#0b1410",
+              borderRadius: 999,
+            }}
+          />
+        </div>
+
+        {/* screen */}
+        <div
+          style={{
+            background: "#ECE5DD",
+            padding: "10px 10px 18px",
+            minHeight: 380,
+            borderRadius: "0 0 18px 18px",
+            backgroundImage:
+              "radial-gradient(circle at 20% 30%, rgba(255,255,255,0.35) 1px, transparent 1px), radial-gradient(circle at 70% 80%, rgba(255,255,255,0.35) 1px, transparent 1px)",
+            backgroundSize: "24px 24px",
+          }}
+        >
+          {/* WhatsApp top bar */}
+          <div
+            style={{
+              background: "linear-gradient(135deg, #128C7E 0%, #075E54 100%)",
+              color: "#fff",
+              padding: "10px 12px",
+              borderRadius: 8,
+              margin: "-10px -10px 12px",
+              fontSize: 13,
+              fontWeight: 700,
+              display: "flex",
+              alignItems: "center",
+              gap: 10,
+              boxShadow: "0 2px 8px rgba(0,0,0,0.15)",
+            }}
+          >
+            <div
+              style={{
+                width: 34,
+                height: 34,
+                borderRadius: "50%",
+                background: "linear-gradient(135deg, #fbbf24 0%, #f97316 100%)",
+                color: "#fff",
+                display: "flex",
+                alignItems: "center",
+                justifyContent: "center",
+                fontSize: 13,
+                fontWeight: 800,
+                boxShadow: "0 2px 6px rgba(0,0,0,0.2)",
+              }}
+            >
+              BT
+            </div>
+            <div>
+              <div style={{ fontSize: 13.5, letterSpacing: 0.2 }}>Bafna Toys</div>
+              <div
+                style={{
+                  fontSize: 10.5,
+                  fontWeight: 500,
+                  opacity: 0.9,
+                  display: "flex",
+                  alignItems: "center",
+                  gap: 4,
+                }}
+              >
+                <span
+                  style={{
+                    width: 6,
+                    height: 6,
+                    borderRadius: "50%",
+                    background: "#86efac",
+                    display: "inline-block",
+                  }}
+                />
+                online
+              </div>
+            </div>
+          </div>
+
+          {/* Message bubble (incoming from business) */}
+          <div
+            style={{
+              background: "#fff",
+              borderRadius: 10,
+              padding: 6,
+              maxWidth: "88%",
+              boxShadow: "0 1px 2px rgba(0,0,0,0.12)",
+              position: "relative",
+            }}
+          >
+          {/* Header media */}
+          {headerType === "image" && headerValue && (
+            <img
+              src={headerValue}
+              alt="header"
+              style={{
+                width: "100%",
+                borderRadius: 6,
+                display: "block",
+                maxHeight: 200,
+                objectFit: "cover",
+              }}
+              onError={(e) => {
+                (e.target as HTMLImageElement).style.display = "none";
+              }}
+            />
+          )}
+          {headerType === "video" && headerValue && (
+            <video
+              src={headerValue}
+              controls
+              style={{
+                width: "100%",
+                borderRadius: 6,
+                display: "block",
+                maxHeight: 200,
+              }}
+            />
+          )}
+          {headerType === "document" && headerValue && (
+            <div
+              style={{
+                background: "#f3f4f6",
+                padding: 10,
+                borderRadius: 6,
+                fontSize: 12,
+                color: "#374151",
+                display: "flex",
+                alignItems: "center",
+                gap: 8,
+              }}
+            >
+              📄 {headerValue.split("/").pop() || "document.pdf"}
+            </div>
+          )}
+          {headerType === "text" && headerValue && (
+            <div
+              style={{
+                padding: "6px 8px 0",
+                fontWeight: 700,
+                fontSize: 14,
+                color: "#111",
+              }}
+            >
+              {headerValue}
+            </div>
+          )}
+
+          {/* Body */}
+          <div
+            style={{
+              padding: "6px 8px 4px",
+              fontSize: 13.5,
+              color: "#111",
+              whiteSpace: "pre-wrap",
+              wordBreak: "break-word",
+              lineHeight: 1.4,
+            }}
+          >
+            {bodyText ? (
+              linkifyText(bodyText)
+            ) : (
+              <span style={{ color: "#9ca3af", fontStyle: "italic" }}>
+                Body text empty — paste your template body above to preview.
+              </span>
+            )}
+          </div>
+
+          {/* Time + double tick */}
+          <div
+            style={{
+              fontSize: 10,
+              color: "#667781",
+              textAlign: "right",
+              padding: "2px 6px 2px",
+            }}
+          >
+            {nowTime} ✓✓
+          </div>
+          </div>
+          {/* /bubble */}
+        </div>
+        {/* /screen */}
+      </div>
+      {/* /phone chrome */}
+
+      <div
+        style={{
+          marginTop: 10,
+          fontSize: 11,
+          color: "#9ca3af",
+          textAlign: "center",
+        }}
+      >
+        Preview updates as you type. Actual text comes from the approved Meta
+        template body.
+      </div>
+    </div>
+  );
+};
+
+// Make URLs clickable blue
+function linkifyText(text: string): React.ReactNode {
+  const splitRegex = /(https?:\/\/[^\s]+)/g;
+  const testRegex = /^https?:\/\//;
+  const parts = text.split(splitRegex);
+  return parts.map((p, i) =>
+    testRegex.test(p) ? (
+      <a
+        key={i}
+        href={p}
+        target="_blank"
+        rel="noopener noreferrer"
+        style={{ color: "#1e40af", wordBreak: "break-all" }}
+      >
+        {p}
+      </a>
+    ) : (
+      <React.Fragment key={i}>{p}</React.Fragment>
+    )
+  );
+}
+
 const FormRow: React.FC<{ label: string; children: React.ReactNode }> = ({
   label,
   children,
@@ -1270,31 +2014,44 @@ const Stat: React.FC<{
   </div>
 );
 
+const FONT_FAMILY =
+  '"Inter", "Segoe UI", -apple-system, BlinkMacSystemFont, Roboto, "Helvetica Neue", Arial, sans-serif';
+
 const inputStyle: React.CSSProperties = {
   width: "100%",
-  padding: "10px 12px",
-  border: "1px solid #d1d5db",
-  borderRadius: 6,
-  fontSize: 14,
+  padding: "11px 14px",
+  border: "1.5px solid #e5e7eb",
+  borderRadius: 10,
+  fontSize: 14.5,
+  fontFamily: FONT_FAMILY,
+  fontWeight: 500,
+  color: "#111827",
   marginBottom: 0,
   outline: "none",
   boxSizing: "border-box",
+  background: "#fff",
+  transition: "border-color 0.2s, box-shadow 0.2s",
 };
 
 const thStyle: React.CSSProperties = {
-  padding: "10px 12px",
+  padding: "12px 14px",
   textAlign: "left",
-  fontSize: 12,
-  fontWeight: 600,
-  color: "#374151",
-  borderBottom: "1px solid #e5e7eb",
+  fontSize: 11.5,
+  fontWeight: 700,
+  color: "#475569",
+  textTransform: "uppercase",
+  letterSpacing: 0.5,
+  borderBottom: "2px solid #e2e8f0",
+  fontFamily: FONT_FAMILY,
 };
 
 const tdStyle: React.CSSProperties = {
-  padding: "10px 12px",
-  fontSize: 13,
-  color: "#374151",
+  padding: "12px 14px",
+  fontSize: 13.5,
+  color: "#1e293b",
   verticalAlign: "top",
+  fontFamily: FONT_FAMILY,
+  fontWeight: 500,
 };
 
 export default AdminCampaigns;

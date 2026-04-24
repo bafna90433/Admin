@@ -63,6 +63,9 @@ import AdminTransactions from "./components/AdminTransactions";
 // ✅ NEW: Delhivery Control Panel (Shipments + NDR + Pickup + Pincode + Rate)
 import AdminDelhivery from "./components/AdminDelhivery";
 
+// ✅ NEW: Bulk WhatsApp Campaigns (broadcast to customers / offers / new product)
+import AdminCampaigns from "./components/AdminCampaigns";
+
 // 🔐 Admin Login
 import AdminLogin from "./components/AdminLogin";
 
@@ -163,6 +166,9 @@ const App: React.FC = () => {
 
           {/* ✅ NEW: Delhivery Control Panel */}
           <Route path="delhivery" element={<AdminDelhivery />} />
+
+          {/* ✅ NEW: Bulk WhatsApp Campaigns */}
+          <Route path="campaigns" element={<AdminCampaigns />} />
 
         </Route>
 

@@ -21,6 +21,7 @@ import {
   FiUserPlus,
   FiSmartphone,
   FiShoppingCart,
+  FiDollarSign,
 } from "react-icons/fi";
 import { MdOutlineSpaceDashboard } from "react-icons/md";
 import { TbCategory } from "react-icons/tb";
@@ -312,6 +313,15 @@ const Sidebar: React.FC<SidebarProps> = ({ sidebarOpen, closeSidebar }) => {
                   icon={FiCreditCard}
                   label="Finance & Shipping"
                   gradient="yellow"
+                />
+              )}
+
+              {hasAccess("finance") && (
+                <NavItem
+                  to="/admin/transactions"
+                  icon={FiDollarSign}
+                  label="Razorpay Transactions"
+                  gradient="green"
                 />
               )}
               

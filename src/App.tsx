@@ -57,6 +57,9 @@ import MetaPixelSettings from "./components/MetaPixelSettings";
 // ✅ NEW: Abandoned Carts (Cart Recovery via WhatsApp)
 import AdminAbandonedCarts from "./components/AdminAbandonedCarts";
 
+// ✅ NEW: Razorpay Transactions (Full payment details + refunds + settlements)
+import AdminTransactions from "./components/AdminTransactions";
+
 // 🔐 Admin Login
 import AdminLogin from "./components/AdminLogin";
 
@@ -151,6 +154,9 @@ const App: React.FC = () => {
 
           {/* ✅ NEW: Abandoned Carts */}
           <Route path="abandoned-carts" element={<AdminAbandonedCarts />} />
+
+          {/* ✅ NEW: Razorpay Transactions */}
+          <Route path="transactions" element={<AdminTransactions />} />
 
         </Route>
 

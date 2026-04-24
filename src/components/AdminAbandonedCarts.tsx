@@ -122,7 +122,7 @@ const AdminAbandonedCarts: React.FC = () => {
     localStorage.getItem("abandonedCartTemplateLang") || "en_US"
   );
   const [waRecoveryUrl, setWaRecoveryUrl] = useState<string>(
-    "https://bafnatoys.com/cart"
+    localStorage.getItem("abandonedCartRecoveryUrl") || "https://bafnatoys.com/cart"
   );
   const [waSending, setWaSending] = useState(false);
 
@@ -201,9 +201,13 @@ const AdminAbandonedCarts: React.FC = () => {
         }
       );
 
-      // Remember template name for next time
+      // Remember template name, language, and URL for next time
       localStorage.setItem("abandonedCartTemplateName", waTemplate.trim());
       localStorage.setItem("abandonedCartTemplateLang", waLangCode.trim() || "en_US");
+      localStorage.setItem(
+        "abandonedCartRecoveryUrl",
+        waRecoveryUrl.trim() || "https://bafnatoys.com/cart"
+      );
 
       Swal.fire({
         icon: "success",
@@ -699,17 +703,26 @@ const AdminAbandonedCarts: React.FC = () => {
             <input
               value={waTemplate}
               onChange={(e) => setWaTemplate(e.target.value)}
+              onBlur={(e) =>
+                localStorage.setItem("abandonedCartTemplateName", e.target.value.trim())
+              }
               placeholder="e.g., abandoned_cart_reminder"
               style={inputStyle}
             />
             <div style={helpStyle}>
-              Exact template name approved in Meta WhatsApp Manager.
+              ✅ Saved automatically — agli baar auto-fill ho jayega.
             </div>
 
             <label style={{ ...labelStyle, marginTop: 12 }}>Language Code</label>
             <input
               value={waLangCode}
               onChange={(e) => setWaLangCode(e.target.value)}
+              onBlur={(e) =>
+                localStorage.setItem(
+                  "abandonedCartTemplateLang",
+                  e.target.value.trim() || "en_US"
+                )
+              }
               placeholder="en_US"
               style={inputStyle}
             />
@@ -721,9 +734,17 @@ const AdminAbandonedCarts: React.FC = () => {
             <input
               value={waRecoveryUrl}
               onChange={(e) => setWaRecoveryUrl(e.target.value)}
+              onBlur={(e) =>
+                localStorage.setItem(
+                  "abandonedCartRecoveryUrl",
+                  e.target.value.trim() || "https://bafnatoys.com/cart"
+                )
+              }
               style={inputStyle}
             />
-            <div style={helpStyle}>Where the customer is taken on tap. Default: /cart</div>
+            <div style={helpStyle}>
+              ✅ Saved automatically — agli baar auto-fill ho jayega.
+            </div>
 
             <div
               style={{

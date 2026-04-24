@@ -19,6 +19,7 @@ import {
   FiAlertCircle,
   FiClock,
 } from "react-icons/fi";
+import { FaRupeeSign } from "react-icons/fa";
 
 /* ================================ TYPES ================================ */
 type Txn = {
@@ -382,7 +383,7 @@ const AdminTransactions: React.FC = () => {
 
   /* ================================ RENDER ================================ */
   return (
-    <div style={{ padding: "24px 20px", maxWidth: 1400, margin: "0 auto" }}>
+    <div style={{ padding: "24px 20px", maxWidth: 1400, margin: "0 auto", fontFamily: "'Plus Jakarta Sans', 'Inter', sans-serif" }}>
       {/* Header */}
       <div
         style={{
@@ -439,7 +440,7 @@ const AdminTransactions: React.FC = () => {
           sub={`${stats?.capturedCount || 0} captured`}
           bg="#d1fae5"
           color="#059669"
-          icon={<FiDollarSign />}
+          icon={<FaRupeeSign />}
         />
         <StatCard
           label="Razorpay Fees"
@@ -976,36 +977,40 @@ const StatCard: React.FC<{
   <div
     style={{
       background: "#fff",
-      border: "1px solid #e5e7eb",
-      borderRadius: 12,
-      padding: 16,
+      border: "1px solid #f3f4f6",
+      borderRadius: 16,
+      padding: 20,
       display: "flex",
       alignItems: "center",
-      gap: 14,
+      gap: 16,
       flex: "1 1 200px",
       minWidth: 180,
+      boxShadow: "0 4px 10px rgba(0, 0, 0, 0.03)",
+      transition: "transform 0.2s ease",
     }}
+    onMouseEnter={(e) => (e.currentTarget.style.transform = "translateY(-2px)")}
+    onMouseLeave={(e) => (e.currentTarget.style.transform = "translateY(0)")}
   >
     <div
       style={{
-        width: 44,
-        height: 44,
-        borderRadius: 12,
+        width: 48,
+        height: 48,
+        borderRadius: 14,
         background: bg,
         color,
         display: "flex",
         alignItems: "center",
         justifyContent: "center",
-        fontSize: 20,
+        fontSize: 22,
         flexShrink: 0,
       }}
     >
       {icon}
     </div>
     <div>
-      <div style={{ fontSize: 12, color: "#6b7280", fontWeight: 500 }}>{label}</div>
-      <div style={{ fontSize: 20, fontWeight: 700, color: "#111827" }}>{value}</div>
-      {sub && <div style={{ fontSize: 11, color: "#9ca3af" }}>{sub}</div>}
+      <div style={{ fontSize: 13, color: "#6b7280", fontWeight: 600, letterSpacing: "0.02em" }}>{label}</div>
+      <div style={{ fontSize: 24, fontWeight: 800, color: "#111827", margin: "2px 0" }}>{value}</div>
+      {sub && <div style={{ fontSize: 12, color: "#9ca3af" }}>{sub}</div>}
     </div>
   </div>
 );

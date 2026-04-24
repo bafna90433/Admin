@@ -23,6 +23,7 @@ import {
   FiNavigation,
   FiCreditCard,
 } from "react-icons/fi";
+import { FaRupeeSign } from "react-icons/fa";
 
 /* =============================== TYPES =============================== */
 type TabKey = "shipments" | "ndr" | "transactions" | "pickup" | "pincode" | "rate";
@@ -138,7 +139,7 @@ const AdminDelhivery: React.FC = () => {
   }, [loadDashboard]);
 
   return (
-    <div style={{ padding: "24px 20px", maxWidth: 1400, margin: "0 auto" }}>
+    <div style={{ padding: "24px 20px", maxWidth: 1400, margin: "0 auto", fontFamily: "'Plus Jakarta Sans', 'Inter', sans-serif" }}>
       {/* HEADER */}
       <div
         style={{
@@ -182,7 +183,7 @@ const AdminDelhivery: React.FC = () => {
           }
           bg="#dbeafe"
           color="#2563eb"
-          icon={<FiDollarSign />}
+          icon={<FaRupeeSign />}
           warn={!!wallet?.ok && (wallet.balance ?? 0) < 500}
         />
         <StatCard
@@ -352,7 +353,7 @@ const TransactionsTab: React.FC = () => {
           sub={`Last ${days} days`}
           bg="#fee2e2"
           color="#dc2626"
-          icon={<FiDollarSign />}
+          icon={<FaRupeeSign />}
         />
         {view === "wallet" && (
           <StatCard
@@ -1500,36 +1501,41 @@ const StatCard: React.FC<{
   <div
     style={{
       background: "#fff",
-      border: warn ? "1px solid #fecaca" : "1px solid #e5e7eb",
-      borderRadius: 12,
-      padding: 16,
+      border: warn ? "1px solid #fca5a5" : "1px solid #f3f4f6",
+      borderRadius: 16,
+      padding: 20,
       display: "flex",
       alignItems: "center",
-      gap: 14,
+      gap: 16,
       flex: "1 1 200px",
       minWidth: 180,
+      boxShadow: warn ? "0 4px 10px rgba(220, 38, 38, 0.1)" : "0 4px 10px rgba(0, 0, 0, 0.03)",
+      transition: "transform 0.2s ease",
     }}
+    onMouseEnter={(e) => (e.currentTarget.style.transform = "translateY(-2px)")}
+    onMouseLeave={(e) => (e.currentTarget.style.transform = "translateY(0)")}
   >
     <div
       style={{
-        width: 44,
-        height: 44,
-        borderRadius: 12,
+        width: 48,
+        height: 48,
+        borderRadius: 14,
         background: bg,
         color,
         display: "flex",
         alignItems: "center",
         justifyContent: "center",
-        fontSize: 20,
+        fontSize: 22,
+        flexShrink: 0,
       }}
     >
       {icon}
     </div>
     <div>
-      <div style={{ fontSize: 12, color: "#6b7280", fontWeight: 500 }}>{label}</div>
-      <div style={{ fontSize: 18, fontWeight: 700, color: "#111827" }}>{value}</div>
+      <div style={{ fontSize: 13, color: warn ? "#dc2626" : "#6b7280", fontWeight: 600, letterSpacing: "0.02em" }}>{label}</div>
+      <div style={{ fontSize: 24, fontWeight: 800, color: "#111827", margin: "2px 0" }}>{value}</div>
       {sub && (
-        <div style={{ fontSize: 11, color: warn ? "#dc2626" : "#9ca3af" }}>{sub}</div>
+        <div style={{ fontSize: 12, color: warn ? "#dc2626" : "#9ca3af" }}>{sub}</div>
       )}
     </div>
   </div>

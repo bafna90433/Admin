@@ -193,7 +193,7 @@ const AdminAbandonedCarts: React.FC = () => {
     setWaSending(true);
     try {
       const { data } = await api.post(
-        `/abandoned-cart/${waCart._id}/send-whatsapp`,
+        `/abandoned-cart/admin/${waCart._id}/send-whatsapp`,
         {
           templateName: waTemplate.trim(),
           languageCode: waLangCode.trim() || "en_US",

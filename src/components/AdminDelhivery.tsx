@@ -25,7 +25,7 @@ import {
 } from "react-icons/fi";
 
 /* =============================== TYPES =============================== */
-type TabKey = "shipments" | "ndr" | "pickup" | "pincode" | "rate";
+type TabKey = "shipments" | "ndr" | "transactions" | "pickup" | "pincode" | "rate";
 
 type ShipmentRow = {
   _id: string;
@@ -236,6 +236,9 @@ const AdminDelhivery: React.FC = () => {
         <TabBtn active={tab === "ndr"} onClick={() => setTab("ndr")}>
           <FiAlertTriangle /> NDR ({stats?.pendingAwb ?? 0})
         </TabBtn>
+        <TabBtn active={tab === "transactions"} onClick={() => setTab("transactions")}>
+          <FiDollarSign /> Transactions
+        </TabBtn>
         <TabBtn active={tab === "pickup"} onClick={() => setTab("pickup")}>
           <FiCalendar /> Pickup Request
         </TabBtn>
@@ -249,6 +252,7 @@ const AdminDelhivery: React.FC = () => {
 
       {tab === "shipments" && <ShipmentsTab />}
       {tab === "ndr" && <NDRTab />}
+      {tab === "transactions" && <TransactionsTab />}
       {tab === "pickup" && <PickupTab />}
       {tab === "pincode" && <PincodeTab />}
       {tab === "rate" && <RateTab />}
@@ -257,6 +261,343 @@ const AdminDelhivery: React.FC = () => {
 };
 
 export default AdminDelhivery;
+
+/* ========================================================================
+   TAB: TRANSACTIONS (Wallet history + per-shipment ledger)
+   ======================================================================== */
+type TxnRow = {
+  source: "delhivery_wallet" | "computed_shipment";
+  id: string;
+  date: string | null;
+  type: string;
+  amount: number;
+  balance?: number | null;
+  description?: string;
+  awb?: string;
+  orderNumber?: string;
+  paymentMode?: string;
+  orderTotal?: number;
+  destination?: string;
+};
+
+const TransactionsTab: React.FC = () => {
+  const [days, setDays] = useState(30);
+  const [loading, setLoading] = useState(false);
+  const [data, setData] = useState<any>(null);
+  const [view, setView] = useState<"wallet" | "ledger">("ledger");
+
+  const load = useCallback(async () => {
+    setLoading(true);
+    try {
+      const { data } = await api.get("/shipping/delhivery/transactions", {
+        params: { days },
+      });
+      setData(data);
+      if (data?.walletAvailable && (data?.walletTxns || []).length > 0) {
+        setView("wallet");
+      } else {
+        setView("ledger");
+      }
+    } catch (err: any) {
+      Swal.fire({
+        icon: "error",
+        title: "Load failed",
+        text: err?.response?.data?.message || "Error loading transactions.",
+      });
+    } finally {
+      setLoading(false);
+    }
+  }, [days]);
+
+  useEffect(() => {
+    load();
+  }, [load]);
+
+  const rows: TxnRow[] =
+    view === "wallet" ? data?.walletTxns || [] : data?.computedTxns || [];
+
+  const exportExcel = () => {
+    if (!rows.length) return;
+    const out = rows.map((r: TxnRow) => ({
+      Date: r.date ? fmtDate(r.date) : "",
+      Type: r.type,
+      AWB: r.awb || "",
+      "Order #": r.orderNumber || "",
+      Description: r.description || "",
+      Amount: r.amount,
+      Balance: r.balance ?? "",
+      Destination: r.destination || "",
+      "Payment Mode": r.paymentMode || "",
+      "Order Total": r.orderTotal || "",
+    }));
+    const ws = XLSX.utils.json_to_sheet(out);
+    const wb = XLSX.utils.book_new();
+    XLSX.utils.book_append_sheet(wb, ws, "Delhivery-Txns");
+    const buf = XLSX.write(wb, { bookType: "xlsx", type: "array" });
+    saveAs(
+      new Blob([buf], { type: "application/octet-stream" }),
+      `delhivery-transactions-${Date.now()}.xlsx`
+    );
+  };
+
+  const summary = data?.summary || {};
+
+  return (
+    <>
+      {/* Summary cards */}
+      <div style={{ display: "flex", flexWrap: "wrap", gap: 14, marginBottom: 14 }}>
+        <StatCard
+          label={view === "wallet" ? "Wallet Debit" : "Total Shipping Spend"}
+          value={fmtINR(view === "wallet" ? summary.walletDebit : summary.computedDebit)}
+          sub={`Last ${days} days`}
+          bg="#fee2e2"
+          color="#dc2626"
+          icon={<FiDollarSign />}
+        />
+        {view === "wallet" && (
+          <StatCard
+            label="Wallet Credit"
+            value={fmtINR(summary.walletCredit || 0)}
+            sub="Recharges + refunds"
+            bg="#d1fae5"
+            color="#059669"
+            icon={<FiCheckCircle />}
+          />
+        )}
+        <StatCard
+          label="Total Shipments"
+          value={String(summary.shipmentCount || 0)}
+          sub={`Last ${days} days`}
+          bg="#dbeafe"
+          color="#2563eb"
+          icon={<FiPackage />}
+        />
+        <StatCard
+          label="Avg / Shipment"
+          value={fmtINR(
+            summary.shipmentCount > 0
+              ? (summary.computedDebit || 0) / summary.shipmentCount
+              : 0
+          )}
+          sub="Average cost"
+          bg="#ede9fe"
+          color="#7c3aed"
+          icon={<FiTruck />}
+        />
+      </div>
+
+      {/* Filters */}
+      <div style={filterBarStyle}>
+        <div style={{ flex: "0 0 160px" }}>
+          <label style={labelStyle}>Time Range</label>
+          <select
+            value={days}
+            onChange={(e) => setDays(Number(e.target.value))}
+            style={inputStyle}
+          >
+            <option value={7}>Last 7 days</option>
+            <option value={30}>Last 30 days</option>
+            <option value={90}>Last 90 days</option>
+            <option value={180}>Last 6 months</option>
+            <option value={365}>Last 1 year</option>
+          </select>
+        </div>
+
+        <div style={{ flex: "1 1 200px" }}>
+          <label style={labelStyle}>View</label>
+          <div style={{ display: "flex", gap: 4 }}>
+            <button
+              onClick={() => setView("ledger")}
+              style={{
+                ...inputStyle,
+                flex: 1,
+                background: view === "ledger" ? "#4f46e5" : "#fff",
+                color: view === "ledger" ? "#fff" : "#374151",
+                fontWeight: 600,
+                cursor: "pointer",
+              }}
+            >
+              📒 Shipment Ledger ({data?.computedTxns?.length || 0})
+            </button>
+            <button
+              onClick={() => setView("wallet")}
+              disabled={!data?.walletAvailable}
+              title={
+                data?.walletAvailable
+                  ? ""
+                  : "Wallet API not enabled for your Delhivery account"
+              }
+              style={{
+                ...inputStyle,
+                flex: 1,
+                background: view === "wallet" ? "#4f46e5" : "#fff",
+                color: view === "wallet" ? "#fff" : "#374151",
+                fontWeight: 600,
+                cursor: data?.walletAvailable ? "pointer" : "not-allowed",
+                opacity: data?.walletAvailable ? 1 : 0.5,
+              }}
+            >
+              💰 Wallet History ({data?.walletTxns?.length || 0})
+            </button>
+          </div>
+        </div>
+
+        <button onClick={load} style={btnPrimary}>
+          <FiRefreshCw /> Refresh
+        </button>
+        <button onClick={exportExcel} disabled={!rows.length} style={btnGreen}>
+          <FiDownload /> Excel
+        </button>
+      </div>
+
+      {/* Info banner for ledger mode */}
+      {view === "ledger" && (
+        <div
+          style={{
+            background: "#eff6ff",
+            border: "1px solid #bfdbfe",
+            padding: 12,
+            borderRadius: 8,
+            marginBottom: 12,
+            fontSize: 13,
+            color: "#1e3a8a",
+          }}
+        >
+          📒 <strong>Shipment Ledger</strong> — Har order pe kitna shipping charge liya gaya (aapke DB se computed). Ye actual Delhivery wallet debit ke barabar hi hoga.
+        </div>
+      )}
+      {view === "wallet" && !data?.walletAvailable && (
+        <div
+          style={{
+            background: "#fef3c7",
+            border: "1px solid #fde68a",
+            padding: 12,
+            borderRadius: 8,
+            marginBottom: 12,
+            fontSize: 13,
+            color: "#92400e",
+          }}
+        >
+          ⚠️ Live wallet transactions Delhivery API aapke account pe enabled nahi hai. Ledger view me switch kar do — wahin complete data milega.
+        </div>
+      )}
+
+      {/* Table */}
+      <div style={tableWrap}>
+        <div style={{ overflowX: "auto" }}>
+          <table style={tableStyle}>
+            <thead>
+              <tr style={theadRow}>
+                <th style={thStyle}>Date</th>
+                <th style={thStyle}>Type</th>
+                <th style={thStyle}>AWB / Order</th>
+                <th style={thStyle}>Description</th>
+                <th style={{ ...thStyle, textAlign: "right" }}>Amount</th>
+                {view === "wallet" && (
+                  <th style={{ ...thStyle, textAlign: "right" }}>Balance</th>
+                )}
+                {view === "ledger" && <th style={thStyle}>Destination</th>}
+              </tr>
+            </thead>
+            <tbody>
+              {loading ? (
+                <tr>
+                  <td colSpan={7} style={emptyCell}>
+                    Loading transactions...
+                  </td>
+                </tr>
+              ) : rows.length === 0 ? (
+                <tr>
+                  <td colSpan={7} style={emptyCell}>
+                    <FiDollarSign style={{ fontSize: 42, opacity: 0.3 }} />
+                    <div>No transactions in this period.</div>
+                  </td>
+                </tr>
+              ) : (
+                rows.map((t, i) => {
+                  const isCredit =
+                    t.type === "RECHARGE" || t.type === "CREDIT" || t.type === "REFUND";
+                  return (
+                    <tr key={i} style={trowStyle}>
+                      <td style={tdStyle}>{fmtDate(t.date)}</td>
+                      <td style={tdStyle}>
+                        <span
+                          style={{
+                            background: isCredit ? "#d1fae5" : "#fee2e2",
+                            color: isCredit ? "#065f46" : "#991b1b",
+                            padding: "3px 10px",
+                            borderRadius: 999,
+                            fontSize: 11,
+                            fontWeight: 600,
+                          }}
+                        >
+                          {t.type || "DEBIT"}
+                        </span>
+                      </td>
+                      <td style={tdStyle}>
+                        {t.orderNumber && (
+                          <div style={{ fontWeight: 600, color: "#111827" }}>
+                            #{t.orderNumber}
+                          </div>
+                        )}
+                        {t.awb && (
+                          <div
+                            style={{
+                              fontFamily: "monospace",
+                              fontSize: 11,
+                              color: "#4f46e5",
+                            }}
+                          >
+                            {t.awb}
+                          </div>
+                        )}
+                      </td>
+                      <td style={tdStyle}>
+                        <div style={{ fontSize: 13 }}>{t.description || "—"}</div>
+                        {t.paymentMode && (
+                          <div style={{ fontSize: 11, color: "#6b7280" }}>
+                            {t.paymentMode} · {fmtINR(t.orderTotal || 0)}
+                          </div>
+                        )}
+                      </td>
+                      <td
+                        style={{
+                          ...tdStyle,
+                          textAlign: "right",
+                          fontWeight: 700,
+                          color: isCredit ? "#059669" : "#dc2626",
+                        }}
+                      >
+                        {isCredit ? "+" : "−"}
+                        {fmtINR(t.amount)}
+                      </td>
+                      {view === "wallet" && (
+                        <td
+                          style={{
+                            ...tdStyle,
+                            textAlign: "right",
+                            color: "#6b7280",
+                          }}
+                        >
+                          {t.balance != null ? fmtINR(t.balance) : "—"}
+                        </td>
+                      )}
+                      {view === "ledger" && (
+                        <td style={tdStyle}>
+                          <div style={{ fontSize: 12 }}>{t.destination || "—"}</div>
+                        </td>
+                      )}
+                    </tr>
+                  );
+                })
+              )}
+            </tbody>
+          </table>
+        </div>
+      </div>
+    </>
+  );
+};
 
 /* ========================================================================
    TAB 1: SHIPMENTS

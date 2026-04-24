@@ -60,6 +60,9 @@ import AdminAbandonedCarts from "./components/AdminAbandonedCarts";
 // ✅ NEW: Razorpay Transactions (Full payment details + refunds + settlements)
 import AdminTransactions from "./components/AdminTransactions";
 
+// ✅ NEW: Delhivery Control Panel (Shipments + NDR + Pickup + Pincode + Rate)
+import AdminDelhivery from "./components/AdminDelhivery";
+
 // 🔐 Admin Login
 import AdminLogin from "./components/AdminLogin";
 
@@ -157,6 +160,9 @@ const App: React.FC = () => {
 
           {/* ✅ NEW: Razorpay Transactions */}
           <Route path="transactions" element={<AdminTransactions />} />
+
+          {/* ✅ NEW: Delhivery Control Panel */}
+          <Route path="delhivery" element={<AdminDelhivery />} />
 
         </Route>
 

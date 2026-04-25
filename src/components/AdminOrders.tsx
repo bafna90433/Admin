@@ -272,11 +272,19 @@ const generateInvoice = (order: Order) => {
   const wa = normalizeWhatsApp91(
     order.customerId?.whatsapp || order.customerId?.otpMobile
   );
-  const today = new Date().toLocaleDateString("en-IN", {
-    year: "numeric",
-    month: "long",
-    day: "numeric",
-  });
+  // Invoice par order ki ASLI date dikhani chahiye (jab customer ne order kiya),
+  // download ki date nahi. Fallback to today only if createdAt missing.
+  const orderDate = order.createdAt
+    ? new Date(order.createdAt).toLocaleDateString("en-IN", {
+        year: "numeric",
+        month: "long",
+        day: "numeric",
+      })
+    : new Date().toLocaleDateString("en-IN", {
+        year: "numeric",
+        month: "long",
+        day: "numeric",
+      });
 
   const shipTo = addr
     ? addr.isDifferentShipping
@@ -348,7 +356,7 @@ td{padding:10px 14px;border-bottom:1px solid #f1f5f9}
 <div class="inv-meta">
   <section><h3>Bill To</h3><p><strong>${addr?.shopName || order.customerId?.shopName || "—"}</strong><br>GST: ${addr?.gstNumber || "N/A"}<br>📞 ${order.customerId?.otpMobile || "—"}<br>💬 ${wa || "—"}</p></section>
   <section><h3>Ship To</h3><p>${shipTo}</p></section>
-  <section><h3>Details</h3><p>Date: ${today}<br>${payHtml}${order.trackingId ? `<br>AWB: ${order.trackingId}` : ""}</p></section>
+  <section><h3>Details</h3><p>Date: ${orderDate}<br>${payHtml}${order.trackingId ? `<br>AWB: ${order.trackingId}` : ""}</p></section>
 </div>
 <div style="padding:0 32px 24px">
   <table><thead><tr><th>#</th><th>Product</th><th style="text-align:center">Qty</th><th style="text-align:right">Rate</th><th style="text-align:right">Amount</th></tr></thead>

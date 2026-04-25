@@ -207,6 +207,88 @@ const AdminCampaigns: React.FC = () => {
     }
   };
 
+  // ---------- TEST SEND (single number) ----------
+  // Sends one message right now and shows Meta's exact response/error.
+  // Use this BEFORE launching a real campaign to debug template/variable issues.
+  const [testing, setTesting] = useState(false);
+  const sendTest = async () => {
+    if (!templateName.trim()) {
+      Swal.fire("Template required", "Enter a WhatsApp template name first.", "warning");
+      return;
+    }
+    if (
+      (headerType === "image" || headerType === "video" || headerType === "document") &&
+      !headerValue.trim()
+    ) {
+      Swal.fire(
+        "Header media missing",
+        `Your template has an <b>${headerType}</b> header. Upload or paste a URL first.`,
+        "warning"
+      );
+      return;
+    }
+
+    const { value: phone } = await Swal.fire({
+      title: "Send test message",
+      input: "text",
+      inputLabel: "Your WhatsApp number (with or without +91)",
+      inputPlaceholder: "9876543210",
+      showCancelButton: true,
+      confirmButtonText: "Send Test",
+      confirmButtonColor: "#16a34a",
+      inputValidator: (v) =>
+        !v || v.replace(/\D/g, "").length < 10 ? "Enter a valid number" : null,
+    });
+    if (!phone) return;
+
+    setTesting(true);
+    try {
+      const { data } = await api.post("/campaigns/test-send", {
+        phone,
+        templateName: templateName.trim(),
+        languageCode: languageCode.trim() || "en_US",
+        bodyVariables: bodyVariables.map((v) => v || ""),
+        headerType,
+        headerValue: headerValue.trim(),
+      });
+
+      if (data?.success) {
+        await Swal.fire({
+          title: "✅ Test sent!",
+          html: `Message ID: <code>${data.messageId || "n/a"}</code><br/>To: <b>${data.to}</b><br/><br/>Check your WhatsApp now. If it doesn't arrive within 1 minute, Meta accepted but couldn't deliver.`,
+          icon: "success",
+        });
+      } else {
+        await Swal.fire({
+          title: "❌ Meta rejected",
+          html: `<div style="text-align:left;font-size:13px">
+                   <b>Error:</b> ${data.error || "unknown"}<br/>
+                   <b>Code:</b> ${data.errorCode ?? "n/a"}${
+                     data.errorSubcode ? " / " + data.errorSubcode : ""
+                   }<br/>
+                   ${data.errorDetails ? `<b>Details:</b> ${data.errorDetails}<br/>` : ""}
+                   <hr style="margin:8px 0"/>
+                   <b>Sent components:</b><pre style="background:#f3f4f6;padding:8px;border-radius:6px;font-size:11px;max-height:200px;overflow:auto">${JSON.stringify(
+                     data.sentPayload?.components || [],
+                     null,
+                     2
+                   )}</pre>
+                 </div>`,
+          icon: "error",
+          width: 600,
+        });
+      }
+    } catch (e: any) {
+      Swal.fire(
+        "Test failed",
+        e?.response?.data?.message || e?.message || "Try again",
+        "error"
+      );
+    } finally {
+      setTesting(false);
+    }
+  };
+
   // Persist form changes (debounced by onBlur)
   const persistForm = () => {
     const snapshot = {
@@ -232,6 +314,30 @@ const AdminCampaigns: React.FC = () => {
     });
     return txt;
   }, [bodyTemplateText, bodyVariables]);
+
+  // Detect how many distinct {{N}} placeholders are in the template body
+  const detectedVarCount = useMemo(() => {
+    if (!bodyTemplateText) return 0;
+    const matches = bodyTemplateText.match(/\{\{\s*(\d+)\s*\}\}/g) || [];
+    let max = 0;
+    matches.forEach((m) => {
+      const n = parseInt(m.replace(/[^\d]/g, ""), 10);
+      if (n > max) max = n;
+    });
+    return max;
+  }, [bodyTemplateText]);
+
+  // Auto-sync bodyVariables count when template text changes
+  useEffect(() => {
+    if (detectedVarCount === 0) return;
+    setBodyVariables((prev) => {
+      if (prev.length === detectedVarCount) return prev;
+      const next = [...prev];
+      while (next.length < detectedVarCount) next.push("");
+      while (next.length > detectedVarCount) next.pop();
+      return next;
+    });
+  }, [detectedVarCount]);
 
   const nowTime = useMemo(
     () =>
@@ -361,6 +467,42 @@ const AdminCampaigns: React.FC = () => {
       Swal.fire(
         "No recipients",
         "Please add numbers manually or upload an Excel.",
+        "warning"
+      );
+      return;
+    }
+
+    // ⚠️ VALIDATION 1: variable count must match template body
+    if (detectedVarCount > 0 && bodyVariables.length !== detectedVarCount) {
+      Swal.fire(
+        "Variables mismatch",
+        `Your template body has <b>${detectedVarCount}</b> variable(s) (<code>{{1}}..{{${detectedVarCount}}}</code>) but you filled <b>${bodyVariables.length}</b>. Meta will reject this with error #132000.`,
+        "warning"
+      );
+      return;
+    }
+    const emptyVarIdx = bodyVariables.findIndex((v) => !v || !v.trim());
+    if (emptyVarIdx >= 0) {
+      const ok = await Swal.fire({
+        title: "Empty variable detected",
+        html: `Variable <code>{{${emptyVarIdx + 1}}}</code> is empty. WhatsApp template variables cannot be blank — Meta will reject the message.<br/><br/>Continue anyway?`,
+        icon: "warning",
+        showCancelButton: true,
+        confirmButtonText: "Send anyway",
+        cancelButtonText: "Fix it",
+        confirmButtonColor: "#dc2626",
+      });
+      if (!ok.isConfirmed) return;
+    }
+
+    // ⚠️ VALIDATION 2: media header must have a URL
+    if (
+      (headerType === "image" || headerType === "video" || headerType === "document") &&
+      !headerValue.trim()
+    ) {
+      Swal.fire(
+        "Header media missing",
+        `Your template has an <b>${headerType}</b> header. Please upload or paste a URL — otherwise Meta will reject with error #132000.`,
         "warning"
       );
       return;
@@ -1082,6 +1224,48 @@ const AdminCampaigns: React.FC = () => {
             </div>
           </FormRow>
 
+          {detectedVarCount > 0 && (
+            <div
+              style={{
+                marginBottom: 12,
+                padding: "10px 14px",
+                background:
+                  bodyVariables.length === detectedVarCount &&
+                  bodyVariables.every((v) => v && v.trim())
+                    ? "linear-gradient(135deg, #dcfce7 0%, #bbf7d0 100%)"
+                    : "linear-gradient(135deg, #fef3c7 0%, #fde68a 100%)",
+                border: `1.5px solid ${
+                  bodyVariables.length === detectedVarCount &&
+                  bodyVariables.every((v) => v && v.trim())
+                    ? "#22c55e"
+                    : "#f59e0b"
+                }`,
+                borderRadius: 10,
+                fontSize: 13,
+                fontWeight: 600,
+                color:
+                  bodyVariables.length === detectedVarCount &&
+                  bodyVariables.every((v) => v && v.trim())
+                    ? "#065f46"
+                    : "#78350f",
+                fontFamily: FONT_FAMILY,
+              }}
+            >
+              {bodyVariables.length === detectedVarCount &&
+              bodyVariables.every((v) => v && v.trim()) ? (
+                <>
+                  ✅ Template needs <b>{detectedVarCount}</b> variable(s) — all filled correctly.
+                </>
+              ) : (
+                <>
+                  ⚠️ Template body has <b>{detectedVarCount}</b> variable placeholder(s).
+                  Fill all <code>{`{{1}}..{{${detectedVarCount}}}`}</code> below — empty values
+                  will cause Meta error <code>#132000</code>.
+                </>
+              )}
+            </div>
+          )}
+
           <FormRow label={`Body Variables (maps to {{1}}, {{2}}, ...)`}>
             <div style={{ display: "flex", flexDirection: "column", gap: 6 }}>
               {bodyVariables.map((v, i) => (
@@ -1202,6 +1386,31 @@ const AdminCampaigns: React.FC = () => {
               </span>
             )}
             <div style={{ flex: 1 }} />
+            <button
+              onClick={sendTest}
+              disabled={testing || submitting}
+              title="Send a single test message to your own WhatsApp first to verify the template works"
+              style={{
+                padding: "14px 22px",
+                background: testing
+                  ? "#94a3b8"
+                  : "linear-gradient(135deg, #f59e0b 0%, #d97706 100%)",
+                color: "#fff",
+                border: "none",
+                borderRadius: 12,
+                cursor: testing || submitting ? "not-allowed" : "pointer",
+                fontWeight: 800,
+                fontFamily: FONT_FAMILY,
+                fontSize: 14.5,
+                letterSpacing: 0.2,
+                boxShadow: testing
+                  ? "none"
+                  : "0 10px 25px -8px rgba(245, 158, 11, 0.55)",
+                marginRight: 10,
+              }}
+            >
+              🧪 {testing ? "Testing..." : "Send Test"}
+            </button>
             <button
               onClick={submit}
               disabled={submitting}

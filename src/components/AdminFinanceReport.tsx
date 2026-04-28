@@ -158,6 +158,7 @@ const AdminFinanceReport: React.FC = () => {
   const [from, setFrom] = useState("");
   const [to, setTo] = useState("");
   const [modeFilter, setModeFilter] = useState("ALL");
+  const [debugResult, setDebugResult] = useState<any>(null);
 
   const load = useCallback(async (pg = 1) => {
     setLoading(true);
@@ -187,6 +188,23 @@ const AdminFinanceReport: React.FC = () => {
   const applyFilter = () => {
     setPage(1);
     load(1);
+  };
+
+  const testDelhiveryRate = async () => {
+    // Use the first row's destination pincode for the test
+    const firstWithPin = rows.find((r) => r.delhivery.awb);
+    const pin = prompt("Test ke liye destination pincode daalo (6 digits):", "600001");
+    if (!pin || !/^\d{6}$/.test(pin)) return;
+    const isCOD = firstWithPin?.paymentMode === "COD" ? "true" : "false";
+    const total = firstWithPin?.orderAmount || 500;
+    try {
+      const { data } = await api.get("/payments/admin/debug-delhivery-rate", {
+        params: { pin, isCOD, total, cgm: 500 },
+      });
+      setDebugResult(data);
+    } catch (err: any) {
+      setDebugResult({ error: err?.response?.data || err.message });
+    }
   };
 
   const resetFilter = () => {
@@ -269,6 +287,10 @@ const AdminFinanceReport: React.FC = () => {
           </button>
           <button onClick={exportExcel} disabled={!rows.length} style={btnGreen}>
             <FiDownload /> Excel
+          </button>
+          <button onClick={testDelhiveryRate} style={{ ...btnGhost, fontSize: 12, padding: "7px 10px" }}
+            title="Test Delhivery rate API — check karo kya response aa raha hai">
+            🔍 Debug Rate
           </button>
         </div>
       </div>
@@ -392,8 +414,7 @@ const AdminFinanceReport: React.FC = () => {
           <table style={{ width: "100%", borderCollapse: "collapse", fontSize: 13 }}>
             <thead>
               <tr style={{ background: "#f9fafb", borderBottom: "2px solid #e5e7eb" }}>
-                <th style={thSt}>Order No</th>
-                <th style={thSt}>Date</th>
+                <th style={thSt}>Order No / Date</th>
                 <th style={thSt}>Customer</th>
                 <th style={thSt}>Mode</th>
                 <th style={thSt}>Order Amt</th>
@@ -455,16 +476,14 @@ const AdminFinanceReport: React.FC = () => {
                       (e.currentTarget.style.background = "transparent")
                     }
                   >
-                    {/* Order No */}
+                    {/* Order No + Date */}
                     <td style={tdSt}>
                       <div style={{ fontWeight: 700, color: "#111827" }}>
                         {r.orderNumber}
                       </div>
-                    </td>
-
-                    {/* Date */}
-                    <td style={{ ...tdSt, whiteSpace: "nowrap", fontSize: 12, color: "#6b7280" }}>
-                      {fmtDate(r.date)}
+                      <div style={{ fontSize: 11, color: "#9ca3af", marginTop: 2, whiteSpace: "nowrap" }}>
+                        {fmtDate(r.date)}
+                      </div>
                     </td>
 
                     {/* Customer */}
@@ -727,7 +746,7 @@ const AdminFinanceReport: React.FC = () => {
                     fontWeight: 700,
                   }}
                 >
-                  <td colSpan={4} style={{ ...tdSt, color: "#374151" }}>
+                  <td colSpan={3} style={{ ...tdSt, color: "#374151" }}>
                     Page Total ({rows.length} orders)
                   </td>
                   <td style={{ ...tdSt, color: "#111827" }}>

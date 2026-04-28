@@ -31,7 +31,12 @@ type DelInfo = {
   shippingCharge: number;
   codAmount: number;
   advancePaid: number;
-  deliveryStatus: string;
+  liveStatus: string;
+  statusType: string;
+  lastUpdate: string | null;
+  location: string;
+  expectedDate: string | null;
+  chargedWeight: number;
 };
 
 type Row = {
@@ -531,26 +536,63 @@ const AdminFinanceReport: React.FC = () => {
                       ) : null}
                     </td>
 
-                    {/* AWB */}
+                    {/* AWB + Live Status */}
                     <td
                       style={{
                         ...tdSt,
                         borderLeft: "2px solid #bbf7d0",
-                        fontFamily: "monospace",
-                        fontSize: 11,
-                        color: "#374151",
                       }}
                     >
                       {r.delhivery.awb ? (
-                        r.delhivery.awb
+                        <>
+                          <div style={{ fontFamily: "monospace", fontSize: 11, color: "#374151" }}>
+                            {r.delhivery.awb}
+                          </div>
+                          {r.delhivery.liveStatus && (
+                            <div
+                              style={{
+                                fontSize: 10,
+                                marginTop: 2,
+                                fontWeight: 600,
+                                color:
+                                  r.delhivery.statusType === "DL"
+                                    ? "#059669"
+                                    : r.delhivery.statusType === "UD" || r.delhivery.statusType === "RT"
+                                    ? "#dc2626"
+                                    : "#2563eb",
+                              }}
+                            >
+                              {r.delhivery.liveStatus}
+                            </div>
+                          )}
+                          {r.delhivery.location && (
+                            <div style={{ fontSize: 10, color: "#9ca3af" }}>
+                              📍 {r.delhivery.location}
+                            </div>
+                          )}
+                          {r.delhivery.lastUpdate && (
+                            <div style={{ fontSize: 10, color: "#9ca3af" }}>
+                              {new Date(r.delhivery.lastUpdate).toLocaleString("en-IN", {
+                                day: "2-digit", month: "short", hour: "2-digit", minute: "2-digit"
+                              })}
+                            </div>
+                          )}
+                        </>
                       ) : (
-                        <span style={{ color: "#d1d5db" }}>No AWB</span>
+                        <span style={{ color: "#d1d5db", fontSize: 12 }}>No AWB</span>
                       )}
                     </td>
 
                     {/* Shipping Charge */}
                     <td style={{ ...tdSt, color: "#6b7280" }}>
-                      {r.shippingCharge > 0 ? fmtINR(r.shippingCharge) : <span style={{ color: "#d1d5db" }}>Free</span>}
+                      {r.shippingCharge > 0 ? fmtINR(r.shippingCharge) : (
+                        <span style={{ color: "#d1d5db" }}>Free</span>
+                      )}
+                      {r.delhivery.chargedWeight > 0 && (
+                        <div style={{ fontSize: 10, color: "#9ca3af" }}>
+                          {r.delhivery.chargedWeight}g charged
+                        </div>
+                      )}
                     </td>
 
                     {/* COD Amount */}
@@ -593,10 +635,18 @@ const AdminFinanceReport: React.FC = () => {
                           fontSize: 11,
                           fontWeight: 700,
                           textTransform: "capitalize",
+                          display: "inline-block",
                         }}
                       >
                         {r.status}
                       </span>
+                      {r.delhivery.expectedDate && r.status !== "delivered" && (
+                        <div style={{ fontSize: 10, color: "#9ca3af", marginTop: 2 }}>
+                          ETA: {new Date(r.delhivery.expectedDate).toLocaleDateString("en-IN", {
+                            day: "2-digit", month: "short"
+                          })}
+                        </div>
+                      )}
                     </td>
                   </tr>
                 ))

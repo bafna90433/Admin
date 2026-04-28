@@ -108,7 +108,9 @@
 }
 
 .page-content {
-  padding: 16px;
+  padding: 0;
+  overflow-x: auto;
+  min-width: 0;
 }
 
 /* ============== MOBILE HEADER ============== */

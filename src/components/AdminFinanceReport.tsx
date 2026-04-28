@@ -32,6 +32,10 @@ type DelInfo = {
   codAmount: number;
   advancePaid: number;
   remainingAmt: number;
+  actualFreight: number | null;
+  actualCodCharge: number | null;
+  actualTotal: number | null;
+  zone: string;
   liveStatus: string;
   statusType: string;
   lastUpdate: string | null;
@@ -62,6 +66,8 @@ type Summary = {
   totalRzpTax: number;
   totalShippingCharge: number;
   totalNetReceipt: number;
+  totalDelFreight: number;
+  totalDelCodCharge: number;
   onlineCount: number;
   codCount: number;
 };
@@ -231,9 +237,10 @@ const AdminFinanceReport: React.FC = () => {
   return (
     <div
       style={{
-        padding: "24px 20px",
-        maxWidth: 1500,
-        margin: "0 auto",
+        padding: "20px 16px",
+        width: "100%",
+        minWidth: 0,
+        boxSizing: "border-box",
         fontFamily: "'Plus Jakarta Sans', 'Inter', sans-serif",
       }}
     >
@@ -299,6 +306,14 @@ const AdminFinanceReport: React.FC = () => {
             sub={`${summary.codCount} COD · ${summary.onlineCount} Online`}
             bg="#ede9fe"
             color="#7c3aed"
+            icon={<FiTruck />}
+          />
+          <StatCard
+            label="Del Freight Cost"
+            value={summary.totalDelFreight > 0 ? fmtINR(summary.totalDelFreight) : "—"}
+            sub={`COD fee: ${summary.totalDelCodCharge > 0 ? fmtINR(summary.totalDelCodCharge) : "₹0"}`}
+            bg="#fee2e2"
+            color="#dc2626"
             icon={<FiTruck />}
           />
           <StatCard
@@ -396,9 +411,10 @@ const AdminFinanceReport: React.FC = () => {
                 <th
                   style={{ ...thSt, borderLeft: "2px solid #bbf7d0", color: "#059669" }}
                 >
-                  🚚 AWB
+                  🚚 AWB / Status
                 </th>
-                <th style={{ ...thSt, color: "#059669" }}>Shipping</th>
+                <th style={{ ...thSt, color: "#059669" }}>Del Freight</th>
+                <th style={{ ...thSt, color: "#059669" }}>COD Fee</th>
                 <th style={{ ...thSt, color: "#059669" }}>COD Amt</th>
 
                 {/* Net */}
@@ -584,15 +600,31 @@ const AdminFinanceReport: React.FC = () => {
                       )}
                     </td>
 
-                    {/* Shipping Charge */}
-                    <td style={{ ...tdSt, color: "#6b7280" }}>
-                      {r.shippingCharge > 0 ? fmtINR(r.shippingCharge) : (
-                        <span style={{ color: "#d1d5db" }}>Free</span>
+                    {/* Actual Delhivery Freight */}
+                    <td style={{ ...tdSt, color: "#dc2626", fontWeight: 600 }}>
+                      {r.delhivery.actualFreight != null ? (
+                        <>
+                          {fmtINR(r.delhivery.actualFreight)}
+                          {r.delhivery.chargedWeight > 0 && (
+                            <div style={{ fontSize: 10, color: "#9ca3af" }}>
+                              {r.delhivery.chargedWeight}g
+                              {r.delhivery.zone ? ` · ${r.delhivery.zone}` : ""}
+                            </div>
+                          )}
+                        </>
+                      ) : (
+                        <span style={{ color: "#d1d5db", fontWeight: 400 }}>
+                          {r.delhivery.awb ? "Calc..." : "—"}
+                        </span>
                       )}
-                      {r.delhivery.chargedWeight > 0 && (
-                        <div style={{ fontSize: 10, color: "#9ca3af" }}>
-                          {r.delhivery.chargedWeight}g charged
-                        </div>
+                    </td>
+
+                    {/* Actual Delhivery COD Fee */}
+                    <td style={{ ...tdSt, color: "#d97706" }}>
+                      {r.delhivery.actualCodCharge != null && r.delhivery.actualCodCharge > 0 ? (
+                        fmtINR(r.delhivery.actualCodCharge)
+                      ) : (
+                        <span style={{ color: "#d1d5db" }}>—</span>
                       )}
                     </td>
 
@@ -701,16 +733,17 @@ const AdminFinanceReport: React.FC = () => {
                   <td style={{ ...tdSt, color: "#111827" }}>
                     {fmtINR(summary.totalOrderAmount)}
                   </td>
-                  <td style={{ ...tdSt, borderLeft: "2px solid #e0e7ff", color: "#4f46e5" }}>
-                    —
-                  </td>
+                  <td style={{ ...tdSt, borderLeft: "2px solid #e0e7ff", color: "#4f46e5" }}>—</td>
                   <td style={{ ...tdSt, color: "#d97706" }}>
-                    {fmtINR(summary.totalRzpFee + summary.totalRzpTax)}
+                    {fmtINR(summary.totalRzpFee)}
                   </td>
                   <td style={{ ...tdSt, color: "#059669" }}>—</td>
                   <td style={{ ...tdSt, borderLeft: "2px solid #bbf7d0" }}>—</td>
-                  <td style={{ ...tdSt, color: "#6b7280" }}>
-                    {fmtINR(summary.totalShippingCharge)}
+                  <td style={{ ...tdSt, color: "#dc2626" }}>
+                    {summary.totalDelFreight > 0 ? fmtINR(summary.totalDelFreight) : "—"}
+                  </td>
+                  <td style={{ ...tdSt, color: "#d97706" }}>
+                    {summary.totalDelCodCharge > 0 ? fmtINR(summary.totalDelCodCharge) : "—"}
                   </td>
                   <td>—</td>
                   <td

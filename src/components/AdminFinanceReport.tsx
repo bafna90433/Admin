@@ -31,6 +31,7 @@ type DelInfo = {
   shippingCharge: number;
   codAmount: number;
   advancePaid: number;
+  remainingAmt: number;
   liveStatus: string;
   statusType: string;
   lastUpdate: string | null;
@@ -388,7 +389,7 @@ const AdminFinanceReport: React.FC = () => {
                 >
                   💳 RZP Received
                 </th>
-                <th style={{ ...thSt, color: "#4f46e5" }}>RZP Fees+GST</th>
+                <th style={{ ...thSt, color: "#4f46e5" }}>RZP Total Fee</th>
                 <th style={{ ...thSt, color: "#4f46e5" }}>RZP Net</th>
 
                 {/* Delhivery group */}
@@ -512,13 +513,13 @@ const AdminFinanceReport: React.FC = () => {
                       )}
                     </td>
 
-                    {/* RZP Fees + GST */}
+                    {/* RZP Total Fee (fee already includes GST) */}
                     <td style={{ ...tdSt, color: "#d97706" }}>
                       {r.razorpay ? (
                         <>
-                          {fmtINR(r.razorpay.fee + r.razorpay.gst)}
+                          {fmtINR(r.razorpay.fee)}
                           <div style={{ fontSize: 10, color: "#9ca3af" }}>
-                            fee {fmtINR(r.razorpay.fee)} + GST {fmtINR(r.razorpay.gst)}
+                            base {fmtINR(r.razorpay.fee - r.razorpay.gst)} + GST {fmtINR(r.razorpay.gst)}
                           </div>
                         </>
                       ) : (
@@ -596,16 +597,41 @@ const AdminFinanceReport: React.FC = () => {
                     </td>
 
                     {/* COD Amount */}
-                    <td style={{ ...tdSt, fontWeight: 600, color: "#059669" }}>
+                    <td style={{ ...tdSt, fontWeight: 600 }}>
                       {r.delhivery.codAmount > 0 ? (
-                        <>
-                          {fmtINR(r.delhivery.codAmount)}
-                          {r.delhivery.advancePaid > 0 && (
-                            <div style={{ fontSize: 10, color: "#9ca3af" }}>
-                              advance: {fmtINR(r.delhivery.advancePaid)}
+                        r.delhivery.advancePaid > 0 ? (
+                          // COD with advance — show breakdown
+                          <div>
+                            <div style={{ color: "#4f46e5", fontSize: 12 }}>
+                              💳 Adv: {fmtINR(r.delhivery.advancePaid)}
+                              {r.razorpay && (
+                                <span style={{ fontSize: 10, color: "#9ca3af", marginLeft: 4 }}>
+                                  (net {fmtINR(r.razorpay.net)})
+                                </span>
+                              )}
                             </div>
-                          )}
-                        </>
+                            <div style={{ color: "#059669", fontSize: 12, marginTop: 2 }}>
+                              🚪 COD: {fmtINR(r.delhivery.remainingAmt)}
+                            </div>
+                            <div
+                              style={{
+                                fontSize: 11,
+                                color: "#374151",
+                                fontWeight: 700,
+                                borderTop: "1px dashed #e5e7eb",
+                                marginTop: 3,
+                                paddingTop: 3,
+                              }}
+                            >
+                              Total: {fmtINR(r.delhivery.codAmount)}
+                            </div>
+                          </div>
+                        ) : (
+                          // Pure COD — no advance
+                          <span style={{ color: "#059669" }}>
+                            {fmtINR(r.delhivery.codAmount)}
+                          </span>
+                        )
                       ) : (
                         <span style={{ color: "#d1d5db" }}>—</span>
                       )}
@@ -622,6 +648,12 @@ const AdminFinanceReport: React.FC = () => {
                       }}
                     >
                       {fmtINR(r.netReceipt)}
+                      {/* COD+advance breakdown */}
+                      {r.paymentMode === "COD" && r.delhivery.advancePaid > 0 && r.razorpay && (
+                        <div style={{ fontSize: 10, color: "#9ca3af", fontWeight: 400, lineHeight: 1.4 }}>
+                          {fmtINR(r.razorpay.net)} + {fmtINR(r.delhivery.remainingAmt)}
+                        </div>
+                      )}
                     </td>
 
                     {/* Status */}

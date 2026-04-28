@@ -42,6 +42,7 @@ type DelInfo = {
   location: string;
   expectedDate: string | null;
   chargedWeight: number;
+  fromLedger?: boolean;
 };
 
 type Row = {
@@ -150,6 +151,7 @@ const AdminFinanceReport: React.FC = () => {
   const [rows, setRows] = useState<Row[]>([]);
   const [summary, setSummary] = useState<Summary | null>(null);
   const [loading, setLoading] = useState(false);
+  const [csvUploading, setCsvUploading] = useState(false);
 
   const [page, setPage] = useState(1);
   const [totalPages, setTotalPages] = useState(1);
@@ -211,6 +213,26 @@ const AdminFinanceReport: React.FC = () => {
     setFrom("");
     setTo("");
     setModeFilter("ALL");
+  };
+
+  const handleCsvUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    e.target.value = "";
+    setCsvUploading(true);
+    try {
+      const formData = new FormData();
+      formData.append("csv", file);
+      const { data } = await api.post("/payments/admin/upload-delhivery-csv", formData, {
+        headers: { "Content-Type": "multipart/form-data" },
+      });
+      alert(`CSV imported!\nNew: ${data.upserted} | Updated: ${data.modified} | Total rows: ${data.total}`);
+      load(page);
+    } catch (err: any) {
+      alert(err?.response?.data?.message || "CSV upload failed");
+    } finally {
+      setCsvUploading(false);
+    }
   };
 
   const exportExcel = () => {
@@ -281,13 +303,35 @@ const AdminFinanceReport: React.FC = () => {
             Har order ka Razorpay + Delhivery combined financial view — ek jagah sab kuch
           </p>
         </div>
-        <div style={{ display: "flex", gap: 8 }}>
+        <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
           <button onClick={() => load(page)} style={btnPrimary}>
             <FiRefreshCw /> Refresh
           </button>
           <button onClick={exportExcel} disabled={!rows.length} style={btnGreen}>
             <FiDownload /> Excel
           </button>
+          <label
+            style={{
+              ...btnGhost,
+              cursor: csvUploading ? "not-allowed" : "pointer",
+              opacity: csvUploading ? 0.6 : 1,
+              fontSize: 13,
+              padding: "7px 12px",
+              display: "flex",
+              alignItems: "center",
+              gap: 6,
+            }}
+            title="Delhivery settlement CSV upload karo — actual charges dikhenge"
+          >
+            {csvUploading ? "Uploading..." : "📤 Upload Delhivery CSV"}
+            <input
+              type="file"
+              accept=".csv,.tsv,.txt"
+              style={{ display: "none" }}
+              disabled={csvUploading}
+              onChange={handleCsvUpload}
+            />
+          </label>
           <button onClick={testDelhiveryRate} style={{ ...btnGhost, fontSize: 12, padding: "7px 10px" }}
             title="Test Delhivery rate API — check karo kya response aa raha hai">
             🔍 Debug Rate
@@ -624,12 +668,13 @@ const AdminFinanceReport: React.FC = () => {
                       {r.delhivery.actualFreight != null ? (
                         <>
                           {fmtINR(r.delhivery.actualFreight)}
-                          {r.delhivery.chargedWeight > 0 && (
-                            <div style={{ fontSize: 10, color: "#9ca3af" }}>
-                              {r.delhivery.chargedWeight}g
-                              {r.delhivery.zone ? ` · ${r.delhivery.zone}` : ""}
-                            </div>
-                          )}
+                          <div style={{ fontSize: 10, color: "#9ca3af" }}>
+                            {r.delhivery.fromLedger
+                              ? <span style={{ color: "#059669", fontWeight: 700 }}>✓ CSV</span>
+                              : r.delhivery.chargedWeight > 0 ? `${r.delhivery.chargedWeight}g` : "est."
+                            }
+                            {r.delhivery.zone ? ` · ${r.delhivery.zone}` : ""}
+                          </div>
                         </>
                       ) : (
                         <span style={{ color: "#d1d5db", fontWeight: 400 }}>

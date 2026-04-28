@@ -63,6 +63,9 @@ import AdminTransactions from "./components/AdminTransactions";
 // ✅ NEW: Delhivery Control Panel (Shipments + NDR + Pickup + Pincode + Rate)
 import AdminDelhivery from "./components/AdminDelhivery";
 
+// ✅ NEW: Finance Report (Razorpay + Delhivery combined)
+import AdminFinanceReport from "./components/AdminFinanceReport";
+
 // ✅ NEW: Bulk WhatsApp Campaigns (broadcast to customers / offers / new product)
 import AdminCampaigns from "./components/AdminCampaigns";
 
@@ -166,6 +169,9 @@ const App: React.FC = () => {
 
           {/* ✅ NEW: Delhivery Control Panel */}
           <Route path="delhivery" element={<AdminDelhivery />} />
+
+          {/* ✅ NEW: Finance Report */}
+          <Route path="finance-report" element={<AdminFinanceReport />} />
 
           {/* ✅ NEW: Bulk WhatsApp Campaigns */}
           <Route path="campaigns" element={<AdminCampaigns />} />

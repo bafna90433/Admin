@@ -410,6 +410,15 @@ const Sidebar: React.FC<SidebarProps> = ({ sidebarOpen, closeSidebar }) => {
                   gradient="blue"
                 />
               )}
+
+              {hasAccess("finance") && (
+                <NavItem
+                  to="/admin/finance-report"
+                  icon={FiGrid}
+                  label="Finance Report"
+                  gradient="purple"
+                />
+              )}
               
               {hasAccess("settings") && (
                 <NavItem

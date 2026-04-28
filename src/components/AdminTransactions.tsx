@@ -25,6 +25,7 @@ import { FaRupeeSign } from "react-icons/fa";
 type Txn = {
   id: string;
   orderId: string;
+  siteOrderNumber?: string | null;
   amount: number;
   currency: string;
   status: string;
@@ -323,7 +324,8 @@ const AdminTransactions: React.FC = () => {
     if (txns.length === 0) return;
     const rows = txns.map((t) => ({
       "Payment ID": t.id,
-      "Order ID": t.orderId,
+      "Site Order No": t.siteOrderNumber || "",
+      "Razorpay Order ID": t.orderId,
       Date: fmtDate(t.createdAt),
       Amount: t.amount,
       Fee: t.fee,
@@ -670,8 +672,24 @@ const AdminTransactions: React.FC = () => {
                           >
                             {t.id}
                           </div>
+                          {t.siteOrderNumber && (
+                            <div
+                              style={{
+                                fontSize: 11,
+                                fontWeight: 700,
+                                color: "#059669",
+                                background: "#d1fae5",
+                                borderRadius: 4,
+                                padding: "1px 5px",
+                                display: "inline-block",
+                                marginTop: 2,
+                              }}
+                            >
+                              {t.siteOrderNumber}
+                            </div>
+                          )}
                           {t.orderId && (
-                            <div style={{ fontSize: 11, color: "#6b7280" }}>{t.orderId}</div>
+                            <div style={{ fontSize: 10, color: "#9ca3af", marginTop: 2 }}>{t.orderId}</div>
                           )}
                         </td>
                         <td style={{ ...tdStyle, whiteSpace: "nowrap" }}>{fmtDate(t.createdAt)}</td>

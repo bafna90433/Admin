@@ -1654,33 +1654,38 @@ const AdminOrders: React.FC = () => {
                 </div>
               </div>
 
-              {/* Tracking */}
+              {/* Tracking — Box 1 + all split boxes */}
               {viewing.isShipped && viewing.trackingId && (
-                <div className="ao-modal-tracking">
-                  <div className="ao-modal-tracking-left">
-                    <span className="ao-tracking-dot" />
-                    <span>
-                      <b>{viewing.courierName}</b> ·{" "}
-                      {viewing.trackingId}
-                    </span>
+                <>
+                  <div className="ao-modal-tracking">
+                    <div className="ao-modal-tracking-left">
+                      <span className="ao-tracking-dot" />
+                      <span>
+                        <b>Box 1 · {viewing.courierName}</b> · {viewing.trackingId}
+                      </span>
+                    </div>
+                    {getExternalTrackingLink(viewing.courierName, viewing.trackingId) && (
+                      <a href={getExternalTrackingLink(viewing.courierName, viewing.trackingId)!}
+                        target="_blank" rel="noreferrer" className="ao-track-link">
+                        Track Live →
+                      </a>
+                    )}
                   </div>
-                  {getExternalTrackingLink(
-                    viewing.courierName,
-                    viewing.trackingId
-                  ) && (
-                    <a
-                      href={getExternalTrackingLink(
-                        viewing.courierName,
-                        viewing.trackingId
-                      )!}
-                      target="_blank"
-                      rel="noreferrer"
-                      className="ao-track-link"
-                    >
-                      Track Live →
-                    </a>
-                  )}
-                </div>
+                  {(viewing.splitShipments || []).map((s) => (
+                    <div key={s.awb} className="ao-modal-tracking" style={{ marginTop: 6, borderColor: "#ede9fe", background: "#faf5ff" }}>
+                      <div className="ao-modal-tracking-left">
+                        <span className="ao-tracking-dot" style={{ background: "#7c3aed" }} />
+                        <span>
+                          <b style={{ color: "#7c3aed" }}>Box {s.boxNumber} · Delhivery</b> · {s.awb}
+                        </span>
+                      </div>
+                      <a href={`https://www.delhivery.com/track-v2/package/${s.awb}`}
+                        target="_blank" rel="noreferrer" className="ao-track-link">
+                        Track Live →
+                      </a>
+                    </div>
+                  ))}
+                </>
               )}
 
               {/* Items */}

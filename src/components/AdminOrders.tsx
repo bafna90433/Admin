@@ -82,6 +82,7 @@ type Order = {
   courierName?: string;
   trackingToken?: string;
   cancelledBy?: string;
+  splitShipments?: { awb: string; boxNumber: number; weightKg: number; courier: string; createdAt: string }[];
   wa?: {
     orderConfirmedSent?: boolean;
     trackingSent?: boolean;
@@ -406,6 +407,17 @@ const AdminOrders: React.FC = () => {
   const [shipErr, setShipErr] = useState("");
   const [manualAdvance, setManualAdvance] = useState(0);
   const [isAdvanceUnlocked, setIsAdvanceUnlocked] = useState(false);
+
+  /* split shipment modal (2nd box) */
+  const [splitOpen, setSplitOpen] = useState(false);
+  const [splitOrder, setSplitOrder] = useState<Order | null>(null);
+  const [splitBoxes, setSplitBoxes] = useState<Record<BoxSize, { qty: number; weight: number }>>({
+    A28: { qty: 0, weight: 0 }, A06: { qty: 0, weight: 0 },
+    A08: { qty: 0, weight: 0 }, A31: { qty: 0, weight: 0 }, A18: { qty: 0, weight: 0 },
+  });
+  const [splitLoading, setSplitLoading] = useState(false);
+  const [splitResult, setSplitResult] = useState<string | null>(null);
+  const [splitErr, setSplitErr] = useState("");
   const [boxes, setBoxes] = useState<
     Record<BoxSize, { qty: number; weight: number }>
   >({
@@ -713,6 +725,50 @@ const AdminOrders: React.FC = () => {
       setShipErr(e?.response?.data?.message || "Shipping failed.");
     } finally {
       setActOn(null);
+    }
+  };
+
+  /* --- split shipment --- */
+  const openSplitModal = (o: Order) => {
+    setSplitOrder(o);
+    setSplitBoxes({ A28: { qty: 0, weight: 0 }, A06: { qty: 0, weight: 0 }, A08: { qty: 0, weight: 0 }, A31: { qty: 0, weight: 0 }, A18: { qty: 0, weight: 0 } });
+    setSplitResult(null); setSplitErr("");
+    setSplitOpen(true);
+  };
+
+  const handleSplitBoxQty = (size: BoxSize, value: string) => {
+    const qty = Math.max(0, Number(value) || 0);
+    setSplitBoxes((prev) => ({ ...prev, [size]: { qty, weight: qty * BOX_WEIGHTS_KG[size] } }));
+  };
+
+  const submitSplit = async () => {
+    if (!splitOrder) return;
+    const totalQty = BOX_SIZES.reduce((s, k) => s + splitBoxes[k].qty, 0);
+    if (totalQty === 0) { setSplitErr("Kam se kam 1 box select karo."); return; }
+    setSplitLoading(true); setSplitErr(""); setSplitResult(null);
+    try {
+      const boxNumber = (splitOrder.splitShipments?.length || 0) + 2;
+      const packingDetails = BOX_SIZES.filter((k) => splitBoxes[k].qty > 0).map((k) => ({
+        boxType: k, quantity: splitBoxes[k].qty, totalWeight: splitBoxes[k].weight,
+      }));
+      const { data } = await api.post("/shipping/create-split", {
+        orderId: splitOrder._id,
+        boxNumber,
+        packingDetails,
+      });
+      setSplitResult(data.awb);
+      const totalWeight = BOX_SIZES.reduce((s, k) => s + splitBoxes[k].weight, 0);
+      setAllOrders((prev) =>
+        prev.map((o) =>
+          o._id === splitOrder._id
+            ? { ...o, splitShipments: [...(o.splitShipments || []), { awb: data.awb, boxNumber, weightKg: totalWeight, courier: "Delhivery", createdAt: new Date().toISOString() }] }
+            : o
+        )
+      );
+    } catch (e: any) {
+      setSplitErr(e?.response?.data?.message || e?.response?.data?.error || "Split shipment failed");
+    } finally {
+      setSplitLoading(false);
     }
   };
 
@@ -1294,10 +1350,18 @@ const AdminOrders: React.FC = () => {
                     <div className="ao-tracking-row">
                       <span className="ao-tracking-icon">🚚</span>
                       <span>
-                        {o.courierName}: <b>{o.trackingId}</b>
+                        Box 1: <b>{o.trackingId}</b>
                       </span>
                     </div>
                   )}
+                  {(o.splitShipments || []).map((s) => (
+                    <div key={s.awb} className="ao-tracking-row" style={{ marginTop: 2 }}>
+                      <span className="ao-tracking-icon">📦</span>
+                      <span style={{ color: "#7c3aed" }}>
+                        Box {s.boxNumber}: <b>{s.awb}</b>
+                      </span>
+                    </div>
+                  ))}
                 </div>
 
                 {/* Card Footer */}
@@ -1344,6 +1408,16 @@ const AdminOrders: React.FC = () => {
                   >
                     {o.isShipped ? "✏️ Update" : "🚚 Ship"}
                   </button>
+                  {o.isShipped && o.trackingId && (
+                    <button
+                      className="ao-card-act-btn"
+                      style={{ background: "#7c3aed", color: "#fff", fontSize: 12, padding: "5px 10px" }}
+                      title="2nd box ke liye alag AWB banao"
+                      onClick={() => openSplitModal(o)}
+                    >
+                      📦 +Box
+                    </button>
+                  )}
                 </div>
               </div>
             ))}
@@ -1701,6 +1775,91 @@ const AdminOrders: React.FC = () => {
                     <span>₹{viewing.total.toLocaleString()}</span>
                   </div>
                 </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* ========== SPLIT SHIPMENT MODAL (2nd Box) ========== */}
+      {splitOpen && splitOrder && (
+        <div className="ao-overlay" onClick={() => setSplitOpen(false)}>
+          <div className="ao-modal ao-modal-ship" onClick={(e) => e.stopPropagation()} style={{ maxWidth: 420 }}>
+            <div className="ao-modal-head">
+              <h3>📦 Add Extra Box — #{splitOrder.orderNumber}</h3>
+              <button className="ao-modal-close" onClick={() => setSplitOpen(false)}>✕</button>
+            </div>
+            <div className="ao-ship-body">
+              {/* Summary */}
+              <div className="ao-ship-summary" style={{ marginBottom: 14 }}>
+                <div className="ao-ship-summary-row">
+                  <span>{splitOrder.shippingAddress?.shopName || splitOrder.customerId?.shopName || "Customer"}</span>
+                  <span style={{ color: "#7c3aed", fontWeight: 700 }}>
+                    Box {(splitOrder.splitShipments?.length || 0) + 2}
+                  </span>
+                </div>
+                <div style={{ fontSize: 12, color: "#6b7280", marginTop: 4 }}>
+                  Box 1 AWB: <b>{splitOrder.trackingId}</b>
+                </div>
+                {(splitOrder.splitShipments || []).map((s) => (
+                  <div key={s.awb} style={{ fontSize: 12, color: "#7c3aed", marginTop: 2 }}>
+                    Box {s.boxNumber} AWB: <b>{s.awb}</b>
+                  </div>
+                ))}
+              </div>
+
+              {/* Box Sizes — same as main ship modal */}
+              <div className="ao-field">
+                <label className="ao-field-label">🗃️ Packing Details</label>
+                <div className="ao-box-grid">
+                  {BOX_SIZES.map((size) => (
+                    <div key={size} className="ao-box-row">
+                      <span className="ao-box-label">{size}</span>
+                      <input
+                        type="number" min="0" placeholder="Qty"
+                        value={splitBoxes[size].qty || ""}
+                        onChange={(e) => handleSplitBoxQty(size, e.target.value)}
+                        className="ao-box-input"
+                      />
+                      <span className="ao-box-weight">
+                        {(splitBoxes[size].weight * 1000).toLocaleString()}g
+                      </span>
+                    </div>
+                  ))}
+                </div>
+                {BOX_SIZES.reduce((s, k) => s + splitBoxes[k].qty, 0) > 0 && (
+                  <div className="ao-box-total">
+                    <span>Total: {BOX_SIZES.reduce((s, k) => s + splitBoxes[k].qty, 0)} boxes</span>
+                    <span>{(BOX_SIZES.reduce((s, k) => s + splitBoxes[k].weight, 0) * 1000).toLocaleString()}g ({BOX_SIZES.reduce((s, k) => s + splitBoxes[k].weight, 0).toFixed(2)} kg)</span>
+                  </div>
+                )}
+              </div>
+
+              {/* Result */}
+              {splitResult && (
+                <div style={{ background: "#d1fae5", border: "1px solid #6ee7b7", borderRadius: 10, padding: "12px 14px", marginTop: 8 }}>
+                  <div style={{ fontWeight: 700, color: "#065f46", fontSize: 15 }}>✅ AWB Generated!</div>
+                  <div style={{ fontSize: 18, fontWeight: 800, color: "#059669", marginTop: 4, letterSpacing: 1 }}>{splitResult}</div>
+                  <div style={{ fontSize: 12, color: "#6b7280", marginTop: 4 }}>Isko print karke box pe lagao</div>
+                </div>
+              )}
+
+              {splitErr && (
+                <div className="ao-alert ao-alert-error ao-alert-sm" style={{ marginTop: 8 }}>⚠️ {splitErr}</div>
+              )}
+
+              <div className="ao-ship-actions" style={{ marginTop: 16 }}>
+                <button className="ao-btn ao-btn-ghost" onClick={() => setSplitOpen(false)}>Close</button>
+                {!splitResult && (
+                  <button
+                    className="ao-btn ao-btn-primary"
+                    style={{ background: "#7c3aed" }}
+                    onClick={submitSplit}
+                    disabled={splitLoading}
+                  >
+                    {splitLoading ? "Creating AWB…" : "📦 Generate Box AWB"}
+                  </button>
+                )}
               </div>
             </div>
           </div>
